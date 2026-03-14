@@ -1,0 +1,29 @@
+{
+  "gateway": {
+    "mode": "local",
+    "bind": "loopback",
+    "port": 53000
+  },
+  "security": {
+    "originAllowlist": []
+  },
+  "models": {
+    "provider": "openai",
+    "activeProviderId": "Moonshot-1772813283226",
+    "providers": [
+      {
+        "id": "OpenAI-1772813276828",
+        "kind": "openai_compatible",
+        "title": "OpenAI",
+        "baseUrl": "https://api.openai.com/v1"
+      },
+      {
+        "id": "Moonshot-1772813283226",
+        "kind": "openai_compatible",
+        "title": "Moonshot",
+        "baseUrl": "https://api.moonshot.cn/v1",
+        "headers": {}
+      }
+    ]
+  }
+}

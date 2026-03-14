@@ -1,0 +1,43 @@
+{
+  "compilerOptions": {
+    "target": "ES2022",
+    "module": "ESNext",
+    "moduleResolution": "bundler",
+    "allowImportingTsExtensions": true,
+    "strict": true,
+    "noEmit": true,
+    "isolatedModules": true,
+    "skipLibCheck": true,
+    "esModuleInterop": true,
+    "allowSyntheticDefaultImports": true,
+    "forceConsistentCasingInFileNames": true,
+    "useDefineForClassFields": true,
+    "experimentalDecorators": true,
+    "emitDecoratorMetadata": true,
+    "jsx": "preserve",
+    "types": ["node", "vite/client"],
+    "baseUrl": ".",
+    "paths": {
+      "@/*": ["packages/renderer-react/src/*"],
+      "@main/*": ["packages/main/src/*"],
+      "@preload/*": ["packages/preload/src/*"],
+      "@renderer/*": ["packages/renderer-react/src/*"],
+      "@types/*": ["types/*"]
+    }
+  },
+  "include": [
+    "packages/main/src/**/*",
+    "packages/preload/src/**/*",
+    "packages/renderer-react/src/**/*",
+    "packages/entry-point.mjs",
+    "packages/dev-mode.js",
+    "types/**/*"
+  ],
+  "exclude": [
+    "node_modules",
+    "dist",
+    "packages/*/dist",
+    "packages/*/node_modules",
+    "packages/renderer/**"
+  ]
+}
