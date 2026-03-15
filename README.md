@@ -10,15 +10,104 @@
 
 **UfrenClaw** is a **modern Desktop AI Assistant** built with Electron, React, and OpenClaw.
 
-More than just a chat interface, it is a gateway to local intelligence. By deeply integrating with the OpenClaw Gateway, UfrenClaw brings powerful **Agentic Workflows** directly to your desktop. It transforms AI from a simple chatbot into a capable partner that understands, plans, and executes complex tasks. Whether you are a developer, creator, or productivity enthusiast, UfrenClaw empowers your workflow with unparalleled efficiency.
+More than a chat window, UfrenClaw is a gateway to local intelligence. With deep integration into the OpenClaw Gateway, it brings powerful **Agentic Workflows** to the desktop—turning AI from a chatbot into a partner that can understand goals, plan steps, and execute tasks with tools. Whether you are a developer, creator, or productivity enthusiast, UfrenClaw keeps the whole workflow close, fast, and private.
 
 ## ✨ Key Features
 
-- 🚀 **Modern Stack**: Built with React 19, TypeScript, and Vite for peak performance.
-- 🎨 **Beautiful UI**: Polished interface using Tailwind CSS and Framer Motion for a smooth visual experience.
-- 🤖 **Agentic AI**: Deep OpenClaw integration for autonomous planning, execution, and tool use.
-- 🧠 **Local First**: Native Ollama support. Private, fast, and completely local.
-- 🔒 **Secure**: Adheres to strict Electron security standards with sandboxing for peace of mind.
+- 🚀 **Modern Stack**: React 19 + TypeScript + Vite for a fast, clean dev experience.
+- 🎨 **Polished UI**: Tailwind CSS + Framer Motion for a crisp, smooth interface.
+- 🤖 **Agentic AI**: Deep OpenClaw integration for planning, multi-step execution, and tool use.
+- 🧠 **Local First**: Native Ollama support—private, fast, and fully on-device when you want it.
+- 🔒 **Secure by Default**: Electron security best practices with sandboxing and isolation.
+
+## 🧩 Modules
+
+> Not “just another chat app”—it is an agent workbench on your desktop. UfrenClaw is built around OpenClaw Gateway with composable modules: models, agents, channels, skills, and scheduled tasks, forming a complete local-first intelligence loop.
+>
+> 📸 Screenshots below are stored in `./screenshots/`.
+
+- 🧭 **Setup (First-run Wizard)**: environment checks, gateway bootstrap, and base configuration
+- 💬 **Chat (Conversation Workbench)**: streaming replies, thinking toggle, and tool results in one place
+- 🧪 **Models (Providers & Usage)**: manage providers/models and track recent token usage
+- 🧠 **Agents (Agent Hub)**: create and manage agents for different goals and contexts
+- 🔌 **Channels (Messaging Integrations)**: connect Telegram / Discord / WhatsApp / DingTalk / Feishu / WeCom / QQ and more
+- 🧰 **Skills (Skill Library)**: install, enable, and configure skill packs to extend capabilities
+- ⏱️ **Cron (Scheduled Tasks)**: run prompts on a schedule and automate recurring workflows
+- ⚙️ **Settings (Control Center)**: appearance, gateway & proxy, updates, and advanced policies
+
+### 🧭 Setup｜First-run Wizard
+
+- ✅ **Runtime checks**: verify required runtime and core services (e.g., gateway)
+- 🧷 **Provider setup**: configure AI providers and credentials
+- 🔌 **Optional channel connect**: connect messaging apps when needed
+- 🧾 **Actionable logs**: view logs and error details during setup
+
+![Setup](./screenshots/setup.png)
+
+### 💬 Chat｜Conversation Workbench
+
+- ⚡ **Streaming output**: responses appear as they are generated
+- 🧠 **Thinking toggle**: show/hide model thinking when available
+- 🛠️ **Tool call visibility**: tool usage, results, and errors surfaced clearly
+- 📎 **Attachments**: add files/images as inputs (depends on gateway + model capability)
+- 🧭 **Session & agent controls**: refresh, switch agents, and manage chat state
+
+![Chat](./screenshots/chat.png)
+
+### 🧪 Models｜Providers & Usage
+
+- 🧩 **Provider management**: add and manage multiple provider accounts/models
+- 🧯 **Fallback strategy**: configure sensible fallback behavior (as supported)
+- 📈 **Token usage tracking**: group by model or time for recent usage
+- 🧾 **Traceability**: inspect usage entries by session/agent/model/provider when available
+
+![Models](./screenshots/models.png)
+
+### 🧠 Agents｜Agent Hub
+
+- 🧬 **Create & manage agents**: build agents for different task types
+- ⭐ **Default agent**: mark a primary agent for daily use
+- 🔌 **Channel binding**: assign agents to channels for scoped delivery
+- 🧩 **Context switching**: swap “work modes” per goal—dev, writing, ops, assistant, etc.
+
+![Agents](./screenshots/agents.png)
+
+### 🔌 Channels｜Messaging Integrations
+
+- 🌐 **Unified integrations**: manage all messaging connections in one place
+- 🧷 **Guided configuration**: required fields + docs links per platform
+- 🧾 **QR / external auth**: scan or open external links when supported
+- 🔄 **Clear status**: connect / connected / failed states with refresh & reconnect
+
+![Channels](./screenshots/channels.png)
+
+### 🧰 Skills｜Skill Library
+
+- 🧩 **Skill management**: browse, search, enable/disable, uninstall
+- 🔐 **Isolated config**: per-skill API keys and env vars
+- 🧾 **Quick access**: jump to Clawhub and open skill docs/edit entry (when available)
+- 🧠 **Capability expansion**: plug tools and workflows into your agents
+
+![Skills](./screenshots/skills.png)
+
+### ⏱️ Cron｜Scheduled Tasks
+
+- 🕰️ **Presets + custom cron**: common schedules and custom expressions
+- 📨 **Scheduled prompts**: trigger prompts on time; UI-created tasks return results to UfrenClaw chat by default (delivery is handled by the gateway)
+- ⏯️ **Enable / pause**: toggle tasks anytime to avoid noise
+- 🧾 **Run info**: last/next run info and results when available
+
+![Cron](./screenshots/cron.png)
+
+### ⚙️ Settings｜Control Center
+
+- 🎛️ **Appearance**: theme (light/dark/system), language, launch on startup
+- 🔐 **Provider & auth**: manage provider accounts, models, and auth modes
+- 🧱 **Gateway & network**: gateway status/port/logs; proxy and bypass rules
+- 🧭 **Transport policy**: WS / HTTP / IPC fallback preferences
+- 🧬 **Updates**: auto-check / auto-download to stay current
+
+![Settings](./screenshots/settings.png)
 
 ## 🚀 Quick Start
 
