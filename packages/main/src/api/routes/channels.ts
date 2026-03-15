@@ -113,23 +113,47 @@ async function ensureWeComPluginInstalled(): Promise<{ installed: boolean; warni
 }
 
 async function ensureFeishuPluginInstalled(): Promise<{ installed: boolean; warning?: string }> {
-  const targetDir = join(homedir(), '.openclaw', 'extensions', 'feishu-openclaw-plugin');
+  const NEW_FEISHU_ID = 'openclaw-lark';
+  const LEGACY_FEISHU_ID = 'feishu-openclaw-plugin';
+  const extensionsDir = join(homedir(), '.openclaw', 'extensions');
+  const targetDir = join(extensionsDir, NEW_FEISHU_ID);
   const targetManifest = join(targetDir, 'openclaw.plugin.json');
 
   if (existsSync(targetManifest)) {
     return { installed: true };
   }
 
+  const legacyDir = join(extensionsDir, LEGACY_FEISHU_ID);
+  const legacyManifest = join(legacyDir, 'openclaw.plugin.json');
+  if (existsSync(legacyManifest)) {
+    try {
+      mkdirSync(extensionsDir, { recursive: true });
+      rmSync(targetDir, { recursive: true, force: true });
+      cpSync(legacyDir, targetDir, { recursive: true, dereference: true });
+      if (existsSync(targetManifest)) {
+        return { installed: true };
+      }
+    } catch {
+      // Fall through to bundled mirror install
+    }
+  }
+
   const candidateSources = app.isPackaged
     ? [
-      join(process.resourcesPath, 'openclaw-plugins', 'feishu-openclaw-plugin'),
-      join(process.resourcesPath, 'app.asar.unpacked', 'build', 'openclaw-plugins', 'feishu-openclaw-plugin'),
-      join(process.resourcesPath, 'app.asar.unpacked', 'openclaw-plugins', 'feishu-openclaw-plugin'),
+      join(process.resourcesPath, 'openclaw-plugins', NEW_FEISHU_ID),
+      join(process.resourcesPath, 'openclaw-plugins', LEGACY_FEISHU_ID),
+      join(process.resourcesPath, 'app.asar.unpacked', 'build', 'openclaw-plugins', NEW_FEISHU_ID),
+      join(process.resourcesPath, 'app.asar.unpacked', 'build', 'openclaw-plugins', LEGACY_FEISHU_ID),
+      join(process.resourcesPath, 'app.asar.unpacked', 'openclaw-plugins', NEW_FEISHU_ID),
+      join(process.resourcesPath, 'app.asar.unpacked', 'openclaw-plugins', LEGACY_FEISHU_ID),
     ]
     : [
-      join(app.getAppPath(), 'build', 'openclaw-plugins', 'feishu-openclaw-plugin'),
-      join(process.cwd(), 'build', 'openclaw-plugins', 'feishu-openclaw-plugin'),
-      join(__dirname, '../../../build/openclaw-plugins/feishu-openclaw-plugin'),
+      join(app.getAppPath(), 'build', 'openclaw-plugins', NEW_FEISHU_ID),
+      join(app.getAppPath(), 'build', 'openclaw-plugins', LEGACY_FEISHU_ID),
+      join(process.cwd(), 'build', 'openclaw-plugins', NEW_FEISHU_ID),
+      join(process.cwd(), 'build', 'openclaw-plugins', LEGACY_FEISHU_ID),
+      join(__dirname, `../../../build/openclaw-plugins/${NEW_FEISHU_ID}`),
+      join(__dirname, `../../../build/openclaw-plugins/${LEGACY_FEISHU_ID}`),
     ];
 
   const sourceDir = candidateSources.find((dir) => existsSync(join(dir, 'openclaw.plugin.json')));
@@ -141,7 +165,7 @@ async function ensureFeishuPluginInstalled(): Promise<{ installed: boolean; warn
   }
 
   try {
-    mkdirSync(join(homedir(), '.openclaw', 'extensions'), { recursive: true });
+    mkdirSync(extensionsDir, { recursive: true });
     rmSync(targetDir, { recursive: true, force: true });
     cpSync(sourceDir, targetDir, { recursive: true, dereference: true });
     if (!existsSync(targetManifest)) {

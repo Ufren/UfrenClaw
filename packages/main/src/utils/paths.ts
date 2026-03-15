@@ -99,12 +99,12 @@ export function getPreloadPath(): string {
 
 /**
  * Get OpenClaw package directory
- * - Production (packaged): from resources/openclaw (copied by electron-builder extraResources)
+ * - Production (packaged): from resources/node_modules/openclaw (copied by electron-builder extraResources)
  * - Development: from node_modules/openclaw
  */
 export function getOpenClawDir(): string {
   if (app.isPackaged) {
-    return join(process.resourcesPath, 'openclaw');
+    return join(process.resourcesPath, 'node_modules', 'openclaw');
   }
   // Development: use node_modules/openclaw
   return join(__dirname, '../../../node_modules/openclaw');
@@ -164,8 +164,10 @@ export function isOpenClawPresent(): boolean {
 export function isOpenClawBuilt(): boolean {
   const dir = getOpenClawDir();
   const distDir = join(dir, 'dist');
-  const hasDist = existsSync(distDir);
-  return hasDist;
+  if (!existsSync(distDir)) return false;
+  const entryJs = join(distDir, 'entry.js');
+  const entryMjs = join(distDir, 'entry.mjs');
+  return existsSync(entryJs) || existsSync(entryMjs);
 }
 
 /**

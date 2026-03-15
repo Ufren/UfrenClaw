@@ -23,10 +23,6 @@ import {
   isOAuthProviderType,
   isOpenClawOAuthPluginProviderKey,
 } from './provider-keys';
-import {
-    loginWeComPortalOAuth,
-    type WeComOAuthToken,
-} from '../../../../node_modules/openclaw/extensions/wecom-portal-auth/oauth';
 
 const AUTH_STORE_VERSION = 1;
 const AUTH_PROFILE_FILENAME = 'auth-profiles.json';
@@ -1005,17 +1001,97 @@ export async function sanitizeOpenClawConfig(): Promise<void> {
     console.log('[sanitize] Enforced tools.profile="full" and tools.sessions.visibility="all" for OpenClaw 3.8+');
   }
 
-  // ── plugins.entries.feishu cleanup ──────────────────────────────
-  // The official feishu plugin registers its channel AS 'feishu' via
-  // openclaw.plugin.json.  An explicit entries.feishu.enabled=false
-  // (set by older UfrenClaw to disable the legacy built-in) blocks the
-  // official plugin's channel from starting.  Delete it.
+  // ── Feishu plugin id migration ─────────────────────────────────
+  // Plugin @larksuite/openclaw-lark ≥2026.3.12 changed its manifest id
+  // from 'feishu-openclaw-plugin' to 'openclaw-lark'.  Migrate both
+  // plugins.allow and plugins.entries so validation won't reject the
+  // config with "plugin not found".
   if (typeof plugins === 'object' && !Array.isArray(plugins)) {
     const pluginsObj = plugins as Record<string, unknown>;
     const pEntries = pluginsObj.entries as Record<string, Record<string, unknown>> | undefined;
-    if (pEntries?.feishu) {
-      console.log('[sanitize] Removing stale plugins.entries.feishu that blocks the official feishu plugin channel');
-      delete pEntries.feishu;
+
+    const LEGACY_FEISHU_ID = 'feishu-openclaw-plugin';
+    const NEW_FEISHU_ID = 'openclaw-lark';
+
+    if (Array.isArray(pluginsObj.allow)) {
+      const allowArr = pluginsObj.allow as string[];
+      const legacyIdx = allowArr.indexOf(LEGACY_FEISHU_ID);
+      if (legacyIdx !== -1) {
+        if (!allowArr.includes(NEW_FEISHU_ID)) {
+          allowArr[legacyIdx] = NEW_FEISHU_ID;
+        } else {
+          allowArr.splice(legacyIdx, 1);
+        }
+        console.log(`[sanitize] Migrated plugins.allow: ${LEGACY_FEISHU_ID} → ${NEW_FEISHU_ID}`);
+        modified = true;
+      }
+    }
+
+    if (pEntries?.[LEGACY_FEISHU_ID]) {
+      if (!pEntries[NEW_FEISHU_ID]) {
+        pEntries[NEW_FEISHU_ID] = pEntries[LEGACY_FEISHU_ID];
+      }
+      delete pEntries[LEGACY_FEISHU_ID];
+      console.log(`[sanitize] Migrated plugins.entries: ${LEGACY_FEISHU_ID} → ${NEW_FEISHU_ID}`);
+      modified = true;
+    }
+
+    // The Gateway binary may auto-add bare 'feishu' into plugins.allow
+    // because openclaw-lark registers the 'feishu' channel. But there is
+    // no plugin with id='feishu', so validation fails with "plugin not found: feishu".
+    // Remove it from allow[] and disable entries.feishu to prevent it being re-added.
+    const allowArr2 = Array.isArray(pluginsObj.allow) ? (pluginsObj.allow as string[]) : [];
+    const hasNewFeishu = allowArr2.includes(NEW_FEISHU_ID) || !!pEntries?.[NEW_FEISHU_ID];
+    if (hasNewFeishu) {
+      const bareFeishuIdx = allowArr2.indexOf('feishu');
+      if (bareFeishuIdx !== -1) {
+        allowArr2.splice(bareFeishuIdx, 1);
+        console.log('[sanitize] Removed bare "feishu" from plugins.allow (openclaw-lark is configured)');
+        modified = true;
+      }
+      if (pEntries?.feishu) {
+        if (pEntries.feishu.enabled !== false) {
+          pEntries.feishu.enabled = false;
+          console.log('[sanitize] Disabled bare plugins.entries.feishu (openclaw-lark is configured)');
+          modified = true;
+        }
+      }
+    }
+  }
+
+  const feishuChannel = (config.channels as Record<string, unknown> | undefined)?.feishu;
+  if (feishuChannel && typeof feishuChannel === 'object') {
+    const pluginsObj = (
+      config.plugins && typeof config.plugins === 'object' && !Array.isArray(config.plugins)
+        ? (config.plugins as Record<string, unknown>)
+        : {}
+    ) as Record<string, unknown>;
+
+    const allowArr = Array.isArray(pluginsObj.allow) ? (pluginsObj.allow as string[]) : [];
+    const normalizedAllow = allowArr.filter((id) => id !== 'feishu' && id !== 'feishu-openclaw-plugin');
+    if (!normalizedAllow.includes('openclaw-lark')) {
+      normalizedAllow.push('openclaw-lark');
+    }
+    if (normalizedAllow.length !== allowArr.length || pluginsObj.allow !== normalizedAllow) {
+      pluginsObj.allow = normalizedAllow;
+      modified = true;
+    }
+
+    const entries = (pluginsObj.entries && typeof pluginsObj.entries === 'object' && !Array.isArray(pluginsObj.entries))
+      ? (pluginsObj.entries as Record<string, Record<string, unknown>>)
+      : {};
+    const entry = (entries['openclaw-lark'] && typeof entries['openclaw-lark'] === 'object')
+      ? entries['openclaw-lark']
+      : {};
+    if (entry.enabled !== true) {
+      entry.enabled = true;
+      entries['openclaw-lark'] = entry;
+      pluginsObj.entries = entries;
+      modified = true;
+    }
+
+    if (!config.plugins || config.plugins !== pluginsObj) {
+      config.plugins = pluginsObj as unknown;
       modified = true;
     }
   }

@@ -65,7 +65,6 @@ export function Chat() {
   // Update timestamp when sending starts
   useEffect(() => {
     if (sending && streamingTimestamp === 0) {
-      // eslint-disable-next-line react-hooks/set-state-in-effect
       setStreamingTimestamp(Date.now() / 1000);
     } else if (!sending && streamingTimestamp !== 0) {
       setStreamingTimestamp(0);

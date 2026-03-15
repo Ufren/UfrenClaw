@@ -6,7 +6,9 @@ import { logger } from '../utils/logger';
 export async function applyProxySettings(
   partialSettings?: Pick<AppSettings, 'proxyEnabled' | 'proxyServer' | 'proxyBypassRules'>
 ): Promise<void> {
-  const settings = partialSettings ?? await getAllSettings();
+  const settings = partialSettings
+    ? { ...(await getAllSettings()), ...partialSettings }
+    : await getAllSettings();
   const config = buildElectronProxyConfig(settings);
 
   await session.defaultSession.setProxy(config);

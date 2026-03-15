@@ -20,8 +20,26 @@ const TRANSIENT_START_ERROR_PATTERNS: RegExp[] = [
   /Connect handshake timeout/i,
 ];
 
+const FATAL_STARTUP_STDERR_PATTERNS: RegExp[] = [
+  /\bopenclaw:\s*missing dist\/entry\.\(m\)js\b/i,
+  /\bOpenClaw build output not found\b/i,
+  /\bOpenClaw entry script not found\b/i,
+  /\bOpenClaw package not found\b/i,
+];
+
 function normalizeLogLine(value: string): string {
   return value.trim();
+}
+
+function hasFatalStartupStderrSignal(startupStderrLines: string[]): boolean {
+  for (const line of startupStderrLines) {
+    const normalized = normalizeLogLine(line);
+    if (!normalized) continue;
+    if (FATAL_STARTUP_STDERR_PATTERNS.some((pattern) => pattern.test(normalized))) {
+      return true;
+    }
+  }
+  return false;
 }
 
 /**
@@ -90,10 +108,13 @@ export function getGatewayStartupRecoveryAction(options: {
     return 'repair';
   }
 
+  if (hasFatalStartupStderrSignal(options.startupStderrLines)) {
+    return 'fail';
+  }
+
   if (options.attempt < options.maxAttempts && isTransientGatewayStartError(options.startupError)) {
     return 'retry';
   }
 
   return 'fail';
 }
-

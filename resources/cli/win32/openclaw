@@ -14,4 +14,4 @@ case "$1" in
 esac
 
 export OPENCLAW_EMBEDDED_IN="UfrenClaw"
-ELECTRON_RUN_AS_NODE=1 exec "$INSTALL_DIR/UfrenClaw.exe" "$INSTALL_DIR/resources/openclaw/openclaw.mjs" "$@"
+ELECTRON_RUN_AS_NODE=1 exec "$INSTALL_DIR/UfrenClaw.exe" "$INSTALL_DIR/resources/node_modules/openclaw/openclaw.mjs" "$@"

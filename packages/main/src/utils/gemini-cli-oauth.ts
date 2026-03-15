@@ -4,10 +4,6 @@ import { existsSync, mkdirSync, readFileSync, readdirSync, realpathSync, unlinkS
 import { createServer } from 'node:http';
 import { delimiter, dirname, join } from 'node:path';
 import { getUfrenClawConfigDir } from './paths';
-import {
-    loginGoogleGeminiCliOAuth,
-    type GoogleGeminiOAuthToken,
-} from '../../../../node_modules/openclaw/extensions/google-gemini-cli-auth/oauth';
 
 const CLIENT_ID_KEYS = ['OPENCLAW_GEMINI_OAUTH_CLIENT_ID', 'GEMINI_CLI_OAUTH_CLIENT_ID'];
 const CLIENT_SECRET_KEYS = [

@@ -9,6 +9,7 @@
  * Key generation (Ed25519) uses the async crypto.generateKeyPair API.
  */
 import crypto from 'crypto';
+import type { KeyObject } from 'crypto';
 import { access, readFile, writeFile, mkdir, chmod } from 'fs/promises';
 import { constants } from 'fs';
 import path from 'path';
@@ -60,16 +61,16 @@ async function fileExists(p: string): Promise<boolean> {
 
 /** Generate a new Ed25519 identity (async key generation). */
 async function generateIdentity(): Promise<DeviceIdentity> {
-  const { publicKey, privateKey } = await new Promise<crypto.KeyPairKeyObjectResult>(
+  const { publicKey, privateKey } = await new Promise<{ publicKey: KeyObject; privateKey: KeyObject }>(
     (resolve, reject) => {
-      crypto.generateKeyPair('ed25519', (err, publicKey, privateKey) => {
+      crypto.generateKeyPair('ed25519', {}, (err, publicKey, privateKey) => {
         if (err) reject(err);
         else resolve({ publicKey, privateKey });
       });
     },
   );
-  const publicKeyPem = (publicKey.export({ type: 'spki', format: 'pem' }) as Buffer).toString();
-  const privateKeyPem = (privateKey.export({ type: 'pkcs8', format: 'pem' }) as Buffer).toString();
+  const publicKeyPem = publicKey.export({ type: 'spki', format: 'pem' }).toString();
+  const privateKeyPem = privateKey.export({ type: 'pkcs8', format: 'pem' }).toString();
   return {
     deviceId: fingerprintPublicKey(publicKeyPem),
     publicKeyPem,

@@ -58,20 +58,16 @@ $newPath = if ($nextEntries.Count -eq 0) { $null } else { $nextEntries -join ';'
 [Environment]::SetEnvironmentVariable('Path', $newPath, 'User')
 
 Add-Type -Namespace OpenClaw -Name NativeMethods -MemberDefinition @"
-using System;
-using System.Runtime.InteropServices;
-public static class NativeMethods {
-  [DllImport("user32.dll", SetLastError = true, CharSet = CharSet.Auto)]
-  public static extern IntPtr SendMessageTimeout(
-    IntPtr hWnd,
+  [System.Runtime.InteropServices.DllImport("user32.dll", SetLastError = true, CharSet = System.Runtime.InteropServices.CharSet.Auto)]
+  public static extern System.IntPtr SendMessageTimeout(
+    System.IntPtr hWnd,
     int Msg,
-    IntPtr wParam,
+    System.IntPtr wParam,
     string lParam,
     int fuFlags,
     int uTimeout,
-    out IntPtr lpdwResult
+    out System.IntPtr lpdwResult
   );
-}
 "@
 
 $result = [IntPtr]::Zero

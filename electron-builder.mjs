@@ -1,40 +1,18 @@
-import { readFileSync, existsSync } from 'fs';
+import { readFileSync, existsSync, cpSync, rmSync } from 'fs';
 import path from 'path';
 const pkg = JSON.parse(readFileSync('./package.json', 'utf8'));
 
-// 允许通过环境变量选择要打包的 llama.cpp 依赖风味（cpu / vulkan / cuda / 其他自定义）
-const LLAMA_FLAVOR = process.env.LLAMA_FLAVOR || 'cpu';
-const platformArch = `${process.platform}-${process.arch}`; // e.g. win32-x64
-
-function resolveLlamaSourceDir() {
-  const candidates = [
-    path.join('buildResources', 'llama.cpp', platformArch, LLAMA_FLAVOR),
-    path.join('buildResources', 'llama.cpp', LLAMA_FLAVOR, platformArch),
-    path.join('buildResources', 'llama.cpp', LLAMA_FLAVOR),
-    path.join('buildResources', 'llama.cpp', platformArch),
-  ];
-  for (const p of candidates) {
-    if (existsSync(p)) return p;
-  }
-  return path.join('buildResources', 'llama.cpp');
+function normWin(p) {
+  if (process.platform !== 'win32') return p;
+  if (p.startsWith('\\\\?\\')) return p;
+  return '\\\\?\\' + p.replace(/\//g, '\\');
 }
-
-const llamaSourceDir = resolveLlamaSourceDir();
-function resolveLlamaTargetDir(sourceDir) {
-  const base = path.join('buildResources', 'llama.cpp');
-  const rel = path.relative(base, sourceDir);
-  if (!rel || rel.startsWith('..')) return 'llama.cpp';
-  const parts = rel.split(path.sep).filter(Boolean);
-  if (parts.length === 0) return 'llama.cpp';
-  if (parts.length === 1) return path.join('llama.cpp', parts[0]);
-  return path.join('llama.cpp', parts[0], parts[1]);
-}
-const llamaTargetDir = resolveLlamaTargetDir(llamaSourceDir);
 
 export default /** @type import('electron-builder').Configuration */
 ({
   appId: 'com.ufren.app',
   productName: 'UfrenClaw',
+  compression: 'maximum',
   directories: {
     output: 'dist',
     buildResources: 'buildResources',
@@ -42,6 +20,12 @@ export default /** @type import('electron-builder').Configuration */
   generateUpdatesFilesForAllChannels: true,
   asar: true,
   npmRebuild: false,
+  beforeBuild: async () => {
+    const winUnpacked = path.join(process.cwd(), 'dist', 'win-unpacked');
+    if (existsSync(normWin(winUnpacked))) {
+      rmSync(normWin(winUnpacked), { recursive: true, force: true });
+    }
+  },
   asarUnpack: [
     // 解壓原生模組，避免 asar 中無法被原生綁定載入
     'node_modules/sqlite3/**',
@@ -50,7 +34,46 @@ export default /** @type import('electron-builder').Configuration */
     // 解壓內置資源（如可執行檔），讓主進程可從 process.resourcesPath 訪問
     'buildResources/ollama/**',
   ],
+  afterPack: async (context) => {
+    const appOutDir = context.appOutDir;
+    const platform = context.electronPlatformName;
+    let resourcesDir;
+    if (platform === 'darwin') {
+      const appName = context.packager.appInfo.productFilename;
+      resourcesDir = path.join(appOutDir, `${appName}.app`, 'Contents', 'Resources');
+    } else {
+      resourcesDir = path.join(appOutDir, 'resources');
+    }
+
+    const llamaDir = path.join(resourcesDir, 'llama.cpp');
+    if (existsSync(normWin(llamaDir))) {
+      rmSync(normWin(llamaDir), { recursive: true, force: true });
+    }
+
+    const projectDir = context.packager.projectDir;
+    const src = path.join(projectDir, 'build', 'openclaw', 'node_modules');
+    const openclawRoot = path.join(resourcesDir, 'node_modules', 'openclaw');
+    const dest = path.join(openclawRoot, 'node_modules');
+
+    if (!existsSync(normWin(src))) {
+      console.warn('[afterPack] build/openclaw/node_modules not found, skipping.');
+      return;
+    }
+
+    try {
+      cpSync(normWin(src), normWin(dest), { recursive: true, dereference: true });
+    } catch (e) {
+      console.warn(`[afterPack] Failed to copy openclaw node_modules: ${e?.message || e}`);
+      throw e;
+    }
+  },
   extraResources: [
+    {
+      // 打包 uv 二进制
+      from: 'resources/bin/win32-x64/uv.exe',
+      to: 'bin/uv.exe',
+      filter: ['*.exe']
+    },
     {
       // 打包 Go 划词监听器
       from: 'native/selection-monitor/selection-monitor.exe',
@@ -59,7 +82,17 @@ export default /** @type import('electron-builder').Configuration */
     },
     {
       from: 'build/openclaw/',
-      to: 'openclaw/',
+      to: 'node_modules/openclaw/',
+      filter: ['**/*']
+    },
+    {
+      from: 'build/openclaw-plugins/',
+      to: 'openclaw-plugins/',
+      filter: ['**/*']
+    },
+    {
+      from: 'build/preinstalled-skills/',
+      to: 'resources/preinstalled-skills/',
       filter: ['**/*']
     },
     {
@@ -67,12 +100,6 @@ export default /** @type import('electron-builder').Configuration */
       from: 'buildResources/bin/openclaw.exe',
       to: 'bin/openclaw.exe',
       filter: ['*.exe']
-    },
-    {
-      // 打包 llama.cpp 服务器及依赖
-      from: llamaSourceDir,
-      to: llamaTargetDir,
-      filter: ['**/*']
     },
     {
       from: 'resources/',

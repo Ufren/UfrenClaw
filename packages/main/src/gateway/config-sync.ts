@@ -1,12 +1,13 @@
 import { app } from 'electron';
 import path from 'path';
-import { existsSync } from 'fs';
+import { cpSync, existsSync, mkdirSync, rmSync } from 'fs';
+import { homedir } from 'os';
 import { getAllSettings } from '../utils/store';
 import { getApiKey, getDefaultProvider, getProvider } from '../utils/secure-storage';
 import { getProviderEnvVar, getKeyableProviderTypes } from '../utils/provider-registry';
-import { getOpenClawDir, getOpenClawEntryPath, isOpenClawPresent } from '../utils/paths';
+import { getOpenClawDir, getOpenClawEntryPath, isOpenClawBuilt, isOpenClawPresent } from '../utils/paths';
 import { getUvMirrorEnv } from '../utils/uv-env';
-import { listConfiguredChannels } from '../utils/channel-config';
+import { listConfiguredChannels, readOpenClawConfig } from '../utils/channel-config';
 import { syncGatewayTokenToConfig, syncBrowserConfigToOpenClaw, sanitizeOpenClawConfig } from '../utils/openclaw-auth';
 import { buildProxyEnv, resolveProxySettings } from '../utils/proxy';
 import { syncProxyConfigToOpenClaw } from '../utils/openclaw-proxy';
@@ -31,6 +32,12 @@ export async function syncGatewayConfigBeforeLaunch(
   await syncProxyConfigToOpenClaw(appSettings);
 
   try {
+    await ensureBundledChannelPluginsInstalled();
+  } catch (err) {
+    logger.warn('Failed to install bundled OpenClaw plugins:', err);
+  }
+
+  try {
     await sanitizeOpenClawConfig();
   } catch (err) {
     logger.warn('Failed to sanitize openclaw.json:', err);
@@ -47,6 +54,72 @@ export async function syncGatewayConfigBeforeLaunch(
   } catch (err) {
     logger.warn('Failed to sync browser config to openclaw.json:', err);
   }
+}
+
+async function ensureBundledChannelPluginsInstalled(): Promise<void> {
+  const config = await readOpenClawConfig();
+  const channels = (config.channels && typeof config.channels === 'object') ? config.channels : {};
+
+  const shouldEnsure = (channelType: string): boolean => {
+    const section = (channels as Record<string, unknown>)[channelType] as Record<string, unknown> | undefined;
+    if (!section || typeof section !== 'object') return false;
+    if (section.enabled === false) return false;
+    return true;
+  };
+
+  if (shouldEnsure('dingtalk')) {
+    ensureBundledPluginInstalled('dingtalk', ['dingtalk']);
+  }
+  if (shouldEnsure('wecom')) {
+    ensureBundledPluginInstalled('wecom', ['wecom']);
+  }
+  if (shouldEnsure('qqbot')) {
+    ensureBundledPluginInstalled('qqbot', ['qqbot']);
+  }
+  if (shouldEnsure('feishu')) {
+    ensureBundledPluginInstalled('openclaw-lark', ['openclaw-lark', 'feishu-openclaw-plugin']);
+  }
+}
+
+function ensureBundledPluginInstalled(targetId: string, mirrorDirCandidates: string[]): void {
+  const extensionsDir = path.join(homedir(), '.openclaw', 'extensions');
+  const targetDir = path.join(extensionsDir, targetId);
+  const targetManifest = path.join(targetDir, 'openclaw.plugin.json');
+  if (existsSync(targetManifest)) return;
+
+  for (const legacyId of mirrorDirCandidates) {
+    if (legacyId === targetId) continue;
+    const legacyDir = path.join(extensionsDir, legacyId);
+    const legacyManifest = path.join(legacyDir, 'openclaw.plugin.json');
+    if (existsSync(legacyManifest)) {
+      try {
+        mkdirSync(extensionsDir, { recursive: true });
+        rmSync(targetDir, { recursive: true, force: true });
+        cpSync(legacyDir, targetDir, { recursive: true, dereference: true });
+        if (existsSync(targetManifest)) return;
+      } catch {
+        // Fall through to bundled mirror install
+      }
+    }
+  }
+
+  const candidateSources = app.isPackaged
+    ? mirrorDirCandidates.flatMap((id) => [
+        path.join(process.resourcesPath, 'openclaw-plugins', id),
+        path.join(process.resourcesPath, 'app.asar.unpacked', 'build', 'openclaw-plugins', id),
+        path.join(process.resourcesPath, 'app.asar.unpacked', 'openclaw-plugins', id),
+      ])
+    : mirrorDirCandidates.flatMap((id) => [
+        path.join(app.getAppPath(), 'build', 'openclaw-plugins', id),
+        path.join(process.cwd(), 'build', 'openclaw-plugins', id),
+      ]);
+
+  const sourceDir = candidateSources.find((dir) => existsSync(path.join(dir, 'openclaw.plugin.json')));
+  if (!sourceDir) return;
+
+  mkdirSync(extensionsDir, { recursive: true });
+  rmSync(targetDir, { recursive: true, force: true });
+  cpSync(sourceDir, targetDir, { recursive: true, dereference: true });
 }
 
 async function loadProviderEnv(): Promise<{ providerEnv: Record<string, string>; loadedProviderKeyCount: number }> {
@@ -129,6 +202,9 @@ export async function prepareGatewayLaunchContext(port: number): Promise<Gateway
 
   if (!existsSync(entryScript)) {
     throw new Error(`OpenClaw entry script not found at: ${entryScript}`);
+  }
+  if (!isOpenClawBuilt()) {
+    throw new Error(`OpenClaw build output not found (expected dist/entry.(m)js) at: ${openclawDir}`);
   }
 
   const gatewayArgs = ['gateway', '--port', String(port), '--token', appSettings.gatewayToken, '--allow-unconfigured'];

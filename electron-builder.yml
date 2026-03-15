@@ -1,0 +1,78 @@
+appId: com.ufren.app
+productName: UfrenClaw
+compression: maximum
+artifactName: ${productName}-${version}-win-${arch}.${ext}
+
+directories:
+  output: release
+  buildResources: buildResources
+
+files:
+  - LICENSE*
+  - package.json
+  - packages/entry-point.mjs
+  - packages/main/dist/**
+  - packages/preload/dist/**
+  - packages/renderer-react/dist/**
+  - buildResources/ollama/**
+  - buildResources/icon.*
+  - packages/electron-versions/**
+  - "!packages/*/src/**"
+  - "!packages/*/node_modules/**"
+  - "!packages/*/*.config.*"
+  - "!packages/*/tsconfig.*"
+  - "!packages/integrate-renderer/**"
+
+extraResources:
+  - from: resources/
+    to: resources/
+    filter:
+      - "**/*"
+      - "!icons/*.md"
+      - "!icons/*.svg"
+      - "!bin/**"
+      - "!screenshot/**"
+  - from: build/openclaw/
+    to: node_modules/openclaw/
+  - from: build/preinstalled-skills/
+    to: resources/preinstalled-skills/
+  - from: native/selection-monitor/selection-monitor.exe
+    to: bin/selection-monitor.exe
+    filter:
+      - "*.exe"
+
+afterPack: ./scripts/after-pack.cjs
+
+asar: true
+asarUnpack:
+  - "**/*.node"
+  - buildResources/ollama/**
+
+npmRebuild: false
+
+win:
+  verifyUpdateCodeSignature: false
+  extraResources:
+    - from: resources/bin/win32-${arch}
+      to: bin
+    - from: resources/cli/win32/
+      to: cli/
+  icon: buildResources/icon.ico
+  target:
+    - target: nsis
+      arch:
+        - x64
+
+nsis:
+  oneClick: false
+  perMachine: false
+  warningsAsErrors: false
+  allowElevation: true
+  allowToChangeInstallationDirectory: true
+  createDesktopShortcut: true
+  createStartMenuShortcut: true
+  shortcutName: ${productName}
+
+linux:
+  target:
+    - deb
