@@ -6,9 +6,7 @@
 import { useEffect, useMemo, useState } from 'react';
 import { NavLink, useLocation, useNavigate } from 'react-router-dom';
 import {
-  Network,
   Bot,
-  Puzzle,
   Clock,
   Settings as SettingsIcon,
   PanelLeftClose,
@@ -18,6 +16,11 @@ import {
   ExternalLink,
   Trash2,
   Cpu,
+  Sparkles,
+  Users,
+  Wrench,
+  Globe,
+  Timer,
 } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import { useSettingsStore } from '@/stores/settings';
@@ -206,11 +209,11 @@ export function Sidebar() {
   }
 
   const navItems = [
-    { to: '/models', icon: <Cpu className="h-[18px] w-[18px]" strokeWidth={2} />, label: t('sidebar.models') },
-    { to: '/agents', icon: <Bot className="h-[18px] w-[18px]" strokeWidth={2} />, label: t('sidebar.agents') },
-    { to: '/channels', icon: <Network className="h-[18px] w-[18px]" strokeWidth={2} />, label: t('sidebar.channels') },
-    { to: '/skills', icon: <Puzzle className="h-[18px] w-[18px]" strokeWidth={2} />, label: t('sidebar.skills') },
-    { to: '/cron', icon: <Clock className="h-[18px] w-[18px]" strokeWidth={2} />, label: t('sidebar.cronTasks') },
+    { to: '/agents', icon: <Users className="h-[18px] w-[18px]" strokeWidth={2} />, label: t('sidebar.agents') },
+    { to: '/models', icon: <Sparkles className="h-[18px] w-[18px]" strokeWidth={2} />, label: t('sidebar.models') },
+    { to: '/channels', icon: <Globe className="h-[18px] w-[18px]" strokeWidth={2} />, label: t('sidebar.channels') },
+    { to: '/skills', icon: <Wrench className="h-[18px] w-[18px]" strokeWidth={2} />, label: t('sidebar.skills') },
+    { to: '/cron', icon: <Timer className="h-[18px] w-[18px]" strokeWidth={2} />, label: t('sidebar.cronTasks') },
   ];
 
   return (

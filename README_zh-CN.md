@@ -2,10 +2,9 @@
 
 [English](./README.md) | [简体中文](./README_zh-CN.md) | [日本語](./README_ja.md)
 
-![React](https://img.shields.io/badge/React-19.0.0-61DAFB?logo=react&logoColor=white)
+![React](https://img.shields.io/badge/React-18.3.1-61DAFB?logo=react&logoColor=white)
 ![TypeScript](https://img.shields.io/badge/TypeScript-5.6.3-3178C6?logo=typescript&logoColor=white)
 ![Electron](https://img.shields.io/badge/Electron-37.4.0-47848F?logo=electron&logoColor=white)
-![Tailwind CSS](https://img.shields.io/badge/Tailwind-3.4.0-38B2AC?logo=tailwindcss&logoColor=white)
 ![Vite](https://img.shields.io/badge/Vite-7.1.2-646CFF?logo=vite&logoColor=white)
 
 **UfrenClaw** 是一款基于 Electron、React 和 OpenClaw 构建的**现代化桌面 AI 助手**。
@@ -135,17 +134,17 @@ pnpm dev
 
 ```mermaid
 graph TD
-    User[用户] --> UI[UfrenClaw UI (React 19)]
+    User[用户] --> UI[UfrenClaw UI (React 18)]
     UI --> Main[Electron 主进程]
     Main --> Gateway[OpenClaw 网关]
-    Gateway --> LLM[本地 LLM (Ollama)]
-    Gateway --> Tools[系统工具 / 插件]
+    Gateway --> LLM[LLM 提供商]
+    Gateway --> Tools[工具 / 技能]
 ```
 
-- **前端**: React 19, TypeScript, Tailwind CSS, Radix UI
+- **前端**: React 18, TypeScript, Tailwind CSS, shadcn/ui
 - **核心**: Electron 37
 - **状态管理**: Zustand
-- **AI 引擎**: OpenClaw (Local & Remote)
+- **AI 引擎**: OpenClaw Gateway (本地 & 远程)
 
 ## 📄 许可证
 

@@ -2,10 +2,9 @@
 
 [English](./README.md) | [简体中文](./README_zh-CN.md) | [日本語](./README_ja.md)
 
-![React](https://img.shields.io/badge/React-19.0.0-61DAFB?logo=react&logoColor=white)
+![React](https://img.shields.io/badge/React-18.3.1-61DAFB?logo=react&logoColor=white)
 ![TypeScript](https://img.shields.io/badge/TypeScript-5.6.3-3178C6?logo=typescript&logoColor=white)
 ![Electron](https://img.shields.io/badge/Electron-37.4.0-47848F?logo=electron&logoColor=white)
-![Tailwind CSS](https://img.shields.io/badge/Tailwind-3.4.0-38B2AC?logo=tailwindcss&logoColor=white)
 ![Vite](https://img.shields.io/badge/Vite-7.1.2-646CFF?logo=vite&logoColor=white)
 
 **UfrenClaw** は、Electron、React、OpenClaw をベースに構築された**次世代のデスクトップ AI アシスタント**です。
@@ -135,17 +134,17 @@ pnpm dev
 
 ```mermaid
 graph TD
-    User[ユーザー] --> UI[UfrenClaw UI (React 19)]
+    User[ユーザー] --> UI[UfrenClaw UI (React 18)]
     UI --> Main[Electron メインプロセス]
     Main --> Gateway[OpenClaw ゲートウェイ]
-    Gateway --> LLM[ローカル LLM (Ollama)]
-    Gateway --> Tools[システムツール / プラグイン]
+    Gateway --> LLM[LLM プロバイダー]
+    Gateway --> Tools[ツール / スキル]
 ```
 
-- **フロントエンド**: React 19, TypeScript, Tailwind CSS, Radix UI
+- **フロントエンド**: React 18, TypeScript, Tailwind CSS, shadcn/ui
 - **コア**: Electron 37
 - **状態管理**: Zustand
-- **AI エンジン**: OpenClaw (Local & Remote)
+- **AI エンジン**: OpenClaw Gateway (ローカル & リモート)
 
 ## 📄 ライセンス
 

@@ -4,9 +4,6 @@
  */
 import { useEffect, useMemo, useState } from 'react';
 import {
-  Sun,
-  Moon,
-  Monitor,
   RefreshCw,
   ExternalLink,
   Copy,
@@ -37,7 +34,6 @@ import {
   type UiTelemetryEntry,
 } from '@/lib/telemetry';
 import { useTranslation } from 'react-i18next';
-import { SUPPORTED_LANGUAGES } from '@/i18n';
 import { hostApiFetch } from '@/lib/host-api';
 import { cn } from '@/lib/utils';
 type ControlUiInfo = {
@@ -49,10 +45,6 @@ type ControlUiInfo = {
 export function Settings() {
   const { t } = useTranslation('settings');
   const {
-    theme,
-    setTheme,
-    language,
-    setLanguage,
     launchAtStartup,
     setLaunchAtStartup,
     gatewayAutoStart,
@@ -386,73 +378,6 @@ export function Settings() {
 
         {/* Content Area */}
         <div className="flex-1 overflow-y-auto pr-2 pb-10 min-h-0 -mr-2 space-y-12">
-
-          {/* Appearance */}
-          <div>
-            <h2 className="text-3xl font-serif text-foreground mb-6 font-normal tracking-tight" style={{ fontFamily: 'Georgia, Cambria, "Times New Roman", Times, serif' }}>
-              {t('appearance.title')}
-            </h2>
-            <div className="space-y-6">
-              <div className="space-y-3">
-                <Label className="text-[15px] font-medium text-foreground/80">{t('appearance.theme')}</Label>
-                <div className="flex flex-wrap gap-2">
-                  <Button
-                    variant={theme === 'light' ? 'secondary' : 'outline'}
-                    className={cn("rounded-full px-5 h-10 border-black/10 dark:border-white/10", theme === 'light' ? "bg-black/5 dark:bg-white/10 text-foreground" : "bg-transparent text-muted-foreground hover:bg-black/5 dark:hover:bg-white/5")}
-                    onClick={() => setTheme('light')}
-                  >
-                    <Sun className="h-4 w-4 mr-2" />
-                    {t('appearance.light')}
-                  </Button>
-                  <Button
-                    variant={theme === 'dark' ? 'secondary' : 'outline'}
-                    className={cn("rounded-full px-5 h-10 border-black/10 dark:border-white/10", theme === 'dark' ? "bg-black/5 dark:bg-white/10 text-foreground" : "bg-transparent text-muted-foreground hover:bg-black/5 dark:hover:bg-white/5")}
-                    onClick={() => setTheme('dark')}
-                  >
-                    <Moon className="h-4 w-4 mr-2" />
-                    {t('appearance.dark')}
-                  </Button>
-                  <Button
-                    variant={theme === 'system' ? 'secondary' : 'outline'}
-                    className={cn("rounded-full px-5 h-10 border-black/10 dark:border-white/10", theme === 'system' ? "bg-black/5 dark:bg-white/10 text-foreground" : "bg-transparent text-muted-foreground hover:bg-black/5 dark:hover:bg-white/5")}
-                    onClick={() => setTheme('system')}
-                  >
-                    <Monitor className="h-4 w-4 mr-2" />
-                    {t('appearance.system')}
-                  </Button>
-                </div>
-              </div>
-              <div className="space-y-3">
-                <Label className="text-[15px] font-medium text-foreground/80">{t('appearance.language')}</Label>
-                <div className="flex flex-wrap gap-2">
-                  {SUPPORTED_LANGUAGES.map((lang) => (
-                    <Button
-                      key={lang.code}
-                      variant={language === lang.code ? 'secondary' : 'outline'}
-                      className={cn("rounded-full px-5 h-10 border-black/10 dark:border-white/10", language === lang.code ? "bg-black/5 dark:bg-white/10 text-foreground" : "bg-transparent text-muted-foreground hover:bg-black/5 dark:hover:bg-white/5")}
-                      onClick={() => setLanguage(lang.code)}
-                    >
-                      {lang.label}
-                    </Button>
-                  ))}
-                </div>
-              </div>
-              <div className="flex items-center justify-between">
-                <div>
-                  <Label className="text-[15px] font-medium text-foreground/80">{t('appearance.launchAtStartup')}</Label>
-                  <p className="text-[13px] text-muted-foreground mt-1">
-                    {t('appearance.launchAtStartupDesc')}
-                  </p>
-                </div>
-                <Switch
-                  checked={launchAtStartup}
-                  onCheckedChange={setLaunchAtStartup}
-                />
-              </div>
-            </div>
-          </div>
-
-          <Separator className="bg-black/5 dark:bg-white/5" />
 
           {/* Gateway */}
           <div>

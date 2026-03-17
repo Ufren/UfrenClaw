@@ -198,28 +198,42 @@ export function Setup() {
           <div className="flex items-center gap-2">
             {steps.map((s, i) => (
               <div key={s.id} className="flex items-center">
-                <div
+                <motion.div
                   className={cn(
-                    'flex h-8 w-8 items-center justify-center rounded-full border-2 transition-colors',
+                    'flex h-9 w-9 items-center justify-center rounded-full border-2',
                     i < safeStepIndex
                       ? 'border-primary bg-primary text-primary-foreground'
                       : i === safeStepIndex
                         ? 'border-primary text-primary'
                         : 'border-slate-600 text-slate-600'
                   )}
+                  initial={false}
+                  animate={i <= safeStepIndex ? { scale: [1, 1.1, 1] } : { scale: 1 }}
+                  transition={{ duration: 0.3 }}
                 >
                   {i < safeStepIndex ? (
-                    <Check className="h-4 w-4" />
+                    <motion.div
+                      initial={{ scale: 0, rotate: -180 }}
+                      animate={{ scale: 1, rotate: 0 }}
+                      transition={{ type: 'spring', stiffness: 300, damping: 20 }}
+                    >
+                      <Check className="h-4 w-4" />
+                    </motion.div>
+                  ) : i === safeStepIndex ? (
+                    <span className="text-sm font-medium">{i + 1}</span>
                   ) : (
                     <span className="text-sm">{i + 1}</span>
                   )}
-                </div>
+                </motion.div>
                 {i < steps.length - 1 && (
-                  <div
+                  <motion.div
                     className={cn(
-                      'h-0.5 w-8 transition-colors',
+                      'h-0.5 w-10',
                       i < safeStepIndex ? 'bg-primary' : 'bg-slate-600'
                     )}
+                    initial={false}
+                    animate={i < safeStepIndex ? { scaleX: [0, 1] } : { scaleX: 1 }}
+                    transition={{ duration: 0.4, ease: 'easeInOut' }}
                   />
                 )}
               </div>
@@ -231,18 +245,33 @@ export function Setup() {
         <AnimatePresence mode="wait">
           <motion.div
             key={step.id}
-            initial={{ opacity: 0, x: 20 }}
-            animate={{ opacity: 1, x: 0 }}
-            exit={{ opacity: 0, x: -20 }}
-            className="mx-auto max-w-2xl p-8"
+            initial={{ opacity: 0, y: 30, scale: 0.95 }}
+            animate={{ opacity: 1, y: 0, scale: 1 }}
+            exit={{ opacity: 0, y: -30, scale: 0.95 }}
+            transition={{ 
+              type: 'spring', 
+              stiffness: 300, 
+              damping: 25 
+            }}
+            className="mx-auto max-w-2xl p-8 overflow-hidden"
           >
-            <div className="text-center mb-8">
+            <motion.div
+              initial={{ opacity: 0, y: -10 }}
+              animate={{ opacity: 1, y: 0 }}
+              transition={{ delay: 0.2 }}
+              className="text-center mb-8"
+            >
               <h1 className="text-3xl font-bold mb-2">{t(`steps.${step.id}.title`)}</h1>
               <p className="text-slate-400">{t(`steps.${step.id}.description`)}</p>
-            </div>
+            </motion.div>
 
             {/* Step-specific content */}
-            <div className="rounded-xl bg-card text-card-foreground border shadow-sm p-8 mb-8">
+            <motion.div 
+              className="rounded-xl bg-card text-card-foreground border shadow-sm p-6 mb-6 max-h-[calc(100vh-380px)] overflow-auto"
+              initial={{ opacity: 0, scale: 0.98 }}
+              animate={{ opacity: 1, scale: 1 }}
+              transition={{ delay: 0.3, duration: 0.3 }}
+            >
               {safeStepIndex === STEP.WELCOME && <WelcomeContent />}
               {safeStepIndex === STEP.RUNTIME && <RuntimeContent onStatusChange={setRuntimeChecksPassed} />}
               {safeStepIndex === STEP.PROVIDER && (
@@ -268,11 +297,16 @@ export function Setup() {
                   installedSkills={installedSkills}
                 />
               )}
-            </div>
+            </motion.div>
 
             {/* Navigation - hidden during installation step */}
             {safeStepIndex !== STEP.INSTALLING && (
-              <div className="flex justify-between">
+              <motion.div 
+                className="flex justify-between relative z-10"
+                initial={{ opacity: 0 }}
+                animate={{ opacity: 1 }}
+                transition={{ delay: 0.3 }}
+              >
                 <div>
                   {!isFirstStep && (
                     <Button variant="ghost" onClick={handleBack}>
@@ -298,7 +332,7 @@ export function Setup() {
                     )}
                   </Button>
                 </div>
-              </div>
+              </motion.div>
             )}
           </motion.div>
         </AnimatePresence>
@@ -313,48 +347,105 @@ function WelcomeContent() {
   const { t } = useTranslation(['setup', 'settings']);
   const { language, setLanguage } = useSettingsStore();
 
+  const features = [
+    { icon: '🚀', key: 'noCommand' },
+    { icon: '🎨', key: 'modernUI' },
+    { icon: '📦', key: 'bundles' },
+    { icon: '🌐', key: 'crossPlatform' },
+  ];
+
   return (
-    <div className="text-center space-y-4">
+    <div className="text-center space-y-3 overflow-hidden">
       <div className="mb-4 flex justify-center">
-        <img src={UfrenClawIcon} alt="UfrenClaw" className="h-16 w-16" />
+        <motion.div
+          initial={{ scale: 0, rotate: -180 }}
+          animate={{ scale: 1, rotate: 0 }}
+          transition={{ 
+            type: 'spring', 
+            stiffness: 260, 
+            damping: 20,
+            delay: 0.2 
+          }}
+        >
+          <img src={UfrenClawIcon} alt="UfrenClaw" className="h-20 w-20" />
+        </motion.div>
       </div>
-      <h2 className="text-xl font-semibold">{t('welcome.title')}</h2>
-      <p className="text-muted-foreground">
+
+      <motion.h2 
+        className="text-2xl font-bold"
+        initial={{ opacity: 0, y: 20 }}
+        animate={{ opacity: 1, y: 0 }}
+        transition={{ delay: 0.4 }}
+      >
+        {t('welcome.title')}
+      </motion.h2>
+
+      <motion.p 
+        className="text-muted-foreground text-lg"
+        initial={{ opacity: 0, y: 20 }}
+        animate={{ opacity: 1, y: 0 }}
+        transition={{ delay: 0.5 }}
+      >
         {t('welcome.description')}
-      </p>
+      </motion.p>
 
       {/* Language Selector */}
-      <div className="flex justify-center gap-2 py-2">
-        {SUPPORTED_LANGUAGES.map((lang) => (
-          <Button
+      <motion.div 
+        className="flex justify-center gap-2 py-2"
+        initial={{ opacity: 0 }}
+        animate={{ opacity: 1 }}
+        transition={{ delay: 0.6 }}
+      >
+        {SUPPORTED_LANGUAGES.map((lang, index) => (
+          <motion.div
             key={lang.code}
-            variant={language === lang.code ? 'secondary' : 'ghost'}
-            size="sm"
-            onClick={() => setLanguage(lang.code)}
-            className="h-7 text-xs"
+            initial={{ opacity: 0, scale: 0.8 }}
+            animate={{ opacity: 1, scale: 1 }}
+            transition={{ delay: 0.7 + index * 0.1 }}
           >
-            {lang.label}
-          </Button>
+            <Button
+              key={lang.code}
+              variant={language === lang.code ? 'secondary' : 'ghost'}
+              size="sm"
+              onClick={() => setLanguage(lang.code)}
+              className="h-8 text-sm px-4"
+            >
+              {lang.label}
+            </Button>
+          </motion.div>
         ))}
-      </div>
+      </motion.div>
 
-      <ul className="text-left space-y-2 text-muted-foreground pt-2">
-        <li className="flex items-center gap-2">
-          <CheckCircle2 className="h-5 w-5 text-green-400" />
-          {t('welcome.features.noCommand')}
-        </li>
-        <li className="flex items-center gap-2">
-          <CheckCircle2 className="h-5 w-5 text-green-400" />
-          {t('welcome.features.modernUI')}
-        </li>
-        <li className="flex items-center gap-2">
-          <CheckCircle2 className="h-5 w-5 text-green-400" />
-          {t('welcome.features.bundles')}
-        </li>
-        <li className="flex items-center gap-2">
-          <CheckCircle2 className="h-5 w-5 text-green-400" />
-          {t('welcome.features.crossPlatform')}
-        </li>
+      <ul className="text-left space-y-3 pt-4 max-w-md mx-auto overflow-visible">
+        {features.map((feature, index) => (
+          <motion.li 
+            key={feature.key}
+            className="flex items-center gap-3 p-2 rounded-lg hover:bg-accent/50 transition-colors cursor-pointer"
+            initial={{ opacity: 0, x: -20 }}
+            animate={{ opacity: 1, x: 0 }}
+            transition={{ delay: 0.8 + index * 0.15 }}
+            whileHover={{ x: 4 }}
+            whileTap={{ scale: 0.98 }}
+          >
+            <motion.span 
+              className="text-2xl"
+              animate={{ 
+                rotate: [0, 10, -10, 0],
+              }}
+              transition={{ 
+                duration: 2,
+                repeat: Infinity,
+                repeatDelay: 3,
+                delay: index * 0.5
+              }}
+            >
+              {feature.icon}
+            </motion.span>
+            <span className="text-foreground/80">
+              {t(`welcome.features.${feature.key}`)}
+            </span>
+          </motion.li>
+        ))}
       </ul>
     </div>
   );
@@ -1322,9 +1413,6 @@ function ProviderContent({
               {/* OAuth Active State Modal / Inline View */}
               {oauthFlowing && (
                 <div className="mt-4 p-4 border rounded-xl bg-card relative overflow-hidden">
-                  {/* Background pulse effect */}
-                  <div className="absolute inset-0 bg-primary/5 animate-pulse" />
-
                   <div className="relative z-10 flex flex-col items-center justify-center text-center space-y-4">
                     {oauthError ? (
                       <div className="text-red-400 space-y-2">
@@ -1338,7 +1426,7 @@ function ProviderContent({
                     ) : !oauthData ? (
                       <div className="space-y-3 py-4">
                         <Loader2 className="h-8 w-8 animate-spin text-primary mx-auto" />
-                        <p className="text-sm text-muted-foreground animate-pulse">Requesting secure login code...</p>
+                        <p className="text-sm text-muted-foreground">Requesting secure login code...</p>
                       </div>
                     ) : oauthData.mode === 'manual' ? (
                       <div className="space-y-4 w-full">
@@ -1548,50 +1636,114 @@ function InstallingContent({ skills, onComplete, onSkip }: InstallingContentProp
 
   return (
     <div className="space-y-6">
-      <div className="text-center">
-        <div className="text-4xl mb-4">⚙️</div>
+      <motion.div 
+        className="text-center"
+        initial={{ opacity: 0, y: -20 }}
+        animate={{ opacity: 1, y: 0 }}
+        transition={{ delay: 0.2 }}
+      >
+        <motion.div
+          className="text-5xl mb-4"
+          animate={{ 
+            rotate: [0, 15, -15, 0],
+          }}
+          transition={{ 
+            duration: 2,
+            repeat: Infinity,
+            repeatDelay: 1
+          }}
+        >
+          ⚙️
+        </motion.div>
         <h2 className="text-xl font-semibold mb-2">{t('installing.title')}</h2>
         <p className="text-muted-foreground">
           {t('installing.subtitle')}
         </p>
-      </div>
+      </motion.div>
 
       {/* Progress bar */}
       <div className="space-y-2">
         <div className="flex justify-between text-sm">
           <span className="text-muted-foreground">{t('installing.progress')}</span>
-          <span className="text-primary">{overallProgress}%</span>
+          <motion.span 
+            className="text-primary font-medium"
+            key={overallProgress}
+            initial={{ scale: 1.2 }}
+            animate={{ scale: 1 }}
+          >
+            {overallProgress}%
+          </motion.span>
         </div>
-        <div className="h-2 bg-secondary rounded-full overflow-hidden">
+        <div className="h-3 bg-secondary rounded-full overflow-hidden">
           <motion.div
-            className="h-full bg-primary"
+            className="h-full bg-gradient-to-r from-primary to-primary/70 rounded-full"
             initial={{ width: 0 }}
             animate={{ width: `${overallProgress}%` }}
-            transition={{ duration: 0.3 }}
-          />
+            transition={{ 
+              duration: 0.5, 
+              ease: 'easeOut'
+            }}
+          >
+            <motion.div
+              className="h-full bg-white/30"
+              animate={{ x: ['-100%', '100%'] }}
+              transition={{ 
+                duration: 1, 
+                repeat: Infinity,
+                ease: 'linear'
+              }}
+              style={{ width: '30%' }}
+            />
+          </motion.div>
         </div>
       </div>
 
       {/* Skill list */}
       <div className="space-y-2 max-h-48 overflow-y-auto">
-        {skillStates.map((skill) => (
+        {skillStates.map((skill, index) => (
           <motion.div
             key={skill.id}
-            initial={{ opacity: 0, y: 10 }}
-            animate={{ opacity: 1, y: 0 }}
+            initial={{ opacity: 0, x: -20 }}
+            animate={{ opacity: 1, x: 0 }}
+            transition={{ delay: index * 0.1 }}
             className={cn(
               'flex items-center justify-between p-3 rounded-lg',
               skill.status === 'installing' ? 'bg-muted' : 'bg-muted/50'
             )}
           >
             <div className="flex items-center gap-3">
-              {getStatusIcon(skill.status)}
+              <motion.div
+                animate={skill.status === 'installing' ? { 
+                  rotate: 360,
+                  scale: [1, 1.1, 1]
+                } : {}}
+                transition={{ 
+                  rotate: { duration: 1, repeat: Infinity, ease: 'linear' },
+                  scale: { duration: 1, repeat: Infinity }
+                }}
+              >
+                {getStatusIcon(skill.status)}
+              </motion.div>
               <div>
-                <p className="font-medium">{skill.name}</p>
+                <motion.p 
+                  className="font-medium"
+                  animate={skill.status === 'completed' ? {
+                    textDecoration: 'line-through',
+                    opacity: 0.7
+                  } : {}}
+                >
+                  {skill.name}
+                </motion.p>
                 <p className="text-xs text-muted-foreground">{skill.description}</p>
               </div>
             </div>
-            {getStatusText(skill)}
+            <motion.div
+              initial={{ opacity: 0, scale: 0 }}
+              animate={{ opacity: 1, scale: 1 }}
+              transition={{ delay: 0.2 }}
+            >
+              {getStatusText(skill)}
+            </motion.div>
           </motion.div>
         ))}
       </div>
@@ -1647,6 +1799,7 @@ interface CompleteContentProps {
 function CompleteContent({ selectedProvider, installedSkills }: CompleteContentProps) {
   const { t } = useTranslation(['setup', 'settings']);
   const gatewayStatus = useGatewayStore((state) => state.status);
+  const [particles, setParticles] = useState<Array<{ id: number; x: number; emoji: string }>>([]);
 
   const providerData = providers.find((p) => p.id === selectedProvider);
   const installedSkillNames = getDefaultSkills(t)
@@ -1654,38 +1807,192 @@ function CompleteContent({ selectedProvider, installedSkills }: CompleteContentP
     .map((s: DefaultSkill) => s.name)
     .join(', ');
 
-  return (
-    <div className="text-center space-y-6">
-      <div className="text-6xl mb-4">🎉</div>
-      <h2 className="text-xl font-semibold">{t('complete.title')}</h2>
-      <p className="text-muted-foreground">
-        {t('complete.subtitle')}
-      </p>
+  const celebrationEmojis = ['🎉', '✨', '🌟', '💫', '🎊', '⭐'];
 
-      <div className="space-y-3 text-left max-w-md mx-auto">
-        <div className="flex items-center justify-between p-3 rounded-lg bg-muted/50">
-          <span>{t('complete.provider')}</span>
-          <span className="text-green-400">
-            {providerData ? <span className="flex items-center gap-1.5">{getProviderIconUrl(providerData.id) ? <img src={getProviderIconUrl(providerData.id)} alt={providerData.name} className={`h-4 w-4 inline-block ${shouldInvertInDark(providerData.id) ? 'dark:invert' : ''}`} /> : providerData.icon} {providerData.id === 'custom' ? t('settings:aiProviders.custom') : providerData.name}</span> : '—'}
-          </span>
-        </div>
-        <div className="flex items-center justify-between p-3 rounded-lg bg-muted/50">
-          <span>{t('complete.components')}</span>
-          <span className="text-green-400">
-            {installedSkillNames || `${installedSkills.length} ${t('installing.status.installed')}`}
-          </span>
-        </div>
-        <div className="flex items-center justify-between p-3 rounded-lg bg-muted/50">
-          <span>{t('complete.gateway')}</span>
-          <span className={gatewayStatus.state === 'running' ? 'text-green-400' : 'text-yellow-400'}>
-            {gatewayStatus.state === 'running' ? `✓ ${t('complete.running')}` : gatewayStatus.state}
-          </span>
-        </div>
+  useEffect(() => {
+    const interval = setInterval(() => {
+      const newParticle = {
+        id: Date.now(),
+        x: Math.random() * 100,
+        emoji: celebrationEmojis[Math.floor(Math.random() * celebrationEmojis.length)],
+      };
+      setParticles((prev) => [...prev.slice(-15), newParticle]);
+    }, 300);
+
+    return () => clearInterval(interval);
+  }, []);
+
+  return (
+    <div className="text-center space-y-4 relative overflow-hidden">
+      {/* Particle Effects */}
+      <div className="absolute inset-0 pointer-events-none">
+        {particles.map((particle) => (
+          <motion.div
+            key={particle.id}
+            className="absolute text-2xl"
+            style={{ left: `${particle.x}%`, bottom: '0%' }}
+            initial={{ 
+              opacity: 1, 
+              y: 0,
+              rotate: 0,
+              scale: 0.5
+            }}
+            animate={{ 
+              opacity: 0, 
+              y: -400,
+              rotate: Math.random() * 360,
+              scale: 1.2
+            }}
+            transition={{ 
+              duration: 2.5, 
+              ease: 'easeOut' 
+            }}
+          >
+            {particle.emoji}
+          </motion.div>
+        ))}
       </div>
 
-      <p className="text-sm text-muted-foreground">
+      <motion.div
+        initial={{ scale: 0, rotate: -180 }}
+        animate={{ scale: 1, rotate: 0 }}
+        transition={{ 
+          type: 'spring', 
+          stiffness: 260, 
+          damping: 20,
+          delay: 0.2
+        }}
+        className="relative"
+      >
+        <motion.div
+          className="text-7xl mb-4"
+          animate={{ 
+            scale: [1, 1.1, 1],
+            rotate: [0, 10, -10, 0],
+          }}
+          transition={{ 
+            duration: 1.5,
+            repeat: Infinity,
+            repeatDelay: 2
+          }}
+        >
+          🎉
+        </motion.div>
+        
+        {/* Glow Effect */}
+        <motion.div
+          className="absolute inset-0 blur-2xl bg-yellow-400/30 rounded-full"
+          animate={{ 
+            scale: [1, 1.5, 1],
+            opacity: [0.3, 0.6, 0.3]
+          }}
+          transition={{ 
+            duration: 2,
+            repeat: Infinity
+          }}
+          style={{ 
+            left: '50%', 
+            transform: 'translateX(-50%)',
+            width: '120px',
+            height: '120px'
+          }}
+        />
+      </motion.div>
+
+      <motion.h2 
+        className="text-2xl font-bold"
+        initial={{ opacity: 0, y: 20 }}
+        animate={{ opacity: 1, y: 0 }}
+        transition={{ delay: 0.4 }}
+      >
+        {t('complete.title')}
+      </motion.h2>
+
+      <motion.p 
+        className="text-muted-foreground text-lg"
+        initial={{ opacity: 0, y: 20 }}
+        animate={{ opacity: 1, y: 0 }}
+        transition={{ delay: 0.5 }}
+      >
+        {t('complete.subtitle')}
+      </motion.p>
+
+      <motion.div 
+        className="space-y-3 text-left max-w-md mx-auto"
+        initial={{ opacity: 0, y: 20 }}
+        animate={{ opacity: 1, y: 0 }}
+        transition={{ delay: 0.6 }}
+      >
+        <motion.div 
+          className="flex items-center justify-between p-3 rounded-lg bg-muted/50"
+          whileHover={{ scale: 1.02 }}
+          transition={{ type: 'spring', stiffness: 400 }}
+        >
+          <span>{t('complete.provider')}</span>
+          <motion.span 
+            className="text-green-400 flex items-center gap-1.5"
+            initial={{ scale: 0 }}
+            animate={{ scale: 1 }}
+            transition={{ delay: 0.8, type: 'spring' }}
+          >
+            {providerData ? (
+              <>
+                {getProviderIconUrl(providerData.id) ? (
+                  <img 
+                    src={getProviderIconUrl(providerData.id)} 
+                    alt={providerData.name} 
+                    className={`h-4 w-4 inline-block ${shouldInvertInDark(providerData.id) ? 'dark:invert' : ''}`} 
+                  />
+                ) : (
+                  providerData.icon
+                )}{' '}
+                {providerData.id === 'custom' ? t('settings:aiProviders.custom') : providerData.name}
+              </>
+            ) : '—'}
+          </motion.span>
+        </motion.div>
+
+        <motion.div 
+          className="flex items-center justify-between p-3 rounded-lg bg-muted/50"
+          whileHover={{ scale: 1.02 }}
+          transition={{ type: 'spring', stiffness: 400 }}
+        >
+          <span>{t('complete.components')}</span>
+          <motion.span 
+            className="text-green-400"
+            initial={{ scale: 0 }}
+            animate={{ scale: 1 }}
+            transition={{ delay: 0.9, type: 'spring' }}
+          >
+            {installedSkillNames || `${installedSkills.length} ${t('installing.status.installed')}`}
+          </motion.span>
+        </motion.div>
+
+        <motion.div 
+          className="flex items-center justify-between p-3 rounded-lg bg-muted/50"
+          whileHover={{ scale: 1.02 }}
+          transition={{ type: 'spring', stiffness: 400 }}
+        >
+          <span>{t('complete.gateway')}</span>
+          <motion.span 
+            className={gatewayStatus.state === 'running' ? 'text-green-400' : 'text-yellow-400'}
+            initial={{ scale: 0 }}
+            animate={{ scale: 1 }}
+            transition={{ delay: 1.0, type: 'spring' }}
+          >
+            {gatewayStatus.state === 'running' ? `✓ ${t('complete.running')}` : gatewayStatus.state}
+          </motion.span>
+        </motion.div>
+      </motion.div>
+
+      <motion.p 
+        className="text-sm text-muted-foreground"
+        initial={{ opacity: 0 }}
+        animate={{ opacity: 1 }}
+        transition={{ delay: 1.2 }}
+      >
         {t('complete.footer')}
-      </p>
+      </motion.p>
     </div>
   );
 }
