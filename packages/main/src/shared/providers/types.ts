@@ -1,53 +1,53 @@
 export const PROVIDER_TYPES = [
-  'anthropic',
-  'openai',
-  'google',
-  'openrouter',
-  'ark',
-  'moonshot',
-  'siliconflow',
-  'minimax-portal',
-  'minimax-portal-cn',
-  'qwen-portal',
-  'ollama',
-  'custom',
+  "anthropic",
+  "openai",
+  "google",
+  "openrouter",
+  "ark",
+  "moonshot",
+  "siliconflow",
+  "minimax-portal",
+  "minimax-portal-cn",
+  "qwen-portal",
+  "ollama",
+  "custom",
 ] as const;
 
 export const BUILTIN_PROVIDER_TYPES = [
-  'anthropic',
-  'openai',
-  'google',
-  'openrouter',
-  'ark',
-  'moonshot',
-  'siliconflow',
-  'minimax-portal',
-  'minimax-portal-cn',
-  'qwen-portal',
-  'ollama',
+  "anthropic",
+  "openai",
+  "google",
+  "openrouter",
+  "ark",
+  "moonshot",
+  "siliconflow",
+  "minimax-portal",
+  "minimax-portal-cn",
+  "qwen-portal",
+  "ollama",
 ] as const;
 
 export type ProviderType = (typeof PROVIDER_TYPES)[number];
 export type BuiltinProviderType = (typeof BUILTIN_PROVIDER_TYPES)[number];
 
-export const OLLAMA_PLACEHOLDER_API_KEY = 'ollama-local';
+export const OLLAMA_PLACEHOLDER_API_KEY = "ollama-local";
 
 export type ProviderProtocol =
-  | 'openai-completions'
-  | 'openai-responses'
-  | 'anthropic-messages';
+  | "openai-completions"
+  | "openai-responses"
+  | "anthropic-messages";
 
 export type ProviderAuthMode =
-  | 'api_key'
-  | 'oauth_device'
-  | 'oauth_browser'
-  | 'local';
+  | "api_key"
+  | "oauth_device"
+  | "oauth_browser"
+  | "local";
 
 export type ProviderVendorCategory =
-  | 'official'
-  | 'compatible'
-  | 'local'
-  | 'custom';
+  | "official"
+  | "compatible"
+  | "local"
+  | "custom";
 
 export interface ProviderConfig {
   id: string;
@@ -132,25 +132,25 @@ export interface ProviderAccount {
 
 export type ProviderSecret =
   | {
-    type: 'api_key';
-    accountId: string;
-    apiKey: string;
-  }
+      type: "api_key";
+      accountId: string;
+      apiKey: string;
+    }
   | {
-    type: 'oauth';
-    accountId: string;
-    accessToken: string;
-    refreshToken: string;
-    expiresAt: number;
-    scopes?: string[];
-    email?: string;
-    subject?: string;
-  }
+      type: "oauth";
+      accountId: string;
+      accessToken: string;
+      refreshToken: string;
+      expiresAt: number;
+      scopes?: string[];
+      email?: string;
+      subject?: string;
+    }
   | {
-    type: 'local';
-    accountId: string;
-    apiKey?: string;
-  };
+      type: "local";
+      accountId: string;
+      apiKey?: string;
+    };
 
 export interface ModelSummary {
   id: string;
@@ -166,5 +166,5 @@ export interface ModelSummary {
     cacheRead?: number;
     cacheWrite?: number;
   };
-  source: 'builtin' | 'remote' | 'gateway' | 'custom';
+  source: "builtin" | "remote" | "gateway" | "custom";
 }

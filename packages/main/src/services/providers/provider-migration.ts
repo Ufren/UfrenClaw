@@ -1,23 +1,28 @@
-import type { ProviderConfig } from '../../shared/providers/types';
+import type { ProviderConfig } from "../../shared/providers/types";
 import {
   getDefaultProviderAccountId,
   providerConfigToAccount,
   saveProviderAccount,
-} from './provider-store';
-import { getUfrenClawProviderStore } from './store-instance';
+} from "./provider-store";
+import { getUfrenClawProviderStore } from "./store-instance";
 
 const PROVIDER_STORE_SCHEMA_VERSION = 1;
 
 export async function ensureProviderStoreMigrated(): Promise<void> {
   const store = await getUfrenClawProviderStore();
-  const schemaVersion = Number(store.get('schemaVersion') ?? 0);
+  const schemaVersion = Number(store.get("schemaVersion") ?? 0);
 
   if (schemaVersion >= PROVIDER_STORE_SCHEMA_VERSION) {
     return;
   }
 
-  const legacyProviders = (store.get('providers') ?? {}) as Record<string, ProviderConfig>;
-  const defaultProviderId = (store.get('defaultProvider') ?? null) as string | null;
+  const legacyProviders = (store.get("providers") ?? {}) as Record<
+    string,
+    ProviderConfig
+  >;
+  const defaultProviderId = (store.get("defaultProvider") ?? null) as
+    | string
+    | null;
   const existingDefaultAccountId = await getDefaultProviderAccountId();
 
   for (const provider of Object.values(legacyProviders)) {
@@ -28,8 +33,8 @@ export async function ensureProviderStoreMigrated(): Promise<void> {
   }
 
   if (!existingDefaultAccountId && defaultProviderId) {
-    store.set('defaultProviderAccountId', defaultProviderId);
+    store.set("defaultProviderAccountId", defaultProviderId);
   }
 
-  store.set('schemaVersion', PROVIDER_STORE_SCHEMA_VERSION);
+  store.set("schemaVersion", PROVIDER_STORE_SCHEMA_VERSION);
 }

@@ -1,9 +1,17 @@
-import type { GatewayManager } from '../../gateway/manager';
-import { getProviderAccount, listProviderAccounts } from './provider-store';
-import { getProviderSecret } from '../secrets/secret-store';
-import type { ProviderConfig } from '../../utils/secure-storage';
-import { getAllProviders, getApiKey, getDefaultProvider, getProvider } from '../../utils/secure-storage';
-import { getProviderConfig, getProviderDefaultModel } from '../../utils/provider-registry';
+import type { GatewayManager } from "../../gateway/manager";
+import { getProviderAccount, listProviderAccounts } from "./provider-store";
+import { getProviderSecret } from "../secrets/secret-store";
+import type { ProviderConfig } from "../../utils/secure-storage";
+import {
+  getAllProviders,
+  getApiKey,
+  getDefaultProvider,
+  getProvider,
+} from "../../utils/secure-storage";
+import {
+  getProviderConfig,
+  getProviderDefaultModel,
+} from "../../utils/provider-registry";
 import {
   removeProviderFromOpenClaw,
   saveOAuthTokenToOpenClaw,
@@ -12,12 +20,12 @@ import {
   setOpenClawDefaultModelWithOverride,
   syncProviderConfigToOpenClaw,
   updateAgentModelProvider,
-} from '../../utils/openclaw-auth';
-import { logger } from '../../utils/logger';
+} from "../../utils/openclaw-auth";
+import { logger } from "../../utils/logger";
 
-const GOOGLE_OAUTH_RUNTIME_PROVIDER = 'google-gemini-cli';
+const GOOGLE_OAUTH_RUNTIME_PROVIDER = "google-gemini-cli";
 const GOOGLE_OAUTH_DEFAULT_MODEL_REF = `${GOOGLE_OAUTH_RUNTIME_PROVIDER}/gemini-3-pro-preview`;
-const OPENAI_OAUTH_RUNTIME_PROVIDER = 'openai-codex';
+const OPENAI_OAUTH_RUNTIME_PROVIDER = "openai-codex";
 const OPENAI_OAUTH_DEFAULT_MODEL_REF = `${OPENAI_OAUTH_RUNTIME_PROVIDER}/gpt-5.3-codex`;
 
 type RuntimeProviderSyncContext = {
@@ -26,67 +34,89 @@ type RuntimeProviderSyncContext = {
   api: string;
 };
 
-function normalizeProviderBaseUrl(config: ProviderConfig, baseUrl?: string): string | undefined {
+function normalizeProviderBaseUrl(
+  config: ProviderConfig,
+  baseUrl?: string,
+): string | undefined {
   if (!baseUrl) {
     return undefined;
   }
 
-  if (config.type === 'minimax-portal' || config.type === 'minimax-portal-cn') {
-    return baseUrl.replace(/\/v1$/, '').replace(/\/anthropic$/, '').replace(/\/$/, '') + '/anthropic';
+  if (config.type === "minimax-portal" || config.type === "minimax-portal-cn") {
+    return (
+      baseUrl
+        .replace(/\/v1$/, "")
+        .replace(/\/anthropic$/, "")
+        .replace(/\/$/, "") + "/anthropic"
+    );
   }
 
   return baseUrl;
 }
 
-function shouldUseExplicitDefaultOverride(config: ProviderConfig, runtimeProviderKey: string): boolean {
-  return Boolean(config.baseUrl || config.apiProtocol || runtimeProviderKey !== config.type);
+function shouldUseExplicitDefaultOverride(
+  config: ProviderConfig,
+  runtimeProviderKey: string,
+): boolean {
+  return Boolean(
+    config.baseUrl || config.apiProtocol || runtimeProviderKey !== config.type,
+  );
 }
 
-export function getOpenClawProviderKey(type: string, providerId: string): string {
-  if (type === 'custom' || type === 'ollama') {
-    const suffix = providerId.replace(/-/g, '').slice(0, 8);
+export function getOpenClawProviderKey(
+  type: string,
+  providerId: string,
+): string {
+  if (type === "custom" || type === "ollama") {
+    const suffix = providerId.replace(/-/g, "").slice(0, 8);
     return `${type}-${suffix}`;
   }
-  if (type === 'minimax-portal-cn') {
-    return 'minimax-portal';
+  if (type === "minimax-portal-cn") {
+    return "minimax-portal";
   }
   return type;
 }
 
-async function resolveRuntimeProviderKey(config: ProviderConfig): Promise<string> {
+async function resolveRuntimeProviderKey(
+  config: ProviderConfig,
+): Promise<string> {
   const account = await getProviderAccount(config.id);
-  if (account?.authMode === 'oauth_browser') {
-    if (config.type === 'google') {
+  if (account?.authMode === "oauth_browser") {
+    if (config.type === "google") {
       return GOOGLE_OAUTH_RUNTIME_PROVIDER;
     }
-    if (config.type === 'openai') {
+    if (config.type === "openai") {
       return OPENAI_OAUTH_RUNTIME_PROVIDER;
     }
   }
   return getOpenClawProviderKey(config.type, config.id);
 }
 
-async function getBrowserOAuthRuntimeProvider(config: ProviderConfig): Promise<string | null> {
+async function getBrowserOAuthRuntimeProvider(
+  config: ProviderConfig,
+): Promise<string | null> {
   const account = await getProviderAccount(config.id);
-  if (account?.authMode !== 'oauth_browser') {
+  if (account?.authMode !== "oauth_browser") {
     return null;
   }
 
   const secret = await getProviderSecret(config.id);
-  if (secret?.type !== 'oauth') {
+  if (secret?.type !== "oauth") {
     return null;
   }
 
-  if (config.type === 'google') {
+  if (config.type === "google") {
     return GOOGLE_OAUTH_RUNTIME_PROVIDER;
   }
-  if (config.type === 'openai') {
+  if (config.type === "openai") {
     return OPENAI_OAUTH_RUNTIME_PROVIDER;
   }
   return null;
 }
 
-export function getProviderModelRef(config: ProviderConfig): string | undefined {
+export function getProviderModelRef(
+  config: ProviderConfig,
+): string | undefined {
   const providerKey = getOpenClawProviderKey(config.type, config.id);
 
   if (config.model) {
@@ -105,9 +135,13 @@ export function getProviderModelRef(config: ProviderConfig): string | undefined 
     : `${providerKey}/${defaultModel}`;
 }
 
-export async function getProviderFallbackModelRefs(config: ProviderConfig): Promise<string[]> {
+export async function getProviderFallbackModelRefs(
+  config: ProviderConfig,
+): Promise<string[]> {
   const allProviders = await getAllProviders();
-  const providerMap = new Map(allProviders.map((provider) => [provider.id, provider]));
+  const providerMap = new Map(
+    allProviders.map((provider) => [provider.id, provider]),
+  );
   const seen = new Set<string>();
   const results: string[] = [];
   const providerKey = getOpenClawProviderKey(config.type, config.id);
@@ -150,7 +184,10 @@ function scheduleGatewayRestart(
     return;
   }
 
-  if (options?.onlyIfRunning && gatewayManager.getStatus().state === 'stopped') {
+  if (
+    options?.onlyIfRunning &&
+    gatewayManager.getStatus().state === "stopped"
+  ) {
     return;
   }
 
@@ -189,17 +226,17 @@ export async function syncAllProviderAuthToRuntime(): Promise<void> {
       continue;
     }
 
-    if (secret.type === 'api_key') {
+    if (secret.type === "api_key") {
       await saveProviderKeyToOpenClaw(runtimeProviderKey, secret.apiKey);
       continue;
     }
 
-    if (secret.type === 'local' && secret.apiKey) {
+    if (secret.type === "local" && secret.apiKey) {
       await saveProviderKeyToOpenClaw(runtimeProviderKey, secret.apiKey);
       continue;
     }
 
-    if (secret.type === 'oauth') {
+    if (secret.type === "oauth") {
       await saveOAuthTokenToOpenClaw(runtimeProviderKey, {
         access: secret.accessToken,
         refresh: secret.refreshToken,
@@ -225,12 +262,12 @@ async function syncProviderSecretToRuntime(
     return;
   }
 
-  if (secret?.type === 'api_key') {
+  if (secret?.type === "api_key") {
     await saveProviderKeyToOpenClaw(runtimeProviderKey, secret.apiKey);
     return;
   }
 
-  if (secret?.type === 'oauth') {
+  if (secret?.type === "oauth") {
     await saveOAuthTokenToOpenClaw(runtimeProviderKey, {
       access: secret.accessToken,
       refresh: secret.refreshToken,
@@ -241,15 +278,19 @@ async function syncProviderSecretToRuntime(
     return;
   }
 
-  if (secret?.type === 'local' && secret.apiKey) {
+  if (secret?.type === "local" && secret.apiKey) {
     await saveProviderKeyToOpenClaw(runtimeProviderKey, secret.apiKey);
   }
 }
 
-async function resolveRuntimeSyncContext(config: ProviderConfig): Promise<RuntimeProviderSyncContext | null> {
+async function resolveRuntimeSyncContext(
+  config: ProviderConfig,
+): Promise<RuntimeProviderSyncContext | null> {
   const runtimeProviderKey = await resolveRuntimeProviderKey(config);
   const meta = getProviderConfig(config.type);
-  const api = config.apiProtocol || (config.type === 'custom' ? 'openai-completions' : meta?.api);
+  const api =
+    config.apiProtocol ||
+    (config.type === "custom" ? "openai-completions" : meta?.api);
   if (!api) {
     return null;
   }
@@ -266,7 +307,10 @@ async function syncRuntimeProviderConfig(
   context: RuntimeProviderSyncContext,
 ): Promise<void> {
   await syncProviderConfigToOpenClaw(context.runtimeProviderKey, config.model, {
-    baseUrl: normalizeProviderBaseUrl(config, config.baseUrl || context.meta?.baseUrl),
+    baseUrl: normalizeProviderBaseUrl(
+      config,
+      config.baseUrl || context.meta?.baseUrl,
+    ),
     api: context.api,
     apiKeyEnv: context.meta?.apiKeyEnv,
     headers: context.meta?.headers,
@@ -278,11 +322,12 @@ async function syncCustomProviderAgentModel(
   runtimeProviderKey: string,
   apiKey: string | undefined,
 ): Promise<void> {
-  if (config.type !== 'custom') {
+  if (config.type !== "custom") {
     return;
   }
 
-  const resolvedKey = apiKey !== undefined ? (apiKey.trim() || null) : await getApiKey(config.id);
+  const resolvedKey =
+    apiKey !== undefined ? apiKey.trim() || null : await getApiKey(config.id);
   if (!resolvedKey || !config.baseUrl) {
     return;
   }
@@ -290,7 +335,7 @@ async function syncCustomProviderAgentModel(
   const modelId = config.model;
   await updateAgentModelProvider(runtimeProviderKey, {
     baseUrl: config.baseUrl,
-    api: config.apiProtocol || 'openai-completions',
+    api: config.apiProtocol || "openai-completions",
     models: modelId ? [{ id: modelId, name: modelId }] : [],
     apiKey: resolvedKey,
   });
@@ -307,7 +352,11 @@ async function syncProviderToRuntime(
 
   await syncProviderSecretToRuntime(config, context.runtimeProviderKey, apiKey);
   await syncRuntimeProviderConfig(config, context);
-  await syncCustomProviderAgentModel(config, context.runtimeProviderKey, apiKey);
+  await syncCustomProviderAgentModel(
+    config,
+    context.runtimeProviderKey,
+    apiKey,
+  );
   return context;
 }
 
@@ -343,22 +392,35 @@ export async function syncUpdatedProviderToRuntime(
   const defaultProviderId = await getDefaultProvider();
   if (defaultProviderId === config.id) {
     const modelOverride = config.model ? `${ock}/${config.model}` : undefined;
-    if (config.type !== 'custom') {
+    if (config.type !== "custom") {
       if (shouldUseExplicitDefaultOverride(config, ock)) {
-        await setOpenClawDefaultModelWithOverride(ock, modelOverride, {
-          baseUrl: normalizeProviderBaseUrl(config, config.baseUrl || context.meta?.baseUrl),
-          api: context.api,
-          apiKeyEnv: context.meta?.apiKeyEnv,
-          headers: context.meta?.headers,
-        }, fallbackModels);
+        await setOpenClawDefaultModelWithOverride(
+          ock,
+          modelOverride,
+          {
+            baseUrl: normalizeProviderBaseUrl(
+              config,
+              config.baseUrl || context.meta?.baseUrl,
+            ),
+            api: context.api,
+            apiKeyEnv: context.meta?.apiKeyEnv,
+            headers: context.meta?.headers,
+          },
+          fallbackModels,
+        );
       } else {
         await setOpenClawDefaultModel(ock, modelOverride, fallbackModels);
       }
     } else {
-      await setOpenClawDefaultModelWithOverride(ock, modelOverride, {
-        baseUrl: config.baseUrl,
-        api: config.apiProtocol || 'openai-completions',
-      }, fallbackModels);
+      await setOpenClawDefaultModelWithOverride(
+        ock,
+        modelOverride,
+        {
+          baseUrl: config.baseUrl,
+          api: config.apiProtocol || "openai-completions",
+        },
+        fallbackModels,
+      );
     }
   }
 
@@ -378,7 +440,9 @@ export async function syncDeletedProviderToRuntime(
     return;
   }
 
-  const ock = runtimeProviderKey ?? await resolveRuntimeProviderKey({ ...provider, id: providerId });
+  const ock =
+    runtimeProviderKey ??
+    (await resolveRuntimeProviderKey({ ...provider, id: providerId }));
   await removeProviderFromOpenClaw(ock);
 
   scheduleGatewayRestart(
@@ -396,7 +460,9 @@ export async function syncDeletedProviderApiKeyToRuntime(
     return;
   }
 
-  const ock = runtimeProviderKey ?? await resolveRuntimeProviderKey({ ...provider, id: providerId });
+  const ock =
+    runtimeProviderKey ??
+    (await resolveRuntimeProviderKey({ ...provider, id: providerId }));
   await removeProviderFromOpenClaw(ock);
 }
 
@@ -412,27 +478,45 @@ export async function syncDefaultProviderToRuntime(
   const ock = await resolveRuntimeProviderKey(provider);
   const providerKey = await getApiKey(providerId);
   const fallbackModels = await getProviderFallbackModelRefs(provider);
-  const oauthTypes = ['qwen-portal', 'minimax-portal', 'minimax-portal-cn'];
-  const browserOAuthRuntimeProvider = await getBrowserOAuthRuntimeProvider(provider);
-  const isOAuthProvider = (oauthTypes.includes(provider.type) && !providerKey) || Boolean(browserOAuthRuntimeProvider);
+  const oauthTypes = ["qwen-portal", "minimax-portal", "minimax-portal-cn"];
+  const browserOAuthRuntimeProvider =
+    await getBrowserOAuthRuntimeProvider(provider);
+  const isOAuthProvider =
+    (oauthTypes.includes(provider.type) && !providerKey) ||
+    Boolean(browserOAuthRuntimeProvider);
 
   if (!isOAuthProvider) {
     const modelOverride = provider.model
-      ? (provider.model.startsWith(`${ock}/`) ? provider.model : `${ock}/${provider.model}`)
+      ? provider.model.startsWith(`${ock}/`)
+        ? provider.model
+        : `${ock}/${provider.model}`
       : undefined;
 
-    if (provider.type === 'custom') {
-      await setOpenClawDefaultModelWithOverride(ock, modelOverride, {
-        baseUrl: provider.baseUrl,
-        api: provider.apiProtocol || 'openai-completions',
-      }, fallbackModels);
+    if (provider.type === "custom") {
+      await setOpenClawDefaultModelWithOverride(
+        ock,
+        modelOverride,
+        {
+          baseUrl: provider.baseUrl,
+          api: provider.apiProtocol || "openai-completions",
+        },
+        fallbackModels,
+      );
     } else if (shouldUseExplicitDefaultOverride(provider, ock)) {
-      await setOpenClawDefaultModelWithOverride(ock, modelOverride, {
-        baseUrl: normalizeProviderBaseUrl(provider, provider.baseUrl || getProviderConfig(provider.type)?.baseUrl),
-        api: provider.apiProtocol || getProviderConfig(provider.type)?.api,
-        apiKeyEnv: getProviderConfig(provider.type)?.apiKeyEnv,
-        headers: getProviderConfig(provider.type)?.headers,
-      }, fallbackModels);
+      await setOpenClawDefaultModelWithOverride(
+        ock,
+        modelOverride,
+        {
+          baseUrl: normalizeProviderBaseUrl(
+            provider,
+            provider.baseUrl || getProviderConfig(provider.type)?.baseUrl,
+          ),
+          api: provider.apiProtocol || getProviderConfig(provider.type)?.api,
+          apiKeyEnv: getProviderConfig(provider.type)?.apiKeyEnv,
+          headers: getProviderConfig(provider.type)?.headers,
+        },
+        fallbackModels,
+      );
     } else {
       await setOpenClawDefaultModel(ock, modelOverride, fallbackModels);
     }
@@ -443,7 +527,7 @@ export async function syncDefaultProviderToRuntime(
   } else {
     if (browserOAuthRuntimeProvider) {
       const secret = await getProviderSecret(provider.id);
-      if (secret?.type === 'oauth') {
+      if (secret?.type === "oauth") {
         await saveOAuthTokenToOpenClaw(browserOAuthRuntimeProvider, {
           access: secret.accessToken,
           refresh: secret.refreshToken,
@@ -453,17 +537,24 @@ export async function syncDefaultProviderToRuntime(
         });
       }
 
-      const defaultModelRef = browserOAuthRuntimeProvider === GOOGLE_OAUTH_RUNTIME_PROVIDER
-        ? GOOGLE_OAUTH_DEFAULT_MODEL_REF
-        : OPENAI_OAUTH_DEFAULT_MODEL_REF;
+      const defaultModelRef =
+        browserOAuthRuntimeProvider === GOOGLE_OAUTH_RUNTIME_PROVIDER
+          ? GOOGLE_OAUTH_DEFAULT_MODEL_REF
+          : OPENAI_OAUTH_DEFAULT_MODEL_REF;
       const modelOverride = provider.model
-        ? (provider.model.startsWith(`${browserOAuthRuntimeProvider}/`)
+        ? provider.model.startsWith(`${browserOAuthRuntimeProvider}/`)
           ? provider.model
-          : `${browserOAuthRuntimeProvider}/${provider.model}`)
+          : `${browserOAuthRuntimeProvider}/${provider.model}`
         : defaultModelRef;
 
-      await setOpenClawDefaultModel(browserOAuthRuntimeProvider, modelOverride, fallbackModels);
-      logger.info(`Configured openclaw.json for browser OAuth provider "${provider.id}"`);
+      await setOpenClawDefaultModel(
+        browserOAuthRuntimeProvider,
+        modelOverride,
+        fallbackModels,
+      );
+      logger.info(
+        `Configured openclaw.json for browser OAuth provider "${provider.id}"`,
+      );
       scheduleGatewayRestart(
         gatewayManager,
         `Scheduling Gateway restart after provider switch to "${browserOAuthRuntimeProvider}"`,
@@ -471,55 +562,83 @@ export async function syncDefaultProviderToRuntime(
       return;
     }
 
-    const defaultBaseUrl = provider.type === 'minimax-portal'
-      ? 'https://api.minimax.io/anthropic'
-      : (provider.type === 'minimax-portal-cn' ? 'https://api.minimaxi.com/anthropic' : 'https://portal.qwen.ai/v1');
-    const api: 'anthropic-messages' | 'openai-completions' =
-      (provider.type === 'minimax-portal' || provider.type === 'minimax-portal-cn')
-        ? 'anthropic-messages'
-        : 'openai-completions';
+    const defaultBaseUrl =
+      provider.type === "minimax-portal"
+        ? "https://api.minimax.io/anthropic"
+        : provider.type === "minimax-portal-cn"
+          ? "https://api.minimaxi.com/anthropic"
+          : "https://portal.qwen.ai/v1";
+    const api: "anthropic-messages" | "openai-completions" =
+      provider.type === "minimax-portal" ||
+      provider.type === "minimax-portal-cn"
+        ? "anthropic-messages"
+        : "openai-completions";
 
     let baseUrl = provider.baseUrl || defaultBaseUrl;
-    if ((provider.type === 'minimax-portal' || provider.type === 'minimax-portal-cn') && baseUrl) {
-      baseUrl = baseUrl.replace(/\/v1$/, '').replace(/\/anthropic$/, '').replace(/\/$/, '') + '/anthropic';
+    if (
+      (provider.type === "minimax-portal" ||
+        provider.type === "minimax-portal-cn") &&
+      baseUrl
+    ) {
+      baseUrl =
+        baseUrl
+          .replace(/\/v1$/, "")
+          .replace(/\/anthropic$/, "")
+          .replace(/\/$/, "") + "/anthropic";
     }
 
-    const targetProviderKey = (provider.type === 'minimax-portal' || provider.type === 'minimax-portal-cn')
-      ? 'minimax-portal'
-      : provider.type;
+    const targetProviderKey =
+      provider.type === "minimax-portal" ||
+      provider.type === "minimax-portal-cn"
+        ? "minimax-portal"
+        : provider.type;
 
-    await setOpenClawDefaultModelWithOverride(targetProviderKey, getProviderModelRef(provider), {
-      baseUrl,
-      api,
-      authHeader: targetProviderKey === 'minimax-portal' ? true : undefined,
-      apiKeyEnv: targetProviderKey === 'minimax-portal' ? 'minimax-oauth' : 'qwen-oauth',
-    }, fallbackModels);
+    await setOpenClawDefaultModelWithOverride(
+      targetProviderKey,
+      getProviderModelRef(provider),
+      {
+        baseUrl,
+        api,
+        authHeader: targetProviderKey === "minimax-portal" ? true : undefined,
+        apiKeyEnv:
+          targetProviderKey === "minimax-portal"
+            ? "minimax-oauth"
+            : "qwen-oauth",
+      },
+      fallbackModels,
+    );
 
-    logger.info(`Configured openclaw.json for OAuth provider "${provider.type}"`);
+    logger.info(
+      `Configured openclaw.json for OAuth provider "${provider.type}"`,
+    );
 
     try {
-      const defaultModelId = provider.model?.split('/').pop();
+      const defaultModelId = provider.model?.split("/").pop();
       await updateAgentModelProvider(targetProviderKey, {
         baseUrl,
         api,
-        authHeader: targetProviderKey === 'minimax-portal' ? true : undefined,
-        apiKey: targetProviderKey === 'minimax-portal' ? 'minimax-oauth' : 'qwen-oauth',
-        models: defaultModelId ? [{ id: defaultModelId, name: defaultModelId }] : [],
+        authHeader: targetProviderKey === "minimax-portal" ? true : undefined,
+        apiKey:
+          targetProviderKey === "minimax-portal"
+            ? "minimax-oauth"
+            : "qwen-oauth",
+        models: defaultModelId
+          ? [{ id: defaultModelId, name: defaultModelId }]
+          : [],
       });
     } catch (err) {
-      logger.warn(`Failed to update models.json for OAuth provider "${targetProviderKey}":`, err);
+      logger.warn(
+        `Failed to update models.json for OAuth provider "${targetProviderKey}":`,
+        err,
+      );
     }
   }
 
-  if (
-    provider.type === 'custom' &&
-    providerKey &&
-    provider.baseUrl
-  ) {
+  if (provider.type === "custom" && providerKey && provider.baseUrl) {
     const modelId = provider.model;
     await updateAgentModelProvider(ock, {
       baseUrl: provider.baseUrl,
-      api: provider.apiProtocol || 'openai-completions',
+      api: provider.apiProtocol || "openai-completions",
       models: modelId ? [{ id: modelId, name: modelId }] : [],
       apiKey: providerKey,
     });

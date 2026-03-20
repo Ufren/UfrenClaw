@@ -2,14 +2,14 @@
  * Settings State Store
  * Manages application settings
  */
-import { create } from 'zustand';
-import { persist } from 'zustand/middleware';
-import i18n from '@/i18n';
-import { hostApiFetch } from '@/lib/host-api';
-import { invokeIpc } from '@/lib/api-client';
+import { create } from "zustand";
+import { persist } from "zustand/middleware";
+import i18n from "@/i18n";
+import { hostApiFetch } from "@/lib/host-api";
+import { invokeIpc } from "@/lib/api-client";
 
-type Theme = 'light' | 'dark' | 'system';
-type UpdateChannel = 'stable' | 'beta' | 'dev';
+type Theme = "light" | "dark" | "system";
+type UpdateChannel = "stable" | "beta" | "dev";
 
 interface SettingsState {
   // General
@@ -66,12 +66,12 @@ interface SettingsState {
 }
 
 const defaultSettings = {
-  theme: 'system' as Theme,
+  theme: "system" as Theme,
   language: (() => {
     const lang = navigator.language.toLowerCase();
-    if (lang.startsWith('zh')) return 'zh';
-    if (lang.startsWith('ja')) return 'ja';
-    return 'en';
+    if (lang.startsWith("zh")) return "zh";
+    if (lang.startsWith("ja")) return "ja";
+    return "en";
   })(),
   startMinimized: false,
   launchAtStartup: false,
@@ -79,12 +79,12 @@ const defaultSettings = {
   gatewayAutoStart: true,
   gatewayPort: 18789,
   proxyEnabled: false,
-  proxyServer: '',
-  proxyHttpServer: '',
-  proxyHttpsServer: '',
-  proxyAllServer: '',
-  proxyBypassRules: '<local>;localhost;127.0.0.1;::1',
-  updateChannel: 'stable' as UpdateChannel,
+  proxyServer: "",
+  proxyHttpServer: "",
+  proxyHttpsServer: "",
+  proxyAllServer: "",
+  proxyBypassRules: "<local>;localhost;127.0.0.1;::1",
+  updateChannel: "stable" as UpdateChannel,
   autoCheckUpdate: true,
   autoDownloadUpdate: false,
   sidebarCollapsed: false,
@@ -99,11 +99,14 @@ export const useSettingsStore = create<SettingsState>()(
 
       init: async () => {
         try {
-          const settings = await hostApiFetch<Partial<typeof defaultSettings>>('/api/settings');
+          const settings =
+            await hostApiFetch<Partial<typeof defaultSettings>>(
+              "/api/settings",
+            );
           set((state) => ({ ...state, ...settings }));
           if (settings.language) {
             i18n.changeLanguage(settings.language);
-            void invokeIpc('app:setLanguage', settings.language);
+            void invokeIpc("app:setLanguage", settings.language);
           }
         } catch {
           // Keep renderer-persisted settings as a fallback when the main
@@ -115,40 +118,40 @@ export const useSettingsStore = create<SettingsState>()(
       setLanguage: (language) => {
         i18n.changeLanguage(language);
         set({ language });
-        void invokeIpc('app:setLanguage', language);
-        void hostApiFetch('/api/settings/language', {
-          method: 'PUT',
+        void invokeIpc("app:setLanguage", language);
+        void hostApiFetch("/api/settings/language", {
+          method: "PUT",
           body: JSON.stringify({ value: language }),
-        }).catch(() => { });
+        }).catch(() => {});
       },
       setStartMinimized: (startMinimized) => set({ startMinimized }),
       setLaunchAtStartup: (launchAtStartup) => {
         set({ launchAtStartup });
-        void hostApiFetch('/api/settings/launchAtStartup', {
-          method: 'PUT',
+        void hostApiFetch("/api/settings/launchAtStartup", {
+          method: "PUT",
           body: JSON.stringify({ value: launchAtStartup }),
-        }).catch(() => { });
+        }).catch(() => {});
       },
       setTelemetryEnabled: (telemetryEnabled) => {
         set({ telemetryEnabled });
-        void hostApiFetch('/api/settings/telemetryEnabled', {
-          method: 'PUT',
+        void hostApiFetch("/api/settings/telemetryEnabled", {
+          method: "PUT",
           body: JSON.stringify({ value: telemetryEnabled }),
-        }).catch(() => { });
+        }).catch(() => {});
       },
       setGatewayAutoStart: (gatewayAutoStart) => {
         set({ gatewayAutoStart });
-        void hostApiFetch('/api/settings/gatewayAutoStart', {
-          method: 'PUT',
+        void hostApiFetch("/api/settings/gatewayAutoStart", {
+          method: "PUT",
           body: JSON.stringify({ value: gatewayAutoStart }),
-        }).catch(() => { });
+        }).catch(() => {});
       },
       setGatewayPort: (gatewayPort) => {
         set({ gatewayPort });
-        void hostApiFetch('/api/settings/gatewayPort', {
-          method: 'PUT',
+        void hostApiFetch("/api/settings/gatewayPort", {
+          method: "PUT",
           body: JSON.stringify({ value: gatewayPort }),
-        }).catch(() => { });
+        }).catch(() => {});
       },
       setProxyEnabled: (proxyEnabled) => set({ proxyEnabled }),
       setProxyServer: (proxyServer) => set({ proxyServer }),
@@ -158,14 +161,15 @@ export const useSettingsStore = create<SettingsState>()(
       setProxyBypassRules: (proxyBypassRules) => set({ proxyBypassRules }),
       setUpdateChannel: (updateChannel) => set({ updateChannel }),
       setAutoCheckUpdate: (autoCheckUpdate) => set({ autoCheckUpdate }),
-      setAutoDownloadUpdate: (autoDownloadUpdate) => set({ autoDownloadUpdate }),
+      setAutoDownloadUpdate: (autoDownloadUpdate) =>
+        set({ autoDownloadUpdate }),
       setSidebarCollapsed: (sidebarCollapsed) => set({ sidebarCollapsed }),
       setDevModeUnlocked: (devModeUnlocked) => set({ devModeUnlocked }),
       markSetupComplete: () => set({ setupComplete: true }),
       resetSettings: () => set(defaultSettings),
     }),
     {
-      name: 'ufrenclaw-settings',
-    }
-  )
+      name: "ufrenclaw-settings",
+    },
+  ),
 );

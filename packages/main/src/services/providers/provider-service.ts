@@ -1,13 +1,13 @@
 import {
   PROVIDER_DEFINITIONS,
   getProviderDefinition,
-} from '../../shared/providers/registry';
+} from "../../shared/providers/registry";
 import type {
   ProviderAccount,
   ProviderConfig,
   ProviderDefinition,
-} from '../../shared/providers/types';
-import { ensureProviderStoreMigrated } from './provider-migration';
+} from "../../shared/providers/types";
+import { ensureProviderStoreMigrated } from "./provider-migration";
 import {
   getDefaultProviderAccountId,
   getProviderAccount,
@@ -16,7 +16,7 @@ import {
   providerConfigToAccount,
   saveProviderAccount,
   setDefaultProviderAccount,
-} from './provider-store';
+} from "./provider-store";
 import {
   deleteApiKey,
   deleteProvider,
@@ -25,16 +25,16 @@ import {
   saveProvider,
   setDefaultProvider,
   storeApiKey,
-} from '../../utils/secure-storage';
-import type { ProviderWithKeyInfo } from '../../shared/providers/types';
-import { logger } from '../../utils/logger';
+} from "../../utils/secure-storage";
+import type { ProviderWithKeyInfo } from "../../shared/providers/types";
+import { logger } from "../../utils/logger";
 
 function maskApiKey(apiKey: string | null): string | null {
   if (!apiKey) return null;
   if (apiKey.length > 12) {
-    return `${apiKey.substring(0, 4)}${'*'.repeat(apiKey.length - 8)}${apiKey.substring(apiKey.length - 4)}`;
+    return `${apiKey.substring(0, 4)}${"*".repeat(apiKey.length - 8)}${apiKey.substring(apiKey.length - 4)}`;
   }
-  return '*'.repeat(apiKey.length);
+  return "*".repeat(apiKey.length);
 }
 
 const legacyProviderApiWarned = new Set<string>();
@@ -69,7 +69,10 @@ export class ProviderService {
     return getDefaultProviderAccountId();
   }
 
-  async createAccount(account: ProviderAccount, apiKey?: string): Promise<ProviderAccount> {
+  async createAccount(
+    account: ProviderAccount,
+    apiKey?: string,
+  ): Promise<ProviderAccount> {
     await ensureProviderStoreMigrated();
     await saveProvider(providerAccountToConfig(account));
     await saveProviderAccount(account);
@@ -87,7 +90,7 @@ export class ProviderService {
     await ensureProviderStoreMigrated();
     const existing = await getProviderAccount(accountId);
     if (!existing) {
-      throw new Error('Provider account not found');
+      throw new Error("Provider account not found");
     }
 
     const nextAccount: ProviderAccount = {
@@ -120,7 +123,7 @@ export class ProviderService {
    * @deprecated Use listAccounts() and map account data in callers.
    */
   async listLegacyProviders(): Promise<ProviderConfig[]> {
-    logLegacyProviderApiUsage('listLegacyProviders', 'listAccounts');
+    logLegacyProviderApiUsage("listLegacyProviders", "listAccounts");
     await ensureProviderStoreMigrated();
     const accounts = await listProviderAccounts();
     return accounts.map(providerAccountToConfig);
@@ -130,7 +133,7 @@ export class ProviderService {
    * @deprecated Use listAccounts() + secret-store based key summary.
    */
   async listLegacyProvidersWithKeyInfo(): Promise<ProviderWithKeyInfo[]> {
-    logLegacyProviderApiUsage('listLegacyProvidersWithKeyInfo', 'listAccounts');
+    logLegacyProviderApiUsage("listLegacyProvidersWithKeyInfo", "listAccounts");
     const providers = await this.listLegacyProviders();
     const results: ProviderWithKeyInfo[] = [];
     for (const provider of providers) {
@@ -148,7 +151,7 @@ export class ProviderService {
    * @deprecated Use getAccount(accountId).
    */
   async getLegacyProvider(providerId: string): Promise<ProviderConfig | null> {
-    logLegacyProviderApiUsage('getLegacyProvider', 'getAccount');
+    logLegacyProviderApiUsage("getLegacyProvider", "getAccount");
     await ensureProviderStoreMigrated();
     const account = await getProviderAccount(providerId);
     return account ? providerAccountToConfig(account) : null;
@@ -158,7 +161,10 @@ export class ProviderService {
    * @deprecated Use createAccount()/updateAccount().
    */
   async saveLegacyProvider(config: ProviderConfig): Promise<void> {
-    logLegacyProviderApiUsage('saveLegacyProvider', 'createAccount/updateAccount');
+    logLegacyProviderApiUsage(
+      "saveLegacyProvider",
+      "createAccount/updateAccount",
+    );
     await ensureProviderStoreMigrated();
     const account = providerConfigToAccount(config);
     const existing = await getProviderAccount(config.id);
@@ -173,7 +179,7 @@ export class ProviderService {
    * @deprecated Use deleteAccount(accountId).
    */
   async deleteLegacyProvider(providerId: string): Promise<boolean> {
-    logLegacyProviderApiUsage('deleteLegacyProvider', 'deleteAccount');
+    logLegacyProviderApiUsage("deleteLegacyProvider", "deleteAccount");
     await ensureProviderStoreMigrated();
     await this.deleteAccount(providerId);
     return true;
@@ -183,7 +189,7 @@ export class ProviderService {
    * @deprecated Use setDefaultAccount(accountId).
    */
   async setDefaultLegacyProvider(providerId: string): Promise<void> {
-    logLegacyProviderApiUsage('setDefaultLegacyProvider', 'setDefaultAccount');
+    logLegacyProviderApiUsage("setDefaultLegacyProvider", "setDefaultAccount");
     await this.setDefaultAccount(providerId);
   }
 
@@ -191,15 +197,24 @@ export class ProviderService {
    * @deprecated Use getDefaultAccountId().
    */
   async getDefaultLegacyProvider(): Promise<string | undefined> {
-    logLegacyProviderApiUsage('getDefaultLegacyProvider', 'getDefaultAccountId');
+    logLegacyProviderApiUsage(
+      "getDefaultLegacyProvider",
+      "getDefaultAccountId",
+    );
     return this.getDefaultAccountId();
   }
 
   /**
    * @deprecated Use secret-store APIs by accountId.
    */
-  async setLegacyProviderApiKey(providerId: string, apiKey: string): Promise<boolean> {
-    logLegacyProviderApiUsage('setLegacyProviderApiKey', 'setProviderSecret(accountId, api_key)');
+  async setLegacyProviderApiKey(
+    providerId: string,
+    apiKey: string,
+  ): Promise<boolean> {
+    logLegacyProviderApiUsage(
+      "setLegacyProviderApiKey",
+      "setProviderSecret(accountId, api_key)",
+    );
     return storeApiKey(providerId, apiKey);
   }
 
@@ -207,7 +222,10 @@ export class ProviderService {
    * @deprecated Use secret-store APIs by accountId.
    */
   async getLegacyProviderApiKey(providerId: string): Promise<string | null> {
-    logLegacyProviderApiUsage('getLegacyProviderApiKey', 'getProviderSecret(accountId)');
+    logLegacyProviderApiUsage(
+      "getLegacyProviderApiKey",
+      "getProviderSecret(accountId)",
+    );
     return getApiKey(providerId);
   }
 
@@ -215,7 +233,10 @@ export class ProviderService {
    * @deprecated Use secret-store APIs by accountId.
    */
   async deleteLegacyProviderApiKey(providerId: string): Promise<boolean> {
-    logLegacyProviderApiUsage('deleteLegacyProviderApiKey', 'deleteProviderSecret(accountId)');
+    logLegacyProviderApiUsage(
+      "deleteLegacyProviderApiKey",
+      "deleteProviderSecret(accountId)",
+    );
     return deleteApiKey(providerId);
   }
 
@@ -223,7 +244,10 @@ export class ProviderService {
    * @deprecated Use secret-store APIs by accountId.
    */
   async hasLegacyProviderApiKey(providerId: string): Promise<boolean> {
-    logLegacyProviderApiUsage('hasLegacyProviderApiKey', 'getProviderSecret(accountId)');
+    logLegacyProviderApiUsage(
+      "hasLegacyProviderApiKey",
+      "getProviderSecret(accountId)",
+    );
     return hasApiKey(providerId);
   }
 

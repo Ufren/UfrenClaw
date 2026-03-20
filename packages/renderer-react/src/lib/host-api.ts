@@ -1,6 +1,6 @@
-import { invokeIpc } from '@/lib/api-client';
-import { trackUiEvent } from './telemetry';
-import { normalizeAppError } from './error-model';
+import { invokeIpc } from "@/lib/api-client";
+import { trackUiEvent } from "./telemetry";
+import { normalizeAppError } from "./error-model";
 
 const HOST_API_PORT = 3210;
 const HOST_API_BASE = `http://127.0.0.1:${HOST_API_PORT}`;
@@ -39,7 +39,7 @@ async function parseResponse<T>(response: Response): Promise<T> {
   if (!response.ok) {
     let message = `${response.status} ${response.statusText}`;
     try {
-      const payload = await response.json() as { error?: string };
+      const payload = (await response.json()) as { error?: string };
       if (payload?.error) {
         message = payload.error;
       }
@@ -47,7 +47,7 @@ async function parseResponse<T>(response: Response): Promise<T> {
       // ignore body parse failure
     }
     throw normalizeAppError(new Error(message), {
-      source: 'browser-fallback',
+      source: "browser-fallback",
       status: response.status,
     });
   }
@@ -56,13 +56,15 @@ async function parseResponse<T>(response: Response): Promise<T> {
     return undefined as T;
   }
 
-  return await response.json() as T;
+  return (await response.json()) as T;
 }
 
-function resolveProxyErrorMessage(error: HostApiProxyResponse['error']): string {
-  return typeof error === 'string'
+function resolveProxyErrorMessage(
+  error: HostApiProxyResponse["error"],
+): string {
+  return typeof error === "string"
     ? error
-    : (error?.message || 'Host API proxy request failed');
+    : error?.message || "Host API proxy request failed";
 }
 
 function parseUnifiedProxyResponse<T>(
@@ -76,10 +78,10 @@ function parseUnifiedProxyResponse<T>(
   }
 
   const data: HostApiProxyData = response.data ?? {};
-  trackUiEvent('hostapi.fetch', {
+  trackUiEvent("hostapi.fetch", {
     path,
     method,
-    source: 'ipc-proxy',
+    source: "ipc-proxy",
     durationMs: Date.now() - startedAt,
     status: data.status ?? 200,
   });
@@ -100,17 +102,20 @@ function parseLegacyProxyResponse<T>(
   }
 
   if (!response.ok) {
-    const message = response.text
-      || (typeof response.json === 'object' && response.json != null && 'error' in (response.json as Record<string, unknown>)
+    const message =
+      response.text ||
+      (typeof response.json === "object" &&
+      response.json != null &&
+      "error" in (response.json as Record<string, unknown>)
         ? String((response.json as Record<string, unknown>).error)
-        : `HTTP ${response.status ?? 'unknown'}`);
+        : `HTTP ${response.status ?? "unknown"}`);
     throw new Error(message);
   }
 
-  trackUiEvent('hostapi.fetch', {
+  trackUiEvent("hostapi.fetch", {
     path,
     method,
-    source: 'ipc-proxy-legacy',
+    source: "ipc-proxy-legacy",
     durationMs: Date.now() - startedAt,
     status: response.status ?? 200,
   });
@@ -122,37 +127,46 @@ function parseLegacyProxyResponse<T>(
 
 function shouldFallbackToBrowser(message: string): boolean {
   const normalized = message.toLowerCase();
-  return normalized.includes('invalid ipc channel: hostapi:fetch')
-    || normalized.includes("no handler registered for 'hostapi:fetch'")
-    || normalized.includes('no handler registered for "hostapi:fetch"')
-    || normalized.includes('no handler registered for hostapi:fetch')
-    || normalized.includes('window is not defined');
+  return (
+    normalized.includes("invalid ipc channel: hostapi:fetch") ||
+    normalized.includes("no handler registered for 'hostapi:fetch'") ||
+    normalized.includes('no handler registered for "hostapi:fetch"') ||
+    normalized.includes("no handler registered for hostapi:fetch") ||
+    normalized.includes("window is not defined")
+  );
 }
 
-export async function hostApiFetch<T>(path: string, init?: RequestInit): Promise<T> {
+export async function hostApiFetch<T>(
+  path: string,
+  init?: RequestInit,
+): Promise<T> {
   const startedAt = Date.now();
-  const method = init?.method || 'GET';
+  const method = init?.method || "GET";
   // In Electron renderer, always proxy through main process to avoid CORS.
   try {
-    const response = await invokeIpc<HostApiProxyResponse>('hostapi:fetch', {
+    const response = await invokeIpc<HostApiProxyResponse>("hostapi:fetch", {
       path,
       method,
       headers: headersToRecord(init?.headers),
       body: init?.body ?? null,
     });
 
-    if (typeof response?.ok === 'boolean' && 'data' in response) {
+    if (typeof response?.ok === "boolean" && "data" in response) {
       return parseUnifiedProxyResponse<T>(response, path, method, startedAt);
     }
 
     return parseLegacyProxyResponse<T>(response, path, method, startedAt);
   } catch (error) {
-    const normalized = normalizeAppError(error, { source: 'ipc-proxy', path, method });
-    const message = normalized.message;
-    trackUiEvent('hostapi.fetch_error', {
+    const normalized = normalizeAppError(error, {
+      source: "ipc-proxy",
       path,
       method,
-      source: 'ipc-proxy',
+    });
+    const message = normalized.message;
+    trackUiEvent("hostapi.fetch_error", {
+      path,
+      method,
+      source: "ipc-proxy",
       durationMs: Date.now() - startedAt,
       message,
       code: normalized.code,
@@ -166,25 +180,29 @@ export async function hostApiFetch<T>(path: string, init?: RequestInit): Promise
   const response = await fetch(`${HOST_API_BASE}${path}`, {
     ...init,
     headers: {
-      'Content-Type': 'application/json',
+      "Content-Type": "application/json",
       ...(init?.headers || {}),
     },
   });
-  trackUiEvent('hostapi.fetch', {
+  trackUiEvent("hostapi.fetch", {
     path,
     method,
-    source: 'browser-fallback',
+    source: "browser-fallback",
     durationMs: Date.now() - startedAt,
     status: response.status,
   });
   try {
     return await parseResponse<T>(response);
   } catch (error) {
-    throw normalizeAppError(error, { source: 'browser-fallback', path, method });
+    throw normalizeAppError(error, {
+      source: "browser-fallback",
+      path,
+      method,
+    });
   }
 }
 
-export function createHostEventSource(path = '/api/events'): EventSource {
+export function createHostEventSource(path = "/api/events"): EventSource {
   return new EventSource(`${HOST_API_BASE}${path}`);
 }
 

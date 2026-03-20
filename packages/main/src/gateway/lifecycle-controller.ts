@@ -1,10 +1,10 @@
-import { logger } from '../utils/logger';
-import { isLifecycleSuperseded, nextLifecycleEpoch } from './process-policy';
+import { logger } from "../utils/logger";
+import { isLifecycleSuperseded, nextLifecycleEpoch } from "./process-policy";
 
 export class LifecycleSupersededError extends Error {
   constructor(message: string) {
     super(message);
-    this.name = 'LifecycleSupersededError';
+    this.name = "LifecycleSupersededError";
   }
 }
 
@@ -17,7 +17,9 @@ export class GatewayLifecycleController {
 
   bump(reason: string): number {
     this.epoch = nextLifecycleEpoch(this.epoch);
-    logger.debug(`Gateway lifecycle epoch advanced to ${this.epoch} (${reason})`);
+    logger.debug(
+      `Gateway lifecycle epoch advanced to ${this.epoch} (${reason})`,
+    );
     return this.epoch;
   }
 

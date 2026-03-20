@@ -1,4 +1,4 @@
-import type { ServerResponse } from 'http';
+import type { ServerResponse } from "http";
 
 type EventPayload = unknown;
 
@@ -7,7 +7,7 @@ export class HostEventBus {
 
   addSseClient(res: ServerResponse): void {
     this.clients.add(res);
-    res.on('close', () => {
+    res.on("close", () => {
       this.clients.delete(res);
     });
   }

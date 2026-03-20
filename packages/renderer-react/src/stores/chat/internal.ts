@@ -1,28 +1,28 @@
-import { DEFAULT_SESSION_KEY, type ChatState } from './types';
-import { createRuntimeActions } from './runtime-actions';
-import { createSessionHistoryActions } from './session-history-actions';
-import type { ChatGet, ChatSet } from './store-api';
+import { DEFAULT_SESSION_KEY, type ChatState } from "./types";
+import { createRuntimeActions } from "./runtime-actions";
+import { createSessionHistoryActions } from "./session-history-actions";
+import type { ChatGet, ChatSet } from "./store-api";
 
 export const initialChatState: Pick<
   ChatState,
-  | 'messages'
-  | 'loading'
-  | 'error'
-  | 'sending'
-  | 'activeRunId'
-  | 'streamingText'
-  | 'streamingMessage'
-  | 'streamingTools'
-  | 'pendingFinal'
-  | 'lastUserMessageAt'
-  | 'pendingToolImages'
-  | 'sessions'
-  | 'currentSessionKey'
-  | 'currentAgentId'
-  | 'sessionLabels'
-  | 'sessionLastActivity'
-  | 'showThinking'
-  | 'thinkingLevel'
+  | "messages"
+  | "loading"
+  | "error"
+  | "sending"
+  | "activeRunId"
+  | "streamingText"
+  | "streamingMessage"
+  | "streamingTools"
+  | "pendingFinal"
+  | "lastUserMessageAt"
+  | "pendingToolImages"
+  | "sessions"
+  | "currentSessionKey"
+  | "currentAgentId"
+  | "sessionLabels"
+  | "sessionLastActivity"
+  | "showThinking"
+  | "thinkingLevel"
 > = {
   messages: [],
   loading: false,
@@ -30,7 +30,7 @@ export const initialChatState: Pick<
 
   sending: false,
   activeRunId: null,
-  streamingText: '',
+  streamingText: "",
   streamingMessage: null,
   streamingTools: [],
   pendingFinal: false,
@@ -39,7 +39,7 @@ export const initialChatState: Pick<
 
   sessions: [],
   currentSessionKey: DEFAULT_SESSION_KEY,
-  currentAgentId: 'main',
+  currentAgentId: "main",
   sessionLabels: {},
   sessionLastActivity: {},
 
@@ -52,18 +52,18 @@ export function createChatActions(
   get: ChatGet,
 ): Pick<
   ChatState,
-  | 'loadSessions'
-  | 'switchSession'
-  | 'newSession'
-  | 'deleteSession'
-  | 'cleanupEmptySession'
-  | 'loadHistory'
-  | 'sendMessage'
-  | 'abortRun'
-  | 'handleChatEvent'
-  | 'toggleThinking'
-  | 'refresh'
-  | 'clearError'
+  | "loadSessions"
+  | "switchSession"
+  | "newSession"
+  | "deleteSession"
+  | "cleanupEmptySession"
+  | "loadHistory"
+  | "sendMessage"
+  | "abortRun"
+  | "handleChatEvent"
+  | "toggleThinking"
+  | "refresh"
+  | "clearError"
 > {
   return {
     ...createSessionHistoryActions(set, get),

@@ -1,7 +1,7 @@
-import { create } from 'zustand';
-import { hostApiFetch } from '@/lib/host-api';
-import type { ChannelType } from '@/types/channel';
-import type { AgentSummary, AgentsSnapshot } from '@/types/agent';
+import { create } from "zustand";
+import { hostApiFetch } from "@/lib/host-api";
+import type { ChannelType } from "@/types/channel";
+import type { AgentSummary, AgentsSnapshot } from "@/types/agent";
 
 interface AgentsState {
   agents: AgentSummary[];
@@ -20,17 +20,19 @@ interface AgentsState {
 }
 
 function applySnapshot(snapshot: AgentsSnapshot | undefined) {
-  return snapshot ? {
-    agents: snapshot.agents,
-    defaultAgentId: snapshot.defaultAgentId,
-    configuredChannelTypes: snapshot.configuredChannelTypes,
-    channelOwners: snapshot.channelOwners,
-  } : {};
+  return snapshot
+    ? {
+        agents: snapshot.agents,
+        defaultAgentId: snapshot.defaultAgentId,
+        configuredChannelTypes: snapshot.configuredChannelTypes,
+        channelOwners: snapshot.channelOwners,
+      }
+    : {};
 }
 
 export const useAgentsStore = create<AgentsState>((set) => ({
   agents: [],
-  defaultAgentId: 'main',
+  defaultAgentId: "main",
   configuredChannelTypes: [],
   channelOwners: {},
   loading: false,
@@ -39,7 +41,9 @@ export const useAgentsStore = create<AgentsState>((set) => ({
   fetchAgents: async () => {
     set({ loading: true, error: null });
     try {
-      const snapshot = await hostApiFetch<AgentsSnapshot & { success?: boolean }>('/api/agents');
+      const snapshot = await hostApiFetch<
+        AgentsSnapshot & { success?: boolean }
+      >("/api/agents");
       set({
         ...applySnapshot(snapshot),
         loading: false,
@@ -52,8 +56,10 @@ export const useAgentsStore = create<AgentsState>((set) => ({
   createAgent: async (name: string) => {
     set({ error: null });
     try {
-      const snapshot = await hostApiFetch<AgentsSnapshot & { success?: boolean }>('/api/agents', {
-        method: 'POST',
+      const snapshot = await hostApiFetch<
+        AgentsSnapshot & { success?: boolean }
+      >("/api/agents", {
+        method: "POST",
         body: JSON.stringify({ name }),
       });
       set(applySnapshot(snapshot));
@@ -66,13 +72,12 @@ export const useAgentsStore = create<AgentsState>((set) => ({
   updateAgent: async (agentId: string, name: string) => {
     set({ error: null });
     try {
-      const snapshot = await hostApiFetch<AgentsSnapshot & { success?: boolean }>(
-        `/api/agents/${encodeURIComponent(agentId)}`,
-        {
-          method: 'PUT',
-          body: JSON.stringify({ name }),
-        }
-      );
+      const snapshot = await hostApiFetch<
+        AgentsSnapshot & { success?: boolean }
+      >(`/api/agents/${encodeURIComponent(agentId)}`, {
+        method: "PUT",
+        body: JSON.stringify({ name }),
+      });
       set(applySnapshot(snapshot));
     } catch (error) {
       set({ error: String(error) });
@@ -83,10 +88,9 @@ export const useAgentsStore = create<AgentsState>((set) => ({
   deleteAgent: async (agentId: string) => {
     set({ error: null });
     try {
-      const snapshot = await hostApiFetch<AgentsSnapshot & { success?: boolean }>(
-        `/api/agents/${encodeURIComponent(agentId)}`,
-        { method: 'DELETE' }
-      );
+      const snapshot = await hostApiFetch<
+        AgentsSnapshot & { success?: boolean }
+      >(`/api/agents/${encodeURIComponent(agentId)}`, { method: "DELETE" });
       set(applySnapshot(snapshot));
     } catch (error) {
       set({ error: String(error) });
@@ -97,9 +101,11 @@ export const useAgentsStore = create<AgentsState>((set) => ({
   assignChannel: async (agentId: string, channelType: ChannelType) => {
     set({ error: null });
     try {
-      const snapshot = await hostApiFetch<AgentsSnapshot & { success?: boolean }>(
+      const snapshot = await hostApiFetch<
+        AgentsSnapshot & { success?: boolean }
+      >(
         `/api/agents/${encodeURIComponent(agentId)}/channels/${encodeURIComponent(channelType)}`,
-        { method: 'PUT' }
+        { method: "PUT" },
       );
       set(applySnapshot(snapshot));
     } catch (error) {
@@ -111,9 +117,11 @@ export const useAgentsStore = create<AgentsState>((set) => ({
   removeChannel: async (agentId: string, channelType: ChannelType) => {
     set({ error: null });
     try {
-      const snapshot = await hostApiFetch<AgentsSnapshot & { success?: boolean }>(
+      const snapshot = await hostApiFetch<
+        AgentsSnapshot & { success?: boolean }
+      >(
         `/api/agents/${encodeURIComponent(agentId)}/channels/${encodeURIComponent(channelType)}`,
-        { method: 'DELETE' }
+        { method: "DELETE" },
       );
       set(applySnapshot(snapshot));
     } catch (error) {

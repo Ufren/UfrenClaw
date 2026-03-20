@@ -1,14 +1,16 @@
-import type { IncomingMessage, ServerResponse } from 'http';
+import type { IncomingMessage, ServerResponse } from "http";
+import { type ProviderConfig } from "../../utils/secure-storage";
+import { getProviderConfig } from "../../utils/provider-registry";
 import {
-  type ProviderConfig,
-} from '../../utils/secure-storage';
+  deviceOAuthManager,
+  type OAuthProviderType,
+} from "../../utils/device-oauth";
 import {
-  getProviderConfig,
-} from '../../utils/provider-registry';
-import { deviceOAuthManager, type OAuthProviderType } from '../../utils/device-oauth';
-import { browserOAuthManager, type BrowserOAuthProviderType } from '../../utils/browser-oauth';
-import type { HostApiContext } from '../context';
-import { parseJsonBody, sendJson } from '../route-utils';
+  browserOAuthManager,
+  type BrowserOAuthProviderType,
+} from "../../utils/browser-oauth";
+import type { HostApiContext } from "../context";
+import { parseJsonBody, sendJson } from "../route-utils";
 import {
   syncDefaultProviderToRuntime,
   syncDeletedProviderApiKeyToRuntime,
@@ -16,12 +18,12 @@ import {
   syncProviderApiKeyToRuntime,
   syncSavedProviderToRuntime,
   syncUpdatedProviderToRuntime,
-} from '../../services/providers/provider-runtime-sync';
-import { validateApiKeyWithProvider } from '../../services/providers/provider-validation';
-import { getProviderService } from '../../services/providers/provider-service';
-import { providerAccountToConfig } from '../../services/providers/provider-store';
-import type { ProviderAccount } from '../../shared/providers/types';
-import { logger } from '../../utils/logger';
+} from "../../services/providers/provider-runtime-sync";
+import { validateApiKeyWithProvider } from "../../services/providers/provider-validation";
+import { getProviderService } from "../../services/providers/provider-service";
+import { providerAccountToConfig } from "../../services/providers/provider-store";
+import type { ProviderAccount } from "../../shared/providers/types";
+import { logger } from "../../utils/logger";
 
 const legacyProviderRoutesWarned = new Set<string>();
 
@@ -40,21 +42,31 @@ export async function handleProviderRoutes(
     );
   };
 
-  if (url.pathname === '/api/provider-vendors' && req.method === 'GET') {
+  if (url.pathname === "/api/provider-vendors" && req.method === "GET") {
     sendJson(res, 200, await providerService.listVendors());
     return true;
   }
 
-  if (url.pathname === '/api/provider-accounts' && req.method === 'GET') {
+  if (url.pathname === "/api/provider-accounts" && req.method === "GET") {
     sendJson(res, 200, await providerService.listAccounts());
     return true;
   }
 
-  if (url.pathname === '/api/provider-accounts' && req.method === 'POST') {
+  if (url.pathname === "/api/provider-accounts" && req.method === "POST") {
     try {
-      const body = await parseJsonBody<{ account: ProviderAccount; apiKey?: string }>(req);
-      const account = await providerService.createAccount(body.account, body.apiKey);
-      await syncSavedProviderToRuntime(providerAccountToConfig(account), body.apiKey, ctx.gatewayManager);
+      const body = await parseJsonBody<{
+        account: ProviderAccount;
+        apiKey?: string;
+      }>(req);
+      const account = await providerService.createAccount(
+        body.account,
+        body.apiKey,
+      );
+      await syncSavedProviderToRuntime(
+        providerAccountToConfig(account),
+        body.apiKey,
+        ctx.gatewayManager,
+      );
       sendJson(res, 200, { success: true, account });
     } catch (error) {
       sendJson(res, 500, { success: false, error: String(error) });
@@ -62,12 +74,20 @@ export async function handleProviderRoutes(
     return true;
   }
 
-  if (url.pathname === '/api/provider-accounts/default' && req.method === 'GET') {
-    sendJson(res, 200, { accountId: await providerService.getDefaultAccountId() ?? null });
+  if (
+    url.pathname === "/api/provider-accounts/default" &&
+    req.method === "GET"
+  ) {
+    sendJson(res, 200, {
+      accountId: (await providerService.getDefaultAccountId()) ?? null,
+    });
     return true;
   }
 
-  if (url.pathname === '/api/provider-accounts/default' && req.method === 'PUT') {
+  if (
+    url.pathname === "/api/provider-accounts/default" &&
+    req.method === "PUT"
+  ) {
     try {
       const body = await parseJsonBody<{ accountId: string }>(req);
       await providerService.setDefaultAccount(body.accountId);
@@ -79,23 +99,47 @@ export async function handleProviderRoutes(
     return true;
   }
 
-  if (url.pathname.startsWith('/api/provider-accounts/') && req.method === 'GET') {
-    const accountId = decodeURIComponent(url.pathname.slice('/api/provider-accounts/'.length));
+  if (
+    url.pathname.startsWith("/api/provider-accounts/") &&
+    req.method === "GET"
+  ) {
+    const accountId = decodeURIComponent(
+      url.pathname.slice("/api/provider-accounts/".length),
+    );
     sendJson(res, 200, await providerService.getAccount(accountId));
     return true;
   }
 
-  if (url.pathname.startsWith('/api/provider-accounts/') && req.method === 'PUT') {
-    const accountId = decodeURIComponent(url.pathname.slice('/api/provider-accounts/'.length));
+  if (
+    url.pathname.startsWith("/api/provider-accounts/") &&
+    req.method === "PUT"
+  ) {
+    const accountId = decodeURIComponent(
+      url.pathname.slice("/api/provider-accounts/".length),
+    );
     try {
-      const body = await parseJsonBody<{ updates: Partial<ProviderAccount>; apiKey?: string }>(req);
+      const body = await parseJsonBody<{
+        updates: Partial<ProviderAccount>;
+        apiKey?: string;
+      }>(req);
       const existing = await providerService.getAccount(accountId);
       if (!existing) {
-        sendJson(res, 404, { success: false, error: 'Provider account not found' });
+        sendJson(res, 404, {
+          success: false,
+          error: "Provider account not found",
+        });
         return true;
       }
-      const nextAccount = await providerService.updateAccount(accountId, body.updates, body.apiKey);
-      await syncUpdatedProviderToRuntime(providerAccountToConfig(nextAccount), body.apiKey, ctx.gatewayManager);
+      const nextAccount = await providerService.updateAccount(
+        accountId,
+        body.updates,
+        body.apiKey,
+      );
+      await syncUpdatedProviderToRuntime(
+        providerAccountToConfig(nextAccount),
+        body.apiKey,
+        ctx.gatewayManager,
+      );
       sendJson(res, 200, { success: true, account: nextAccount });
     } catch (error) {
       sendJson(res, 500, { success: false, error: String(error) });
@@ -103,16 +147,24 @@ export async function handleProviderRoutes(
     return true;
   }
 
-  if (url.pathname.startsWith('/api/provider-accounts/') && req.method === 'DELETE') {
-    const accountId = decodeURIComponent(url.pathname.slice('/api/provider-accounts/'.length));
+  if (
+    url.pathname.startsWith("/api/provider-accounts/") &&
+    req.method === "DELETE"
+  ) {
+    const accountId = decodeURIComponent(
+      url.pathname.slice("/api/provider-accounts/".length),
+    );
     try {
       const existing = await providerService.getAccount(accountId);
-      const runtimeProviderKey = existing?.authMode === 'oauth_browser'
-        ? (existing.vendorId === 'google'
-          ? 'google-gemini-cli'
-          : (existing.vendorId === 'openai' ? 'openai-codex' : undefined))
-        : undefined;
-      if (url.searchParams.get('apiKeyOnly') === '1') {
+      const runtimeProviderKey =
+        existing?.authMode === "oauth_browser"
+          ? existing.vendorId === "google"
+            ? "google-gemini-cli"
+            : existing.vendorId === "openai"
+              ? "openai-codex"
+              : undefined
+          : undefined;
+      if (url.searchParams.get("apiKeyOnly") === "1") {
         await providerService.deleteLegacyProviderApiKey(accountId);
         await syncDeletedProviderApiKeyToRuntime(
           existing ? providerAccountToConfig(existing) : null,
@@ -136,20 +188,22 @@ export async function handleProviderRoutes(
     return true;
   }
 
-  if (url.pathname === '/api/providers' && req.method === 'GET') {
-    logLegacyProviderRoute('GET /api/providers');
+  if (url.pathname === "/api/providers" && req.method === "GET") {
+    logLegacyProviderRoute("GET /api/providers");
     sendJson(res, 200, await providerService.listLegacyProvidersWithKeyInfo());
     return true;
   }
 
-  if (url.pathname === '/api/providers/default' && req.method === 'GET') {
-    logLegacyProviderRoute('GET /api/providers/default');
-    sendJson(res, 200, { providerId: await providerService.getDefaultLegacyProvider() ?? null });
+  if (url.pathname === "/api/providers/default" && req.method === "GET") {
+    logLegacyProviderRoute("GET /api/providers/default");
+    sendJson(res, 200, {
+      providerId: (await providerService.getDefaultLegacyProvider()) ?? null,
+    });
     return true;
   }
 
-  if (url.pathname === '/api/providers/default' && req.method === 'PUT') {
-    logLegacyProviderRoute('PUT /api/providers/default');
+  if (url.pathname === "/api/providers/default" && req.method === "PUT") {
+    logLegacyProviderRoute("PUT /api/providers/default");
     try {
       const body = await parseJsonBody<{ providerId: string }>(req);
       await providerService.setDefaultLegacyProvider(body.providerId);
@@ -161,32 +215,45 @@ export async function handleProviderRoutes(
     return true;
   }
 
-  if (url.pathname === '/api/providers/validate' && req.method === 'POST') {
-    logLegacyProviderRoute('POST /api/providers/validate');
+  if (url.pathname === "/api/providers/validate" && req.method === "POST") {
+    logLegacyProviderRoute("POST /api/providers/validate");
     try {
-      const body = await parseJsonBody<{ providerId: string; apiKey: string; options?: { baseUrl?: string; apiProtocol?: string } }>(req);
+      const body = await parseJsonBody<{
+        providerId: string;
+        apiKey: string;
+        options?: { baseUrl?: string; apiProtocol?: string };
+      }>(req);
       const provider = await providerService.getLegacyProvider(body.providerId);
       const providerType = provider?.type || body.providerId;
       const registryBaseUrl = getProviderConfig(providerType)?.baseUrl;
-      const resolvedBaseUrl = body.options?.baseUrl || provider?.baseUrl || registryBaseUrl;
-      const resolvedProtocol = body.options?.apiProtocol || provider?.apiProtocol;
-      sendJson(res, 200, await validateApiKeyWithProvider(providerType, body.apiKey, { baseUrl: resolvedBaseUrl, apiProtocol: resolvedProtocol as any }));
+      const resolvedBaseUrl =
+        body.options?.baseUrl || provider?.baseUrl || registryBaseUrl;
+      const resolvedProtocol =
+        body.options?.apiProtocol || provider?.apiProtocol;
+      sendJson(
+        res,
+        200,
+        await validateApiKeyWithProvider(providerType, body.apiKey, {
+          baseUrl: resolvedBaseUrl,
+          apiProtocol: resolvedProtocol as any,
+        }),
+      );
     } catch (error) {
       sendJson(res, 500, { valid: false, error: String(error) });
     }
     return true;
   }
 
-  if (url.pathname === '/api/providers/oauth/start' && req.method === 'POST') {
-    logLegacyProviderRoute('POST /api/providers/oauth/start');
+  if (url.pathname === "/api/providers/oauth/start" && req.method === "POST") {
+    logLegacyProviderRoute("POST /api/providers/oauth/start");
     try {
       const body = await parseJsonBody<{
         provider: OAuthProviderType | BrowserOAuthProviderType;
-        region?: 'global' | 'cn';
+        region?: "global" | "cn";
         accountId?: string;
         label?: string;
       }>(req);
-      if (body.provider === 'google' || body.provider === 'openai') {
+      if (body.provider === "google" || body.provider === "openai") {
         await browserOAuthManager.startFlow(body.provider, {
           accountId: body.accountId,
           label: body.label,
@@ -204,8 +271,8 @@ export async function handleProviderRoutes(
     return true;
   }
 
-  if (url.pathname === '/api/providers/oauth/cancel' && req.method === 'POST') {
-    logLegacyProviderRoute('POST /api/providers/oauth/cancel');
+  if (url.pathname === "/api/providers/oauth/cancel" && req.method === "POST") {
+    logLegacyProviderRoute("POST /api/providers/oauth/cancel");
     try {
       await deviceOAuthManager.stopFlow();
       await browserOAuthManager.stopFlow();
@@ -216,13 +283,16 @@ export async function handleProviderRoutes(
     return true;
   }
 
-  if (url.pathname === '/api/providers/oauth/submit' && req.method === 'POST') {
-    logLegacyProviderRoute('POST /api/providers/oauth/submit');
+  if (url.pathname === "/api/providers/oauth/submit" && req.method === "POST") {
+    logLegacyProviderRoute("POST /api/providers/oauth/submit");
     try {
       const body = await parseJsonBody<{ code: string }>(req);
-      const accepted = browserOAuthManager.submitManualCode(body.code || '');
+      const accepted = browserOAuthManager.submitManualCode(body.code || "");
       if (!accepted) {
-        sendJson(res, 400, { success: false, error: 'No active manual OAuth input pending' });
+        sendJson(res, 400, {
+          success: false,
+          error: "No active manual OAuth input pending",
+        });
         return true;
       }
       sendJson(res, 200, { success: true });
@@ -232,10 +302,13 @@ export async function handleProviderRoutes(
     return true;
   }
 
-  if (url.pathname === '/api/providers' && req.method === 'POST') {
-    logLegacyProviderRoute('POST /api/providers');
+  if (url.pathname === "/api/providers" && req.method === "POST") {
+    logLegacyProviderRoute("POST /api/providers");
     try {
-      const body = await parseJsonBody<{ config: ProviderConfig; apiKey?: string }>(req);
+      const body = await parseJsonBody<{
+        config: ProviderConfig;
+        apiKey?: string;
+      }>(req);
       const config = body.config;
       await providerService.saveLegacyProvider(config);
       if (body.apiKey !== undefined) {
@@ -253,46 +326,69 @@ export async function handleProviderRoutes(
     return true;
   }
 
-  if (url.pathname.startsWith('/api/providers/') && req.method === 'GET') {
-    logLegacyProviderRoute('GET /api/providers/:id');
-    const providerId = decodeURIComponent(url.pathname.slice('/api/providers/'.length));
-    if (providerId.endsWith('/api-key')) {
-      const actualId = providerId.slice(0, -('/api-key'.length));
-      sendJson(res, 200, { apiKey: await providerService.getLegacyProviderApiKey(actualId) });
+  if (url.pathname.startsWith("/api/providers/") && req.method === "GET") {
+    logLegacyProviderRoute("GET /api/providers/:id");
+    const providerId = decodeURIComponent(
+      url.pathname.slice("/api/providers/".length),
+    );
+    if (providerId.endsWith("/api-key")) {
+      const actualId = providerId.slice(0, -"/api-key".length);
+      sendJson(res, 200, {
+        apiKey: await providerService.getLegacyProviderApiKey(actualId),
+      });
       return true;
     }
-    if (providerId.endsWith('/has-api-key')) {
-      const actualId = providerId.slice(0, -('/has-api-key'.length));
-      sendJson(res, 200, { hasKey: await providerService.hasLegacyProviderApiKey(actualId) });
+    if (providerId.endsWith("/has-api-key")) {
+      const actualId = providerId.slice(0, -"/has-api-key".length);
+      sendJson(res, 200, {
+        hasKey: await providerService.hasLegacyProviderApiKey(actualId),
+      });
       return true;
     }
     sendJson(res, 200, await providerService.getLegacyProvider(providerId));
     return true;
   }
 
-  if (url.pathname.startsWith('/api/providers/') && req.method === 'PUT') {
-    logLegacyProviderRoute('PUT /api/providers/:id');
-    const providerId = decodeURIComponent(url.pathname.slice('/api/providers/'.length));
+  if (url.pathname.startsWith("/api/providers/") && req.method === "PUT") {
+    logLegacyProviderRoute("PUT /api/providers/:id");
+    const providerId = decodeURIComponent(
+      url.pathname.slice("/api/providers/".length),
+    );
     try {
-      const body = await parseJsonBody<{ updates: Partial<ProviderConfig>; apiKey?: string }>(req);
+      const body = await parseJsonBody<{
+        updates: Partial<ProviderConfig>;
+        apiKey?: string;
+      }>(req);
       const existing = await providerService.getLegacyProvider(providerId);
       if (!existing) {
-        sendJson(res, 404, { success: false, error: 'Provider not found' });
+        sendJson(res, 404, { success: false, error: "Provider not found" });
         return true;
       }
-      const nextConfig: ProviderConfig = { ...existing, ...body.updates, updatedAt: new Date().toISOString() };
+      const nextConfig: ProviderConfig = {
+        ...existing,
+        ...body.updates,
+        updatedAt: new Date().toISOString(),
+      };
       await providerService.saveLegacyProvider(nextConfig);
       if (body.apiKey !== undefined) {
         const trimmedKey = body.apiKey.trim();
         if (trimmedKey) {
           await providerService.setLegacyProviderApiKey(providerId, trimmedKey);
-          await syncProviderApiKeyToRuntime(nextConfig.type, providerId, trimmedKey);
+          await syncProviderApiKeyToRuntime(
+            nextConfig.type,
+            providerId,
+            trimmedKey,
+          );
         } else {
           await providerService.deleteLegacyProviderApiKey(providerId);
           await syncDeletedProviderApiKeyToRuntime(existing, providerId);
         }
       }
-      await syncUpdatedProviderToRuntime(nextConfig, body.apiKey, ctx.gatewayManager);
+      await syncUpdatedProviderToRuntime(
+        nextConfig,
+        body.apiKey,
+        ctx.gatewayManager,
+      );
       sendJson(res, 200, { success: true });
     } catch (error) {
       sendJson(res, 500, { success: false, error: String(error) });
@@ -300,19 +396,25 @@ export async function handleProviderRoutes(
     return true;
   }
 
-  if (url.pathname.startsWith('/api/providers/') && req.method === 'DELETE') {
-    logLegacyProviderRoute('DELETE /api/providers/:id');
-    const providerId = decodeURIComponent(url.pathname.slice('/api/providers/'.length));
+  if (url.pathname.startsWith("/api/providers/") && req.method === "DELETE") {
+    logLegacyProviderRoute("DELETE /api/providers/:id");
+    const providerId = decodeURIComponent(
+      url.pathname.slice("/api/providers/".length),
+    );
     try {
       const existing = await providerService.getLegacyProvider(providerId);
-      if (url.searchParams.get('apiKeyOnly') === '1') {
+      if (url.searchParams.get("apiKeyOnly") === "1") {
         await providerService.deleteLegacyProviderApiKey(providerId);
         await syncDeletedProviderApiKeyToRuntime(existing, providerId);
         sendJson(res, 200, { success: true });
         return true;
       }
       await providerService.deleteLegacyProvider(providerId);
-      await syncDeletedProviderToRuntime(existing, providerId, ctx.gatewayManager);
+      await syncDeletedProviderToRuntime(
+        existing,
+        providerId,
+        ctx.gatewayManager,
+      );
       sendJson(res, 200, { success: true });
     } catch (error) {
       sendJson(res, 500, { success: false, error: String(error) });

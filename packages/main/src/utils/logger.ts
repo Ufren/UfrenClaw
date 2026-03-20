@@ -7,10 +7,10 @@
  * Only the final `process.on('exit')` handler uses synchronous I/O to
  * guarantee the last few messages are flushed before the process exits.
  */
-import { app } from 'electron';
-import { join } from 'path';
-import { existsSync, mkdirSync, appendFileSync } from 'fs';
-import { appendFile, readFile, readdir, stat } from 'fs/promises';
+import { app } from "electron";
+import { join } from "path";
+import { existsSync, mkdirSync, appendFileSync } from "fs";
+import { appendFile, readFile, readdir, stat } from "fs/promises";
 
 /**
  * Log levels
@@ -58,7 +58,7 @@ const FLUSH_SIZE_THRESHOLD = 20;
 async function flushBuffer(): Promise<void> {
   if (flushing || writeBuffer.length === 0 || !logFilePath) return;
   flushing = true;
-  const batch = writeBuffer.join('');
+  const batch = writeBuffer.join("");
   writeBuffer = [];
   try {
     await appendFile(logFilePath, batch);
@@ -73,7 +73,7 @@ async function flushBuffer(): Promise<void> {
 function flushBufferSync(): void {
   if (writeBuffer.length === 0 || !logFilePath) return;
   try {
-    appendFileSync(logFilePath, writeBuffer.join(''));
+    appendFileSync(logFilePath, writeBuffer.join(""));
   } catch {
     // Silently fail
   }
@@ -81,7 +81,7 @@ function flushBufferSync(): void {
 }
 
 // Ensure all buffered data reaches disk before the process exits.
-process.on('exit', flushBufferSync);
+process.on("exit", flushBufferSync);
 
 // ── Initialisation ───────────────────────────────────────────────
 
@@ -95,20 +95,20 @@ export function initLogger(): void {
       currentLevel = LogLevel.INFO;
     }
 
-    logDir = join(app.getPath('userData'), 'logs');
+    logDir = join(app.getPath("userData"), "logs");
 
     if (!existsSync(logDir)) {
       mkdirSync(logDir, { recursive: true });
     }
 
-    const timestamp = new Date().toISOString().split('T')[0];
+    const timestamp = new Date().toISOString().split("T")[0];
     logFilePath = join(logDir, `UfrenClaw-${timestamp}.log`);
 
     // Write a separator for new session (sync is OK — happens once at startup)
-    const sessionHeader = `\n${'='.repeat(80)}\n[${new Date().toISOString()}] === UfrenClaw Session Start (v${app.getVersion()}) ===\n${'='.repeat(80)}\n`;
+    const sessionHeader = `\n${"=".repeat(80)}\n[${new Date().toISOString()}] === UfrenClaw Session Start (v${app.getVersion()}) ===\n${"=".repeat(80)}\n`;
     appendFileSync(logFilePath, sessionHeader);
   } catch (error) {
-    console.error('Failed to initialize logger:', error);
+    console.error("Failed to initialize logger:", error);
   }
 }
 
@@ -128,21 +128,31 @@ export function getLogFilePath(): string | null {
 
 // ── Formatting ───────────────────────────────────────────────────
 
-function formatMessage(level: string, message: string, ...args: unknown[]): string {
+function formatMessage(
+  level: string,
+  message: string,
+  ...args: unknown[]
+): string {
   const timestamp = new Date().toISOString();
-  const formattedArgs = args.length > 0 ? ' ' + args.map(arg => {
-    if (arg instanceof Error) {
-      return `${arg.message}\n${arg.stack || ''}`;
-    }
-    if (typeof arg === 'object') {
-      try {
-        return JSON.stringify(arg, null, 2);
-      } catch {
-        return String(arg);
-      }
-    }
-    return String(arg);
-  }).join(' ') : '';
+  const formattedArgs =
+    args.length > 0
+      ? " " +
+        args
+          .map((arg) => {
+            if (arg instanceof Error) {
+              return `${arg.message}\n${arg.stack || ""}`;
+            }
+            if (typeof arg === "object") {
+              try {
+                return JSON.stringify(arg, null, 2);
+              } catch {
+                return String(arg);
+              }
+            }
+            return String(arg);
+          })
+          .join(" ")
+      : "";
 
   return `[${timestamp}] [${level.padEnd(5)}] ${message}${formattedArgs}`;
 }
@@ -161,7 +171,7 @@ function writeLog(formatted: string): void {
 
   // Async file write via buffer
   if (logFilePath) {
-    writeBuffer.push(formatted + '\n');
+    writeBuffer.push(formatted + "\n");
     if (writeBuffer.length >= FLUSH_SIZE_THRESHOLD) {
       // Buffer is large enough — flush immediately (non-blocking)
       void flushBuffer();
@@ -179,7 +189,7 @@ function writeLog(formatted: string): void {
 
 export function debug(message: string, ...args: unknown[]): void {
   if (currentLevel <= LogLevel.DEBUG) {
-    const formatted = formatMessage('DEBUG', message, ...args);
+    const formatted = formatMessage("DEBUG", message, ...args);
     console.debug(formatted);
     writeLog(formatted);
   }
@@ -187,7 +197,7 @@ export function debug(message: string, ...args: unknown[]): void {
 
 export function info(message: string, ...args: unknown[]): void {
   if (currentLevel <= LogLevel.INFO) {
-    const formatted = formatMessage('INFO', message, ...args);
+    const formatted = formatMessage("INFO", message, ...args);
     console.info(formatted);
     writeLog(formatted);
   }
@@ -195,7 +205,7 @@ export function info(message: string, ...args: unknown[]): void {
 
 export function warn(message: string, ...args: unknown[]): void {
   if (currentLevel <= LogLevel.WARN) {
-    const formatted = formatMessage('WARN', message, ...args);
+    const formatted = formatMessage("WARN", message, ...args);
     console.warn(formatted);
     writeLog(formatted);
   }
@@ -203,7 +213,7 @@ export function warn(message: string, ...args: unknown[]): void {
 
 export function error(message: string, ...args: unknown[]): void {
   if (currentLevel <= LogLevel.ERROR) {
-    const formatted = formatMessage('ERROR', message, ...args);
+    const formatted = formatMessage("ERROR", message, ...args);
     console.error(formatted);
     writeLog(formatted);
   }
@@ -212,14 +222,16 @@ export function error(message: string, ...args: unknown[]): void {
 // ── Log retrieval (for UI / diagnostics) ─────────────────────────
 
 export function getRecentLogs(count?: number, minLevel?: LogLevel): string[] {
-  const filtered = minLevel != null
-    ? recentLogs.filter(line => {
-      if (minLevel <= LogLevel.DEBUG) return true;
-      if (minLevel === LogLevel.INFO) return !line.includes('] [DEBUG');
-      if (minLevel === LogLevel.WARN) return line.includes('] [WARN') || line.includes('] [ERROR');
-      return line.includes('] [ERROR');
-    })
-    : recentLogs;
+  const filtered =
+    minLevel != null
+      ? recentLogs.filter((line) => {
+          if (minLevel <= LogLevel.DEBUG) return true;
+          if (minLevel === LogLevel.INFO) return !line.includes("] [DEBUG");
+          if (minLevel === LogLevel.WARN)
+            return line.includes("] [WARN") || line.includes("] [ERROR");
+          return line.includes("] [ERROR");
+        })
+      : recentLogs;
 
   return count ? filtered.slice(-count) : [...filtered];
 }
@@ -229,12 +241,12 @@ export function getRecentLogs(count?: number, minLevel?: LogLevel): string[] {
  * Uses async I/O to avoid blocking.
  */
 export async function readLogFile(tailLines = 200): Promise<string> {
-  if (!logFilePath) return '(No log file found)';
+  if (!logFilePath) return "(No log file found)";
   try {
-    const content = await readFile(logFilePath, 'utf-8');
-    const lines = content.split('\n');
+    const content = await readFile(logFilePath, "utf-8");
+    const lines = content.split("\n");
     if (lines.length <= tailLines) return content;
-    return lines.slice(-tailLines).join('\n');
+    return lines.slice(-tailLines).join("\n");
   } catch (err) {
     return `(Failed to read log file: ${err})`;
   }
@@ -244,13 +256,20 @@ export async function readLogFile(tailLines = 200): Promise<string> {
  * List available log files.
  * Uses async I/O to avoid blocking.
  */
-export async function listLogFiles(): Promise<Array<{ name: string; path: string; size: number; modified: string }>> {
+export async function listLogFiles(): Promise<
+  Array<{ name: string; path: string; size: number; modified: string }>
+> {
   if (!logDir) return [];
   try {
     const files = await readdir(logDir);
-    const results: Array<{ name: string; path: string; size: number; modified: string }> = [];
+    const results: Array<{
+      name: string;
+      path: string;
+      size: number;
+      modified: string;
+    }> = [];
     for (const f of files) {
-      if (!f.endsWith('.log')) continue;
+      if (!f.endsWith(".log")) continue;
       const fullPath = join(logDir, f);
       const s = await stat(fullPath);
       results.push({

@@ -3,7 +3,7 @@
  * Types for scheduled tasks
  */
 
-import { ChannelType } from './channel';
+import { ChannelType } from "./channel";
 
 /**
  * Cron job target (where to send the result)
@@ -28,9 +28,9 @@ export interface CronJobLastRun {
  * Gateway CronSchedule object format
  */
 export type CronSchedule =
-  | { kind: 'at'; at: string }
-  | { kind: 'every'; everyMs: number; anchorMs?: number }
-  | { kind: 'cron'; expr: string; tz?: string };
+  | { kind: "at"; at: string }
+  | { kind: "every"; everyMs: number; anchorMs?: number }
+  | { kind: "cron"; expr: string; tz?: string };
 
 /**
  * Cron job data structure
@@ -74,4 +74,9 @@ export interface CronJobUpdateInput {
 /**
  * Schedule type for UI picker
  */
-export type ScheduleType = 'daily' | 'weekly' | 'monthly' | 'interval' | 'custom';
+export type ScheduleType =
+  | "daily"
+  | "weekly"
+  | "monthly"
+  | "interval"
+  | "custom";

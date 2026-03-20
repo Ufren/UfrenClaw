@@ -7,7 +7,7 @@
  * JSON-RPC 2.0 Request
  */
 export interface JsonRpcRequest {
-  jsonrpc: '2.0';
+  jsonrpc: "2.0";
   id: string | number;
   method: string;
   params?: unknown;
@@ -17,7 +17,7 @@ export interface JsonRpcRequest {
  * JSON-RPC 2.0 Response
  */
 export interface JsonRpcResponse<T = unknown> {
-  jsonrpc: '2.0';
+  jsonrpc: "2.0";
   id: string | number;
   result?: T;
   error?: JsonRpcError;
@@ -36,7 +36,7 @@ export interface JsonRpcError {
  * JSON-RPC 2.0 Notification (no id, no response expected)
  */
 export interface JsonRpcNotification {
-  jsonrpc: '2.0';
+  jsonrpc: "2.0";
   method: string;
   params?: unknown;
 }
@@ -82,19 +82,19 @@ export enum GatewayErrorCode {
  */
 export enum GatewayEventType {
   /** Gateway status changed */
-  STATUS_CHANGED = 'gateway.status_changed',
+  STATUS_CHANGED = "gateway.status_changed",
   /** Channel status changed */
-  CHANNEL_STATUS_CHANGED = 'channel.status_changed',
+  CHANNEL_STATUS_CHANGED = "channel.status_changed",
   /** New chat message received */
-  MESSAGE_RECEIVED = 'chat.message_received',
+  MESSAGE_RECEIVED = "chat.message_received",
   /** Message sent */
-  MESSAGE_SENT = 'chat.message_sent',
+  MESSAGE_SENT = "chat.message_sent",
   /** Tool call started */
-  TOOL_CALL_STARTED = 'tool.call_started',
+  TOOL_CALL_STARTED = "tool.call_started",
   /** Tool call completed */
-  TOOL_CALL_COMPLETED = 'tool.call_completed',
+  TOOL_CALL_COMPLETED = "tool.call_completed",
   /** Error occurred */
-  ERROR = 'error',
+  ERROR = "error",
 }
 
 /**
@@ -112,10 +112,10 @@ export interface GatewayEvent<T = unknown> {
 export function createRequest(
   method: string,
   params?: unknown,
-  id?: string | number
+  id?: string | number,
 ): JsonRpcRequest {
   return {
-    jsonrpc: '2.0',
+    jsonrpc: "2.0",
     id: id ?? crypto.randomUUID(),
     method,
     params,
@@ -127,10 +127,10 @@ export function createRequest(
  */
 export function createSuccessResponse<T>(
   id: string | number,
-  result: T
+  result: T,
 ): JsonRpcResponse<T> {
   return {
-    jsonrpc: '2.0',
+    jsonrpc: "2.0",
     id,
     result,
   };
@@ -143,10 +143,10 @@ export function createErrorResponse(
   id: string | number,
   code: number,
   message: string,
-  data?: unknown
+  data?: unknown,
 ): JsonRpcResponse {
   return {
-    jsonrpc: '2.0',
+    jsonrpc: "2.0",
     id,
     error: {
       code,
@@ -161,13 +161,13 @@ export function createErrorResponse(
  */
 export function isRequest(message: unknown): message is JsonRpcRequest {
   return (
-    typeof message === 'object' &&
+    typeof message === "object" &&
     message !== null &&
-    'jsonrpc' in message &&
-    message.jsonrpc === '2.0' &&
-    'method' in message &&
-    typeof message.method === 'string' &&
-    'id' in message
+    "jsonrpc" in message &&
+    message.jsonrpc === "2.0" &&
+    "method" in message &&
+    typeof message.method === "string" &&
+    "id" in message
   );
 }
 
@@ -176,25 +176,27 @@ export function isRequest(message: unknown): message is JsonRpcRequest {
  */
 export function isResponse(message: unknown): message is JsonRpcResponse {
   return (
-    typeof message === 'object' &&
+    typeof message === "object" &&
     message !== null &&
-    'jsonrpc' in message &&
-    message.jsonrpc === '2.0' &&
-    'id' in message &&
-    ('result' in message || 'error' in message)
+    "jsonrpc" in message &&
+    message.jsonrpc === "2.0" &&
+    "id" in message &&
+    ("result" in message || "error" in message)
   );
 }
 
 /**
  * Check if a message is a JSON-RPC notification
  */
-export function isNotification(message: unknown): message is JsonRpcNotification {
+export function isNotification(
+  message: unknown,
+): message is JsonRpcNotification {
   return (
-    typeof message === 'object' &&
+    typeof message === "object" &&
     message !== null &&
-    'jsonrpc' in message &&
-    message.jsonrpc === '2.0' &&
-    'method' in message &&
-    !('id' in message)
+    "jsonrpc" in message &&
+    message.jsonrpc === "2.0" &&
+    "method" in message &&
+    !("id" in message)
   );
 }

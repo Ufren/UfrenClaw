@@ -1,36 +1,42 @@
-import { app, utilityProcess } from 'electron';
-import path from 'path';
-import { existsSync } from 'fs';
-import WebSocket from 'ws';
-import { getOpenClawDir, getOpenClawEntryPath } from '../utils/paths';
-import { getUvMirrorEnv } from '../utils/uv-env';
-import { isPythonReady, setupManagedPython } from '../utils/uv-setup';
-import { logger } from '../utils/logger';
+import { app, utilityProcess } from "electron";
+import path from "path";
+import { existsSync } from "fs";
+import WebSocket from "ws";
+import { getOpenClawDir, getOpenClawEntryPath } from "../utils/paths";
+import { getUvMirrorEnv } from "../utils/uv-env";
+import { isPythonReady, setupManagedPython } from "../utils/uv-setup";
+import { logger } from "../utils/logger";
 
 export function warmupManagedPythonReadiness(): void {
-  void isPythonReady().then((pythonReady) => {
-    if (!pythonReady) {
-      logger.info('Python environment missing or incomplete, attempting background repair...');
-      void setupManagedPython().catch((err) => {
-        logger.error('Background Python repair failed:', err);
-      });
-    }
-  }).catch((err) => {
-    logger.error('Failed to check Python environment:', err);
-  });
+  void isPythonReady()
+    .then((pythonReady) => {
+      if (!pythonReady) {
+        logger.info(
+          "Python environment missing or incomplete, attempting background repair...",
+        );
+        void setupManagedPython().catch((err) => {
+          logger.error("Background Python repair failed:", err);
+        });
+      }
+    })
+    .catch((err) => {
+      logger.error("Failed to check Python environment:", err);
+    });
 }
 
-export async function terminateOwnedGatewayProcess(child: Electron.UtilityProcess): Promise<void> {
+export async function terminateOwnedGatewayProcess(
+  child: Electron.UtilityProcess,
+): Promise<void> {
   let exited = false;
 
   await new Promise<void>((resolve) => {
-    child.once('exit', () => {
+    child.once("exit", () => {
       exited = true;
       resolve();
     });
 
     const pid = child.pid;
-    logger.info(`Sending kill to Gateway process (pid=${pid ?? 'unknown'})`);
+    logger.info(`Sending kill to Gateway process (pid=${pid ?? "unknown"})`);
     try {
       child.kill();
     } catch {
@@ -39,10 +45,12 @@ export async function terminateOwnedGatewayProcess(child: Electron.UtilityProces
 
     const timeout = setTimeout(() => {
       if (!exited) {
-        logger.warn(`Gateway did not exit in time, force-killing (pid=${pid ?? 'unknown'})`);
+        logger.warn(
+          `Gateway did not exit in time, force-killing (pid=${pid ?? "unknown"})`,
+        );
         if (pid) {
           try {
-            process.kill(pid, 'SIGKILL');
+            process.kill(pid, "SIGKILL");
           } catch {
             // ignore
           }
@@ -51,24 +59,74 @@ export async function terminateOwnedGatewayProcess(child: Electron.UtilityProces
       resolve();
     }, 5000);
 
-    child.once('exit', () => {
+    child.once("exit", () => {
       clearTimeout(timeout);
     });
   });
 }
 
+export async function gracefulRestartGateway(
+  child: Electron.UtilityProcess,
+): Promise<void> {
+  if (!child || !child.pid) {
+    logger.warn("Graceful restart called but no process to restart");
+    return;
+  }
+
+  let exited = false;
+  const pid = child.pid;
+
+  logger.info(`Attempting graceful restart of Gateway process (pid=${pid})`);
+
+  return new Promise<void>((resolve) => {
+    const settle = () => {
+      if (!exited) {
+        exited = true;
+        resolve();
+      }
+    };
+
+    child.once("exit", settle);
+
+    const forceKillTimeout = setTimeout(() => {
+      if (!exited) {
+        logger.warn(
+          `Graceful shutdown timed out, sending SIGKILL to pid=${pid}`,
+        );
+        try {
+          process.kill(pid, "SIGKILL");
+        } catch (err) {
+          logger.warn(`Failed to send SIGKILL to pid=${pid}: ${err}`);
+        }
+      }
+    }, 8000);
+
+    child.once("exit", () => {
+      clearTimeout(forceKillTimeout);
+    });
+
+    try {
+      process.kill(pid, "SIGTERM");
+    } catch (err) {
+      logger.warn(`Failed to send SIGTERM to pid=${pid}: ${err}`);
+      clearTimeout(forceKillTimeout);
+      settle();
+    }
+  });
+}
+
 export async function unloadLaunchctlGatewayService(): Promise<void> {
-  if (process.platform !== 'darwin') return;
+  if (process.platform !== "darwin") return;
 
   try {
     const uid = process.getuid?.();
     if (uid === undefined) return;
 
-    const launchdLabel = 'ai.openclaw.gateway';
+    const launchdLabel = "ai.openclaw.gateway";
     const serviceTarget = `gui/${uid}/${launchdLabel}`;
-    const cp = await import('child_process');
-    const fsPromises = await import('fs/promises');
-    const os = await import('os');
+    const cp = await import("child_process");
+    const fsPromises = await import("fs/promises");
+    const os = await import("os");
 
     const loaded = await new Promise<boolean>((resolve) => {
       cp.exec(`launchctl print ${serviceTarget}`, { timeout: 5000 }, (err) => {
@@ -78,47 +136,68 @@ export async function unloadLaunchctlGatewayService(): Promise<void> {
 
     if (!loaded) return;
 
-    logger.info(`Unloading launchctl service ${serviceTarget} to prevent auto-respawn`);
+    logger.info(
+      `Unloading launchctl service ${serviceTarget} to prevent auto-respawn`,
+    );
     await new Promise<void>((resolve) => {
-      cp.exec(`launchctl bootout ${serviceTarget}`, { timeout: 10000 }, (err) => {
-        if (err) {
-          logger.warn(`Failed to bootout launchctl service: ${err.message}`);
-        } else {
-          logger.info('Successfully unloaded launchctl gateway service');
-        }
-        resolve();
-      });
+      cp.exec(
+        `launchctl bootout ${serviceTarget}`,
+        { timeout: 10000 },
+        (err) => {
+          if (err) {
+            logger.warn(`Failed to bootout launchctl service: ${err.message}`);
+          } else {
+            logger.info("Successfully unloaded launchctl gateway service");
+          }
+          resolve();
+        },
+      );
     });
 
     await new Promise((resolve) => setTimeout(resolve, 2000));
 
     try {
-      const plistPath = path.join(os.homedir(), 'Library', 'LaunchAgents', `${launchdLabel}.plist`);
+      const plistPath = path.join(
+        os.homedir(),
+        "Library",
+        "LaunchAgents",
+        `${launchdLabel}.plist`,
+      );
       await fsPromises.access(plistPath);
       await fsPromises.unlink(plistPath);
-      logger.info(`Removed legacy launchd plist to prevent reload on next login: ${plistPath}`);
+      logger.info(
+        `Removed legacy launchd plist to prevent reload on next login: ${plistPath}`,
+      );
     } catch {
       // File doesn't exist or can't be removed -- not fatal
     }
   } catch (err) {
-    logger.warn('Error while unloading launchctl gateway service:', err);
+    logger.warn("Error while unloading launchctl gateway service:", err);
   }
 }
 
-export async function waitForPortFree(port: number, timeoutMs = 30000): Promise<void> {
-  const net = await import('net');
+export async function waitForPortFree(
+  port: number,
+  timeoutMs = 30000,
+): Promise<void> {
+  const net = await import("net");
   const start = Date.now();
   const pollInterval = 500;
   let logged = false;
+  let lastWarningTime = 0;
 
   while (Date.now() - start < timeoutMs) {
     const available = await new Promise<boolean>((resolve) => {
       const server = net.createServer();
-      server.once('error', () => resolve(false));
-      server.once('listening', () => {
+      server.once("error", () => resolve(false));
+      server.once("listening", () => {
         server.close(() => resolve(true));
       });
-      server.listen(port, '127.0.0.1');
+      try {
+        server.listen(port, "127.0.0.1");
+      } catch {
+        resolve(false);
+      }
     });
 
     if (available) {
@@ -130,25 +209,47 @@ export async function waitForPortFree(port: number, timeoutMs = 30000): Promise<
     }
 
     if (!logged) {
-      logger.info(`Waiting for port ${port} to become available (Windows TCP TIME_WAIT)...`);
+      logger.info(
+        `Waiting for port ${port} to become available (Windows TCP TIME_WAIT)...`,
+      );
       logged = true;
     }
+
+    const now = Date.now();
+    if (logged && now - lastWarningTime > 10000) {
+      lastWarningTime = now;
+      const elapsed = now - start;
+      const pids = await getListeningProcessIds(port);
+      if (pids.length > 0) {
+        logger.warn(
+          `Port ${port} still occupied after ${elapsed}ms by PIDs: ${pids.join(", ")}`,
+        );
+      } else {
+        logger.warn(
+          `Port ${port} still occupied after ${elapsed}ms (could not identify process)`,
+        );
+      }
+    }
+
     await new Promise((resolve) => setTimeout(resolve, pollInterval));
   }
 
-  logger.warn(`Port ${port} still occupied after ${timeoutMs}ms, proceeding anyway`);
+  logger.warn(
+    `Port ${port} still occupied after ${timeoutMs}ms, proceeding anyway`,
+  );
 }
 
 async function getListeningProcessIds(port: number): Promise<string[]> {
-  const cmd = process.platform === 'win32'
-    ? `netstat -ano | findstr :${port}`
-    : `lsof -i :${port} -sTCP:LISTEN -t`;
+  const cmd =
+    process.platform === "win32"
+      ? `netstat -ano | findstr :${port}`
+      : `lsof -i :${port} -sTCP:LISTEN -t`;
 
-  const cp = await import('child_process');
+  const cp = await import("child_process");
   const { stdout } = await new Promise<{ stdout: string }>((resolve) => {
     cp.exec(cmd, { timeout: 5000, windowsHide: true }, (err, stdout) => {
       if (err) {
-        resolve({ stdout: '' });
+        resolve({ stdout: "" });
       } else {
         resolve({ stdout });
       }
@@ -159,31 +260,44 @@ async function getListeningProcessIds(port: number): Promise<string[]> {
     return [];
   }
 
-  if (process.platform === 'win32') {
+  if (process.platform === "win32") {
     const pids: string[] = [];
     for (const line of stdout.trim().split(/\r?\n/)) {
       const parts = line.trim().split(/\s+/);
-      if (parts.length >= 5 && parts[3] === 'LISTENING') {
+      if (parts.length >= 5 && parts[3] === "LISTENING") {
         pids.push(parts[4]);
       }
     }
     return [...new Set(pids)];
   }
 
-  return [...new Set(stdout.trim().split(/\r?\n/).map((value) => value.trim()).filter(Boolean))];
+  return [
+    ...new Set(
+      stdout
+        .trim()
+        .split(/\r?\n/)
+        .map((value) => value.trim())
+        .filter(Boolean),
+    ),
+  ];
 }
 
-async function terminateOrphanedProcessIds(port: number, pids: string[]): Promise<void> {
-  logger.info(`Found orphaned process listening on port ${port} (PIDs: ${pids.join(', ')}), attempting to kill...`);
+async function terminateOrphanedProcessIds(
+  port: number,
+  pids: string[],
+): Promise<void> {
+  logger.info(
+    `Found orphaned process listening on port ${port} (PIDs: ${pids.join(", ")}), attempting to kill...`,
+  );
 
-  if (process.platform === 'darwin') {
+  if (process.platform === "darwin") {
     await unloadLaunchctlGatewayService();
   }
 
   for (const pid of pids) {
     try {
-      if (process.platform === 'win32') {
-        const cp = await import('child_process');
+      if (process.platform === "win32") {
+        const cp = await import("child_process");
         await new Promise<void>((resolve) => {
           cp.exec(
             `taskkill /F /PID ${pid} /T`,
@@ -192,20 +306,22 @@ async function terminateOrphanedProcessIds(port: number, pids: string[]): Promis
           );
         });
       } else {
-        process.kill(parseInt(pid, 10), 'SIGTERM');
+        process.kill(parseInt(pid, 10), "SIGTERM");
       }
     } catch {
       // Ignore processes that have already exited.
     }
   }
 
-  await new Promise((resolve) => setTimeout(resolve, process.platform === 'win32' ? 2000 : 3000));
+  await new Promise((resolve) =>
+    setTimeout(resolve, process.platform === "win32" ? 2000 : 3000),
+  );
 
-  if (process.platform !== 'win32') {
+  if (process.platform !== "win32") {
     for (const pid of pids) {
       try {
         process.kill(parseInt(pid, 10), 0);
-        process.kill(parseInt(pid, 10), 'SIGKILL');
+        process.kill(parseInt(pid, 10), "SIGKILL");
       } catch {
         // Already exited.
       }
@@ -228,27 +344,29 @@ export async function findExistingGatewayProcess(options: {
         return null;
       }
     } catch (err) {
-      logger.warn('Error checking for existing process on port:', err);
+      logger.warn("Error checking for existing process on port:", err);
     }
 
-    return await new Promise<{ port: number; externalToken?: string } | null>((resolve) => {
-      const testWs = new WebSocket(`ws://localhost:${port}/ws`);
-      const timeout = setTimeout(() => {
-        testWs.close();
-        resolve(null);
-      }, 2000);
+    return await new Promise<{ port: number; externalToken?: string } | null>(
+      (resolve) => {
+        const testWs = new WebSocket(`ws://localhost:${port}/ws`);
+        const timeout = setTimeout(() => {
+          testWs.close();
+          resolve(null);
+        }, 2000);
 
-      testWs.on('open', () => {
-        clearTimeout(timeout);
-        testWs.close();
-        resolve({ port });
-      });
+        testWs.on("open", () => {
+          clearTimeout(timeout);
+          testWs.close();
+          resolve({ port });
+        });
 
-      testWs.on('error', () => {
-        clearTimeout(timeout);
-        resolve(null);
-      });
-    });
+        testWs.on("error", () => {
+          clearTimeout(timeout);
+          resolve(null);
+        });
+      },
+    );
   } catch {
     return null;
   }
@@ -258,7 +376,9 @@ export async function runOpenClawDoctorRepair(): Promise<boolean> {
   const openclawDir = getOpenClawDir();
   const entryScript = getOpenClawEntryPath();
   if (!existsSync(entryScript)) {
-    logger.error(`Cannot run OpenClaw doctor repair: entry script not found at ${entryScript}`);
+    logger.error(
+      `Cannot run OpenClaw doctor repair: entry script not found at ${entryScript}`,
+    );
     return false;
   }
 
@@ -266,17 +386,17 @@ export async function runOpenClawDoctorRepair(): Promise<boolean> {
   const arch = process.arch;
   const target = `${platform}-${arch}`;
   const binPath = app.isPackaged
-    ? path.join(process.resourcesPath, 'bin')
-    : path.join(process.cwd(), 'resources', 'bin', target);
+    ? path.join(process.resourcesPath, "bin")
+    : path.join(process.cwd(), "resources", "bin", target);
   const binPathExists = existsSync(binPath);
   const finalPath = binPathExists
-    ? `${binPath}${path.delimiter}${process.env.PATH || ''}`
-    : process.env.PATH || '';
+    ? `${binPath}${path.delimiter}${process.env.PATH || ""}`
+    : process.env.PATH || "";
 
   const uvEnv = await getUvMirrorEnv();
-  const doctorArgs = ['doctor', '--fix', '--yes', '--non-interactive'];
+  const doctorArgs = ["doctor", "--fix", "--yes", "--non-interactive"];
   logger.info(
-    `Running OpenClaw doctor repair (entry="${entryScript}", args="${doctorArgs.join(' ')}", cwd="${openclawDir}", bundledBin=${binPathExists ? 'yes' : 'no'})`,
+    `Running OpenClaw doctor repair (entry="${entryScript}", args="${doctorArgs.join(" ")}", cwd="${openclawDir}", bundledBin=${binPathExists ? "yes" : "no"})`,
   );
 
   return await new Promise<boolean>((resolve) => {
@@ -284,12 +404,12 @@ export async function runOpenClawDoctorRepair(): Promise<boolean> {
       ...process.env,
       PATH: finalPath,
       ...uvEnv,
-      OPENCLAW_NO_RESPAWN: '1',
+      OPENCLAW_NO_RESPAWN: "1",
     };
 
     const child = utilityProcess.fork(entryScript, doctorArgs, {
       cwd: openclawDir,
-      stdio: 'pipe',
+      stdio: "pipe",
       env: forkEnv as NodeJS.ProcessEnv,
     });
 
@@ -301,7 +421,7 @@ export async function runOpenClawDoctorRepair(): Promise<boolean> {
     };
 
     const timeout = setTimeout(() => {
-      logger.error('OpenClaw doctor repair timed out after 120000ms');
+      logger.error("OpenClaw doctor repair timed out after 120000ms");
       try {
         child.kill();
       } catch {
@@ -310,13 +430,13 @@ export async function runOpenClawDoctorRepair(): Promise<boolean> {
       finish(false);
     }, 120000);
 
-    child.on('error', (err) => {
+    child.on("error", (err) => {
       clearTimeout(timeout);
-      logger.error('Failed to spawn OpenClaw doctor repair process:', err);
+      logger.error("Failed to spawn OpenClaw doctor repair process:", err);
       finish(false);
     });
 
-    child.stdout?.on('data', (data) => {
+    child.stdout?.on("data", (data) => {
       const raw = data.toString();
       for (const line of raw.split(/\r?\n/)) {
         const normalized = line.trim();
@@ -325,7 +445,7 @@ export async function runOpenClawDoctorRepair(): Promise<boolean> {
       }
     });
 
-    child.stderr?.on('data', (data) => {
+    child.stderr?.on("data", (data) => {
       const raw = data.toString();
       for (const line of raw.split(/\r?\n/)) {
         const normalized = line.trim();
@@ -334,10 +454,10 @@ export async function runOpenClawDoctorRepair(): Promise<boolean> {
       }
     });
 
-    child.on('exit', (code: number) => {
+    child.on("exit", (code: number) => {
       clearTimeout(timeout);
       if (code === 0) {
-        logger.info('OpenClaw doctor repair completed successfully');
+        logger.info("OpenClaw doctor repair completed successfully");
         finish(true);
         return;
       }

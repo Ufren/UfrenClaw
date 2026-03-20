@@ -6,32 +6,43 @@
  * For prerelease channels (alpha, beta), the feed URL is overridden at runtime
  * to point at the channel-specific OSS directory (e.g. /alpha/, /beta/).
  */
-import pkg from 'electron-updater';
+import pkg from "electron-updater";
 const { autoUpdater } = pkg;
-import type { UpdateInfo, ProgressInfo, UpdateDownloadedEvent } from 'electron-updater';
-import { BrowserWindow, app, ipcMain } from 'electron';
-import { logger } from '../utils/logger';
-import { EventEmitter } from 'events';
-import { setQuitting } from './app-state';
+import type {
+  UpdateInfo,
+  ProgressInfo,
+  UpdateDownloadedEvent,
+} from "electron-updater";
+import { BrowserWindow, app, ipcMain } from "electron";
+import { logger } from "../utils/logger";
+import { EventEmitter } from "events";
+import { setQuitting } from "./app-state";
 
 /** Base CDN URL (without trailing channel path) */
-const OSS_BASE_URL = 'https://oss.intelli-spectrum.com';
+const OSS_BASE_URL = "https://oss.intelli-spectrum.com";
 
 export interface UpdateStatus {
-  status: 'idle' | 'checking' | 'available' | 'not-available' | 'downloading' | 'downloaded' | 'error';
+  status:
+    | "idle"
+    | "checking"
+    | "available"
+    | "not-available"
+    | "downloading"
+    | "downloaded"
+    | "error";
   info?: UpdateInfo;
   progress?: ProgressInfo;
   error?: string;
 }
 
 export interface UpdaterEvents {
-  'status-changed': (status: UpdateStatus) => void;
-  'checking-for-update': () => void;
-  'update-available': (info: UpdateInfo) => void;
-  'update-not-available': (info: UpdateInfo) => void;
-  'download-progress': (progress: ProgressInfo) => void;
-  'update-downloaded': (event: UpdateDownloadedEvent) => void;
-  'error': (error: Error) => void;
+  "status-changed": (status: UpdateStatus) => void;
+  "checking-for-update": () => void;
+  "update-available": (info: UpdateInfo) => void;
+  "update-not-available": (info: UpdateInfo) => void;
+  "download-progress": (progress: ProgressInfo) => void;
+  "update-downloaded": (event: UpdateDownloadedEvent) => void;
+  error: (error: Error) => void;
 }
 
 /**
@@ -40,12 +51,12 @@ export interface UpdaterEvents {
  */
 function detectChannel(version: string): string {
   const match = version.match(/-([a-zA-Z]+)/);
-  return match ? match[1] : 'latest';
+  return match ? match[1] : "latest";
 }
 
 export class AppUpdater extends EventEmitter {
   private mainWindow: BrowserWindow | null = null;
-  private status: UpdateStatus = { status: 'idle' };
+  private status: UpdateStatus = { status: "idle" };
   private autoInstallTimer: NodeJS.Timeout | null = null;
   private autoInstallCountdown = 0;
 
@@ -54,15 +65,15 @@ export class AppUpdater extends EventEmitter {
 
   constructor() {
     super();
-    
+
     autoUpdater.autoDownload = false;
     autoUpdater.autoInstallOnAppQuit = true;
-    
+
     autoUpdater.logger = {
-      info: (msg: string) => logger.info('[Updater]', msg),
-      warn: (msg: string) => logger.warn('[Updater]', msg),
-      error: (msg: string) => logger.error('[Updater]', msg),
-      debug: (msg: string) => logger.debug('[Updater]', msg),
+      info: (msg: string) => logger.info("[Updater]", msg),
+      warn: (msg: string) => logger.warn("[Updater]", msg),
+      error: (msg: string) => logger.error("[Updater]", msg),
+      debug: (msg: string) => logger.debug("[Updater]", msg),
     };
 
     // Override feed URL for prerelease channels so that
@@ -71,14 +82,16 @@ export class AppUpdater extends EventEmitter {
     const channel = detectChannel(version);
     const feedUrl = `${OSS_BASE_URL}/${channel}`;
 
-    logger.info(`[Updater] Version: ${version}, channel: ${channel}, feedUrl: ${feedUrl}`);
+    logger.info(
+      `[Updater] Version: ${version}, channel: ${channel}, feedUrl: ${feedUrl}`,
+    );
 
     // Set channel so electron-updater requests the correct yml filename.
     // e.g. channel "alpha" → requests alpha-mac.yml, channel "latest" → requests latest-mac.yml
     autoUpdater.channel = channel;
 
     autoUpdater.setFeedURL({
-      provider: 'generic',
+      provider: "generic",
       url: feedUrl,
       useMultipleRangeRequest: false,
     });
@@ -104,38 +117,38 @@ export class AppUpdater extends EventEmitter {
    * Setup auto-updater event listeners
    */
   private setupListeners(): void {
-    autoUpdater.on('checking-for-update', () => {
-      this.updateStatus({ status: 'checking' });
-      this.emit('checking-for-update');
+    autoUpdater.on("checking-for-update", () => {
+      this.updateStatus({ status: "checking" });
+      this.emit("checking-for-update");
     });
 
-    autoUpdater.on('update-available', (info: UpdateInfo) => {
-      this.updateStatus({ status: 'available', info });
-      this.emit('update-available', info);
+    autoUpdater.on("update-available", (info: UpdateInfo) => {
+      this.updateStatus({ status: "available", info });
+      this.emit("update-available", info);
     });
 
-    autoUpdater.on('update-not-available', (info: UpdateInfo) => {
-      this.updateStatus({ status: 'not-available', info });
-      this.emit('update-not-available', info);
+    autoUpdater.on("update-not-available", (info: UpdateInfo) => {
+      this.updateStatus({ status: "not-available", info });
+      this.emit("update-not-available", info);
     });
 
-    autoUpdater.on('download-progress', (progress: ProgressInfo) => {
-      this.updateStatus({ status: 'downloading', progress });
-      this.emit('download-progress', progress);
+    autoUpdater.on("download-progress", (progress: ProgressInfo) => {
+      this.updateStatus({ status: "downloading", progress });
+      this.emit("download-progress", progress);
     });
 
-    autoUpdater.on('update-downloaded', (event: UpdateDownloadedEvent) => {
-      this.updateStatus({ status: 'downloaded', info: event });
-      this.emit('update-downloaded', event);
+    autoUpdater.on("update-downloaded", (event: UpdateDownloadedEvent) => {
+      this.updateStatus({ status: "downloaded", info: event });
+      this.emit("update-downloaded", event);
 
       if (autoUpdater.autoDownload) {
         this.startAutoInstallCountdown();
       }
     });
 
-    autoUpdater.on('error', (error: Error) => {
-      this.updateStatus({ status: 'error', error: error.message });
-      this.emit('error', error);
+    autoUpdater.on("error", (error: Error) => {
+      this.updateStatus({ status: "error", error: error.message });
+      this.emit("error", error);
     });
   }
 
@@ -149,7 +162,7 @@ export class AppUpdater extends EventEmitter {
       progress: newStatus.progress,
       error: newStatus.error,
     };
-    this.sendToRenderer('update:status-changed', this.status);
+    this.sendToRenderer("update:status-changed", this.status);
   }
 
   /**
@@ -178,21 +191,24 @@ export class AppUpdater extends EventEmitter {
       // Detect this and force an error so the UI never stays silent.
       if (result == null) {
         this.updateStatus({
-          status: 'error',
-          error: 'Update check skipped (dev mode – app is not packaged)',
+          status: "error",
+          error: "Update check skipped (dev mode – app is not packaged)",
         });
         return null;
       }
 
       // Safety net: if events somehow didn't fire, force a final state.
-      if (this.status.status === 'checking' || this.status.status === 'idle') {
-        this.updateStatus({ status: 'not-available' });
+      if (this.status.status === "checking" || this.status.status === "idle") {
+        this.updateStatus({ status: "not-available" });
       }
 
       return result.updateInfo || null;
     } catch (error) {
-      logger.error('[Updater] Check for updates failed:', error);
-      this.updateStatus({ status: 'error', error: (error as Error).message || String(error) });
+      logger.error("[Updater] Check for updates failed:", error);
+      this.updateStatus({
+        status: "error",
+        error: (error as Error).message || String(error),
+      });
       throw error;
     }
   }
@@ -204,7 +220,7 @@ export class AppUpdater extends EventEmitter {
     try {
       await autoUpdater.downloadUpdate();
     } catch (error) {
-      logger.error('[Updater] Download update failed:', error);
+      logger.error("[Updater] Download update failed:", error);
       throw error;
     }
   }
@@ -221,7 +237,7 @@ export class AppUpdater extends EventEmitter {
    * the window cleanly while ShipIt runs independently to replace the app.
    */
   quitAndInstall(): void {
-    logger.info('[Updater] quitAndInstall called');
+    logger.info("[Updater] quitAndInstall called");
     setQuitting();
     autoUpdater.quitAndInstall();
   }
@@ -233,11 +249,15 @@ export class AppUpdater extends EventEmitter {
   private startAutoInstallCountdown(): void {
     this.clearAutoInstallTimer();
     this.autoInstallCountdown = AppUpdater.AUTO_INSTALL_DELAY_SECONDS;
-    this.sendToRenderer('update:auto-install-countdown', { seconds: this.autoInstallCountdown });
+    this.sendToRenderer("update:auto-install-countdown", {
+      seconds: this.autoInstallCountdown,
+    });
 
     this.autoInstallTimer = setInterval(() => {
       this.autoInstallCountdown--;
-      this.sendToRenderer('update:auto-install-countdown', { seconds: this.autoInstallCountdown });
+      this.sendToRenderer("update:auto-install-countdown", {
+        seconds: this.autoInstallCountdown,
+      });
 
       if (this.autoInstallCountdown <= 0) {
         this.clearAutoInstallTimer();
@@ -248,7 +268,10 @@ export class AppUpdater extends EventEmitter {
 
   cancelAutoInstall(): void {
     this.clearAutoInstallTimer();
-    this.sendToRenderer('update:auto-install-countdown', { seconds: -1, cancelled: true });
+    this.sendToRenderer("update:auto-install-countdown", {
+      seconds: -1,
+      cancelled: true,
+    });
   }
 
   private clearAutoInstallTimer(): void {
@@ -261,7 +284,7 @@ export class AppUpdater extends EventEmitter {
   /**
    * Set update channel (stable, beta, dev)
    */
-  setChannel(channel: 'stable' | 'beta' | 'dev'): void {
+  setChannel(channel: "stable" | "beta" | "dev"): void {
     autoUpdater.channel = channel;
   }
 
@@ -285,33 +308,37 @@ export class AppUpdater extends EventEmitter {
  */
 export function registerUpdateHandlers(
   updater: AppUpdater,
-  mainWindow: BrowserWindow
+  mainWindow: BrowserWindow,
 ): void {
   updater.setMainWindow(mainWindow);
 
   // Get current update status
-  ipcMain.handle('update:status', () => {
+  ipcMain.handle("update:status", () => {
     return updater.getStatus();
   });
 
   // Get current version
-  ipcMain.handle('update:version', () => {
+  ipcMain.handle("update:version", () => {
     return updater.getCurrentVersion();
   });
 
   // Check for updates – always return final status so the renderer
   // never gets stuck in 'checking' waiting for a push event.
-  ipcMain.handle('update:check', async () => {
+  ipcMain.handle("update:check", async () => {
     try {
       await updater.checkForUpdates();
       return { success: true, status: updater.getStatus() };
     } catch (error) {
-      return { success: false, error: String(error), status: updater.getStatus() };
+      return {
+        success: false,
+        error: String(error),
+        status: updater.getStatus(),
+      };
     }
   });
 
   // Download update
-  ipcMain.handle('update:download', async () => {
+  ipcMain.handle("update:download", async () => {
     try {
       await updater.downloadUpdate();
       return { success: true };
@@ -321,29 +348,31 @@ export function registerUpdateHandlers(
   });
 
   // Install update and restart
-  ipcMain.handle('update:install', () => {
+  ipcMain.handle("update:install", () => {
     updater.quitAndInstall();
     return { success: true };
   });
 
   // Set update channel
-  ipcMain.handle('update:setChannel', (_, channel: 'stable' | 'beta' | 'dev') => {
-    updater.setChannel(channel);
-    return { success: true };
-  });
+  ipcMain.handle(
+    "update:setChannel",
+    (_, channel: "stable" | "beta" | "dev") => {
+      updater.setChannel(channel);
+      return { success: true };
+    },
+  );
 
   // Set auto-download preference
-  ipcMain.handle('update:setAutoDownload', (_, enable: boolean) => {
+  ipcMain.handle("update:setAutoDownload", (_, enable: boolean) => {
     updater.setAutoDownload(enable);
     return { success: true };
   });
 
   // Cancel pending auto-install countdown
-  ipcMain.handle('update:cancelAutoInstall', () => {
+  ipcMain.handle("update:cancelAutoInstall", () => {
     updater.cancelAutoInstall();
     return { success: true };
   });
-
 }
 
 // Export singleton instance

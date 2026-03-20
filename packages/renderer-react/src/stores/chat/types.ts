@@ -9,7 +9,7 @@ export interface AttachedFileMeta {
 
 /** Raw message from OpenClaw chat.history */
 export interface RawMessage {
-  role: 'user' | 'assistant' | 'system' | 'toolresult';
+  role: "user" | "assistant" | "system" | "toolresult";
   content: unknown; // string | ContentBlock[]
   timestamp?: number;
   id?: string;
@@ -23,7 +23,14 @@ export interface RawMessage {
 
 /** Content block inside a message */
 export interface ContentBlock {
-  type: 'text' | 'image' | 'thinking' | 'tool_use' | 'tool_result' | 'toolCall' | 'toolResult';
+  type:
+    | "text"
+    | "image"
+    | "thinking"
+    | "tool_use"
+    | "tool_result"
+    | "toolCall"
+    | "toolResult";
   text?: string;
   thinking?: string;
   source?: { type: string; media_type?: string; data?: string; url?: string };
@@ -50,7 +57,7 @@ export interface ToolStatus {
   id?: string;
   toolCallId?: string;
   name: string;
-  status: 'running' | 'completed' | 'error';
+  status: "running" | "completed" | "error";
   durationMs?: number;
   summary?: string;
   updatedAt: number;
@@ -111,5 +118,5 @@ export interface ChatState {
   clearError: () => void;
 }
 
-export const DEFAULT_CANONICAL_PREFIX = 'agent:main';
+export const DEFAULT_CANONICAL_PREFIX = "agent:main";
 export const DEFAULT_SESSION_KEY = `${DEFAULT_CANONICAL_PREFIX}:main`;

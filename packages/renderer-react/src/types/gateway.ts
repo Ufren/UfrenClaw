@@ -7,7 +7,7 @@
  * Gateway connection status
  */
 export interface GatewayStatus {
-  state: 'stopped' | 'starting' | 'running' | 'error' | 'reconnecting';
+  state: "stopped" | "starting" | "running" | "error" | "reconnecting";
   port: number;
   pid?: number;
   uptime?: number;
@@ -50,7 +50,7 @@ export interface GatewayNotification {
 export interface ProviderConfig {
   id: string;
   name: string;
-  type: 'openai' | 'anthropic' | 'ollama' | 'custom';
+  type: "openai" | "anthropic" | "ollama" | "custom";
   apiKey?: string;
   baseUrl?: string;
   model?: string;

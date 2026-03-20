@@ -1,4 +1,4 @@
-import { hostApiFetch } from './host-api';
+import { hostApiFetch } from "./host-api";
 
 type GatewayInfo = {
   wsUrl: string;
@@ -45,20 +45,24 @@ class GatewayBrowserClient {
     }
     for (const [, request] of this.pendingRequests) {
       clearTimeout(request.timeout);
-      request.reject(new Error('Gateway connection closed'));
+      request.reject(new Error("Gateway connection closed"));
     }
     this.pendingRequests.clear();
   }
 
-  async rpc<T>(method: string, params?: unknown, timeoutMs = 30000): Promise<T> {
+  async rpc<T>(
+    method: string,
+    params?: unknown,
+    timeoutMs = 30000,
+  ): Promise<T> {
     await this.connect();
     if (!this.ws || this.ws.readyState !== WebSocket.OPEN) {
-      throw new Error('Gateway socket is not connected');
+      throw new Error("Gateway socket is not connected");
     }
 
     const id = `${Date.now()}-${Math.random().toString(16).slice(2)}`;
     const request = {
-      type: 'req',
+      type: "req",
       id,
       method,
       params,
@@ -80,7 +84,8 @@ class GatewayBrowserClient {
   }
 
   on(eventName: string, handler: GatewayEventHandler): () => void {
-    const handlers = this.eventHandlers.get(eventName) || new Set<GatewayEventHandler>();
+    const handlers =
+      this.eventHandlers.get(eventName) || new Set<GatewayEventHandler>();
     handlers.add(handler);
     this.eventHandlers.set(eventName, handlers);
 
@@ -94,7 +99,7 @@ class GatewayBrowserClient {
   }
 
   private async openSocket(): Promise<void> {
-    this.gatewayInfo = await hostApiFetch<GatewayInfo>('/api/app/gateway-info');
+    this.gatewayInfo = await hostApiFetch<GatewayInfo>("/api/app/gateway-info");
 
     await new Promise<void>((resolve, reject) => {
       const ws = new WebSocket(this.gatewayInfo!.wsUrl);
@@ -126,48 +131,55 @@ class GatewayBrowserClient {
 
       ws.onopen = () => {
         challengeTimer = setTimeout(() => {
-          rejectOnce(new Error('Gateway connect challenge timeout'));
+          rejectOnce(new Error("Gateway connect challenge timeout"));
           ws.close();
         }, 10000);
       };
 
       ws.onmessage = (event) => {
         try {
-          const message = JSON.parse(String(event.data)) as Record<string, unknown>;
-          if (message.type === 'event' && message.event === 'connect.challenge') {
-            const nonce = (message.payload as { nonce?: string } | undefined)?.nonce;
+          const message = JSON.parse(String(event.data)) as Record<
+            string,
+            unknown
+          >;
+          if (
+            message.type === "event" &&
+            message.event === "connect.challenge"
+          ) {
+            const nonce = (message.payload as { nonce?: string } | undefined)
+              ?.nonce;
             if (!nonce) {
-              rejectOnce(new Error('Gateway connect.challenge missing nonce'));
+              rejectOnce(new Error("Gateway connect.challenge missing nonce"));
               return;
             }
             const connectFrame = {
-              type: 'req',
+              type: "req",
               id: `connect-${Date.now()}`,
-              method: 'connect',
+              method: "connect",
               params: {
                 minProtocol: 3,
                 maxProtocol: 3,
                 client: {
-                  id: 'gateway-client',
-                  displayName: 'UfrenClaw',
-                  version: '0.1.0',
+                  id: "gateway-client",
+                  displayName: "UfrenClaw",
+                  version: "0.1.0",
                   platform: navigator.platform,
-                  mode: 'ui',
+                  mode: "ui",
                 },
                 auth: {
                   token: this.gatewayInfo?.token,
                 },
                 caps: [],
-                role: 'operator',
-                scopes: ['operator.admin'],
+                role: "operator",
+                scopes: ["operator.admin"],
               },
             };
             ws.send(JSON.stringify(connectFrame));
             return;
           }
 
-          if (message.type === 'res' && typeof message.id === 'string') {
-            if (String(message.id).startsWith('connect-')) {
+          if (message.type === "res" && typeof message.id === "string") {
+            if (String(message.id).startsWith("connect-")) {
               this.ws = ws;
               resolveOnce();
               return;
@@ -180,9 +192,13 @@ class GatewayBrowserClient {
             clearTimeout(pending.timeout);
             this.pendingRequests.delete(message.id);
             if (message.ok === false || message.error) {
-              const errorMessage = typeof message.error === 'object' && message.error !== null
-                ? String((message.error as { message?: string }).message || JSON.stringify(message.error))
-                : String(message.error || 'Gateway request failed');
+              const errorMessage =
+                typeof message.error === "object" && message.error !== null
+                  ? String(
+                      (message.error as { message?: string }).message ||
+                        JSON.stringify(message.error),
+                    )
+                  : String(message.error || "Gateway request failed");
               pending.reject(new Error(errorMessage));
             } else {
               pending.resolve(message.payload);
@@ -190,12 +206,12 @@ class GatewayBrowserClient {
             return;
           }
 
-          if (message.type === 'event' && typeof message.event === 'string') {
+          if (message.type === "event" && typeof message.event === "string") {
             this.emitEvent(message.event, message.payload);
             return;
           }
 
-          if (typeof message.method === 'string') {
+          if (typeof message.method === "string") {
             this.emitEvent(message.method, message.params);
           }
         } catch (error) {
@@ -204,21 +220,21 @@ class GatewayBrowserClient {
       };
 
       ws.onerror = () => {
-        rejectOnce(new Error('Gateway WebSocket error'));
+        rejectOnce(new Error("Gateway WebSocket error"));
       };
 
       ws.onclose = () => {
         this.ws = null;
         if (!resolved) {
-          rejectOnce(new Error('Gateway WebSocket closed before connect'));
+          rejectOnce(new Error("Gateway WebSocket closed before connect"));
           return;
         }
         for (const [, request] of this.pendingRequests) {
           clearTimeout(request.timeout);
-          request.reject(new Error('Gateway connection closed'));
+          request.reject(new Error("Gateway connection closed"));
         }
         this.pendingRequests.clear();
-        this.emitEvent('__close__', null);
+        this.emitEvent("__close__", null);
       };
     });
   }

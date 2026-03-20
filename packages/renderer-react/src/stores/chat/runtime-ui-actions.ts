@@ -1,6 +1,9 @@
-import type { ChatGet, ChatSet, RuntimeActions } from './store-api';
+import type { ChatGet, ChatSet, RuntimeActions } from "./store-api";
 
-export function createRuntimeUiActions(set: ChatSet, get: ChatGet): Pick<RuntimeActions, 'toggleThinking' | 'refresh' | 'clearError'> {
+export function createRuntimeUiActions(
+  set: ChatSet,
+  get: ChatGet,
+): Pick<RuntimeActions, "toggleThinking" | "refresh" | "clearError"> {
   return {
     toggleThinking: () => set((s) => ({ showThinking: !s.showThinking })),
 

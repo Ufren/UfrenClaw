@@ -2,10 +2,10 @@
  * Channels State Store
  * Manages messaging channel state
  */
-import { create } from 'zustand';
-import { hostApiFetch } from '@/lib/host-api';
-import { useGatewayStore } from './gateway';
-import type { Channel, ChannelType } from '../types/channel';
+import { create } from "zustand";
+import { hostApiFetch } from "@/lib/host-api";
+import { useGatewayStore } from "./gateway";
+import type { Channel, ChannelType } from "../types/channel";
 
 interface AddChannelParams {
   type: ChannelType;
@@ -24,7 +24,9 @@ interface ChannelsState {
   deleteChannel: (channelId: string) => Promise<void>;
   connectChannel: (channelId: string) => Promise<void>;
   disconnectChannel: (channelId: string) => Promise<void>;
-  requestQrCode: (channelType: ChannelType) => Promise<{ qrCode: string; sessionId: string }>;
+  requestQrCode: (
+    channelType: ChannelType,
+  ) => Promise<{ qrCode: string; sessionId: string }>;
   setChannels: (channels: Channel[]) => void;
   updateChannel: (channelId: string, updates: Partial<Channel>) => void;
   clearError: () => void;
@@ -39,9 +41,11 @@ export const useChannelsStore = create<ChannelsState>((set, get) => ({
     set({ loading: true, error: null });
     try {
       const data = await useGatewayStore.getState().rpc<{
-          channelOrder?: string[];
-          channels?: Record<string, unknown>;
-          channelAccounts?: Record<string, Array<{
+        channelOrder?: string[];
+        channels?: Record<string, unknown>;
+        channelAccounts?: Record<
+          string,
+          Array<{
             accountId?: string;
             configured?: boolean;
             connected?: boolean;
@@ -52,20 +56,24 @@ export const useChannelsStore = create<ChannelsState>((set, get) => ({
             lastConnectedAt?: number | null;
             lastInboundAt?: number | null;
             lastOutboundAt?: number | null;
-          }>>;
-          channelDefaultAccountId?: Record<string, string>;
-      }>('channels.status', { probe: true });
+          }>
+        >;
+        channelDefaultAccountId?: Record<string, string>;
+      }>("channels.status", { probe: true });
       if (data) {
         const channels: Channel[] = [];
 
         // Parse the complex channels.status response into simple Channel objects
-        const channelOrder = data.channelOrder || Object.keys(data.channels || {});
+        const channelOrder =
+          data.channelOrder || Object.keys(data.channels || {});
         for (const channelId of channelOrder) {
-          const summary = (data.channels as Record<string, unknown> | undefined)?.[channelId] as Record<string, unknown> | undefined;
+          const summary = (
+            data.channels as Record<string, unknown> | undefined
+          )?.[channelId] as Record<string, unknown> | undefined;
           const configured =
-            typeof summary?.configured === 'boolean'
+            typeof summary?.configured === "boolean"
               ? summary.configured
-              : typeof (summary as { running?: boolean })?.running === 'boolean'
+              : typeof (summary as { running?: boolean })?.running === "boolean"
                 ? true
                 : false;
           if (!configured) continue;
@@ -73,48 +81,65 @@ export const useChannelsStore = create<ChannelsState>((set, get) => ({
           const accounts = data.channelAccounts?.[channelId] || [];
           const defaultAccountId = data.channelDefaultAccountId?.[channelId];
           const primaryAccount =
-            (defaultAccountId ? accounts.find((a) => a.accountId === defaultAccountId) : undefined) ||
+            (defaultAccountId
+              ? accounts.find((a) => a.accountId === defaultAccountId)
+              : undefined) ||
             accounts.find((a) => a.connected === true || a.linked === true) ||
             accounts[0];
 
           // Map gateway status to our status format
-          let status: Channel['status'] = 'disconnected';
+          let status: Channel["status"] = "disconnected";
           const now = Date.now();
           const RECENT_MS = 10 * 60 * 1000;
-          const hasRecentActivity = (a: { lastInboundAt?: number | null; lastOutboundAt?: number | null; lastConnectedAt?: number | null }) =>
-            (typeof a.lastInboundAt === 'number' && now - a.lastInboundAt < RECENT_MS) ||
-            (typeof a.lastOutboundAt === 'number' && now - a.lastOutboundAt < RECENT_MS) ||
-            (typeof a.lastConnectedAt === 'number' && now - a.lastConnectedAt < RECENT_MS);
-          const anyConnected = accounts.some((a) => a.connected === true || a.linked === true || hasRecentActivity(a));
+          const hasRecentActivity = (a: {
+            lastInboundAt?: number | null;
+            lastOutboundAt?: number | null;
+            lastConnectedAt?: number | null;
+          }) =>
+            (typeof a.lastInboundAt === "number" &&
+              now - a.lastInboundAt < RECENT_MS) ||
+            (typeof a.lastOutboundAt === "number" &&
+              now - a.lastOutboundAt < RECENT_MS) ||
+            (typeof a.lastConnectedAt === "number" &&
+              now - a.lastConnectedAt < RECENT_MS);
+          const anyConnected = accounts.some(
+            (a) =>
+              a.connected === true || a.linked === true || hasRecentActivity(a),
+          );
           const anyRunning = accounts.some((a) => a.running === true);
           const summaryError =
-            typeof (summary as { error?: string })?.error === 'string'
+            typeof (summary as { error?: string })?.error === "string"
               ? (summary as { error?: string }).error
-              : typeof (summary as { lastError?: string })?.lastError === 'string'
+              : typeof (summary as { lastError?: string })?.lastError ===
+                  "string"
                 ? (summary as { lastError?: string }).lastError
                 : undefined;
           const anyError =
-            accounts.some((a) => typeof a.lastError === 'string' && a.lastError) || Boolean(summaryError);
+            accounts.some(
+              (a) => typeof a.lastError === "string" && a.lastError,
+            ) || Boolean(summaryError);
 
           if (anyConnected) {
-            status = 'connected';
+            status = "connected";
           } else if (anyRunning && !anyError) {
-            status = 'connected';
+            status = "connected";
           } else if (anyError) {
-            status = 'error';
+            status = "error";
           } else if (anyRunning) {
-            status = 'connecting';
+            status = "connecting";
           }
 
           channels.push({
-            id: `${channelId}-${primaryAccount?.accountId || 'default'}`,
+            id: `${channelId}-${primaryAccount?.accountId || "default"}`,
             type: channelId as ChannelType,
             name: primaryAccount?.name || channelId,
             status,
             accountId: primaryAccount?.accountId,
             error:
-              (typeof primaryAccount?.lastError === 'string' ? primaryAccount.lastError : undefined) ||
-              (typeof summaryError === 'string' ? summaryError : undefined),
+              (typeof primaryAccount?.lastError === "string"
+                ? primaryAccount.lastError
+                : undefined) ||
+              (typeof summaryError === "string" ? summaryError : undefined),
           });
         }
 
@@ -131,7 +156,9 @@ export const useChannelsStore = create<ChannelsState>((set, get) => ({
 
   addChannel: async (params) => {
     try {
-      const result = await useGatewayStore.getState().rpc<Channel>('channels.add', params);
+      const result = await useGatewayStore
+        .getState()
+        .rpc<Channel>("channels.add", params);
 
       if (result) {
         set((state) => ({
@@ -144,7 +171,7 @@ export const useChannelsStore = create<ChannelsState>((set, get) => ({
           id: `local-${Date.now()}`,
           type: params.type,
           name: params.name,
-          status: 'disconnected',
+          status: "disconnected",
         };
         set((state) => ({
           channels: [...state.channels, newChannel],
@@ -157,7 +184,7 @@ export const useChannelsStore = create<ChannelsState>((set, get) => ({
         id: `local-${Date.now()}`,
         type: params.type,
         name: params.name,
-        status: 'disconnected',
+        status: "disconnected",
       };
       set((state) => ({
         channels: [...state.channels, newChannel],
@@ -168,22 +195,27 @@ export const useChannelsStore = create<ChannelsState>((set, get) => ({
 
   deleteChannel: async (channelId) => {
     // Extract channel type from the channelId (format: "channelType-accountId")
-    const channelType = channelId.split('-')[0];
+    const channelType = channelId.split("-")[0];
 
     try {
       // Delete the channel configuration from openclaw.json
-      await hostApiFetch(`/api/channels/config/${encodeURIComponent(channelType)}`, {
-        method: 'DELETE',
-      });
+      await hostApiFetch(
+        `/api/channels/config/${encodeURIComponent(channelType)}`,
+        {
+          method: "DELETE",
+        },
+      );
     } catch (error) {
-      console.error('Failed to delete channel config:', error);
+      console.error("Failed to delete channel config:", error);
     }
 
     try {
-      await useGatewayStore.getState().rpc('channels.delete', { channelId: channelType });
+      await useGatewayStore
+        .getState()
+        .rpc("channels.delete", { channelId: channelType });
     } catch (error) {
       // Continue with local deletion even if gateway fails
-      console.error('Failed to delete channel from gateway:', error);
+      console.error("Failed to delete channel from gateway:", error);
     }
 
     // Remove from local state
@@ -194,13 +226,13 @@ export const useChannelsStore = create<ChannelsState>((set, get) => ({
 
   connectChannel: async (channelId) => {
     const { updateChannel } = get();
-    updateChannel(channelId, { status: 'connecting', error: undefined });
+    updateChannel(channelId, { status: "connecting", error: undefined });
 
     try {
-      await useGatewayStore.getState().rpc('channels.connect', { channelId });
-      updateChannel(channelId, { status: 'connected' });
+      await useGatewayStore.getState().rpc("channels.connect", { channelId });
+      updateChannel(channelId, { status: "connected" });
     } catch (error) {
-      updateChannel(channelId, { status: 'error', error: String(error) });
+      updateChannel(channelId, { status: "error", error: String(error) });
     }
   },
 
@@ -208,19 +240,21 @@ export const useChannelsStore = create<ChannelsState>((set, get) => ({
     const { updateChannel } = get();
 
     try {
-      await useGatewayStore.getState().rpc('channels.disconnect', { channelId });
+      await useGatewayStore
+        .getState()
+        .rpc("channels.disconnect", { channelId });
     } catch (error) {
-      console.error('Failed to disconnect channel:', error);
+      console.error("Failed to disconnect channel:", error);
     }
 
-    updateChannel(channelId, { status: 'disconnected', error: undefined });
+    updateChannel(channelId, { status: "disconnected", error: undefined });
   },
 
   requestQrCode: async (channelType) => {
-    return await useGatewayStore.getState().rpc<{ qrCode: string; sessionId: string }>(
-      'channels.requestQr',
-      { type: channelType },
-    );
+    return await useGatewayStore.getState().rpc<{
+      qrCode: string;
+      sessionId: string;
+    }>("channels.requestQr", { type: channelType });
   },
 
   setChannels: (channels) => set({ channels }),
@@ -228,7 +262,7 @@ export const useChannelsStore = create<ChannelsState>((set, get) => ({
   updateChannel: (channelId, updates) => {
     set((state) => ({
       channels: state.channels.map((channel) =>
-        channel.id === channelId ? { ...channel, ...updates } : channel
+        channel.id === channelId ? { ...channel, ...updates } : channel,
       ),
     }));
   },

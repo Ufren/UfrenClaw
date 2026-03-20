@@ -2,11 +2,11 @@
  * Skills State Store
  * Manages skill/plugin state
  */
-import { create } from 'zustand';
-import { hostApiFetch } from '@/lib/host-api';
-import { AppError, normalizeAppError } from '@/lib/error-model';
-import { useGatewayStore } from './gateway';
-import type { Skill, MarketplaceSkill } from '../types/skill';
+import { create } from "zustand";
+import { hostApiFetch } from "@/lib/host-api";
+import { AppError, normalizeAppError } from "@/lib/error-model";
+import { useGatewayStore } from "./gateway";
+import type { Skill, MarketplaceSkill } from "../types/skill";
 
 type GatewaySkillStatus = {
   skillKey: string;
@@ -32,24 +32,24 @@ type ClawHubListResult = {
 };
 
 function mapErrorCodeToSkillErrorKey(
-  code: AppError['code'],
-  operation: 'fetch' | 'search' | 'install',
+  code: AppError["code"],
+  operation: "fetch" | "search" | "install",
 ): string {
-  if (code === 'TIMEOUT') {
-    return operation === 'search'
-      ? 'searchTimeoutError'
-      : operation === 'install'
-        ? 'installTimeoutError'
-        : 'fetchTimeoutError';
+  if (code === "TIMEOUT") {
+    return operation === "search"
+      ? "searchTimeoutError"
+      : operation === "install"
+        ? "installTimeoutError"
+        : "fetchTimeoutError";
   }
-  if (code === 'RATE_LIMIT') {
-    return operation === 'search'
-      ? 'searchRateLimitError'
-      : operation === 'install'
-        ? 'installRateLimitError'
-        : 'fetchRateLimitError';
+  if (code === "RATE_LIMIT") {
+    return operation === "search"
+      ? "searchRateLimitError"
+      : operation === "install"
+        ? "installRateLimitError"
+        : "fetchRateLimitError";
   }
-  return 'rateLimitError';
+  return "rateLimitError";
 }
 
 interface SkillsState {
@@ -88,13 +88,21 @@ export const useSkillsStore = create<SkillsState>((set, get) => ({
     }
     try {
       // 1. Fetch from Gateway (running skills)
-      const gatewayData = await useGatewayStore.getState().rpc<GatewaySkillsStatusResult>('skills.status');
+      const gatewayData = await useGatewayStore
+        .getState()
+        .rpc<GatewaySkillsStatusResult>("skills.status");
 
       // 2. Fetch from ClawHub (installed on disk)
-      const clawhubResult = await hostApiFetch<{ success: boolean; results?: ClawHubListResult[]; error?: string }>('/api/clawhub/list');
+      const clawhubResult = await hostApiFetch<{
+        success: boolean;
+        results?: ClawHubListResult[];
+        error?: string;
+      }>("/api/clawhub/list");
 
       // 3. Fetch configurations directly from Electron (since Gateway doesn't return them)
-      const configResult = await hostApiFetch<Record<string, { apiKey?: string; env?: Record<string, string> }>>('/api/skills/configs');
+      const configResult = await hostApiFetch<
+        Record<string, { apiKey?: string; env?: Record<string, string> }>
+      >("/api/skills/configs");
 
       let combinedSkills: Skill[] = [];
       const currentSkills = get().skills;
@@ -109,10 +117,10 @@ export const useSkillsStore = create<SkillsState>((set, get) => ({
             id: s.skillKey,
             slug: s.slug || s.skillKey,
             name: s.name || s.skillKey,
-            description: s.description || '',
+            description: s.description || "",
             enabled: !s.disabled,
-            icon: s.emoji || '📦',
-            version: s.version || '1.0.0',
+            icon: s.emoji || "📦",
+            version: s.version || "1.0.0",
             author: s.author,
             config: {
               ...(s.config || {}),
@@ -130,17 +138,17 @@ export const useSkillsStore = create<SkillsState>((set, get) => ({
       // Merge with ClawHub results
       if (clawhubResult.success && clawhubResult.results) {
         clawhubResult.results.forEach((cs: ClawHubListResult) => {
-          const existing = combinedSkills.find(s => s.id === cs.slug);
+          const existing = combinedSkills.find((s) => s.id === cs.slug);
           if (!existing) {
             const directConfig = configResult[cs.slug] || {};
             combinedSkills.push({
               id: cs.slug,
               slug: cs.slug,
               name: cs.slug,
-              description: 'Recently installed, initializing...',
+              description: "Recently installed, initializing...",
               enabled: false,
-              icon: '⌛',
-              version: cs.version || 'unknown',
+              icon: "⌛",
+              version: cs.version || "unknown",
               author: undefined,
               config: directConfig,
               isCore: false,
@@ -152,30 +160,45 @@ export const useSkillsStore = create<SkillsState>((set, get) => ({
 
       set({ skills: combinedSkills, loading: false });
     } catch (error) {
-      console.error('Failed to fetch skills:', error);
-      const appError = normalizeAppError(error, { module: 'skills', operation: 'fetch' });
-      set({ loading: false, error: mapErrorCodeToSkillErrorKey(appError.code, 'fetch') });
+      console.error("Failed to fetch skills:", error);
+      const appError = normalizeAppError(error, {
+        module: "skills",
+        operation: "fetch",
+      });
+      set({
+        loading: false,
+        error: mapErrorCodeToSkillErrorKey(appError.code, "fetch"),
+      });
     }
   },
 
   searchSkills: async (query: string) => {
     set({ searching: true, searchError: null });
     try {
-      const result = await hostApiFetch<{ success: boolean; results?: MarketplaceSkill[]; error?: string }>('/api/clawhub/search', {
-        method: 'POST',
+      const result = await hostApiFetch<{
+        success: boolean;
+        results?: MarketplaceSkill[];
+        error?: string;
+      }>("/api/clawhub/search", {
+        method: "POST",
         body: JSON.stringify({ query }),
       });
       if (result.success) {
         set({ searchResults: result.results || [] });
       } else {
-        throw normalizeAppError(new Error(result.error || 'Search failed'), {
-          module: 'skills',
-          operation: 'search',
+        throw normalizeAppError(new Error(result.error || "Search failed"), {
+          module: "skills",
+          operation: "search",
         });
       }
     } catch (error) {
-      const appError = normalizeAppError(error, { module: 'skills', operation: 'search' });
-      set({ searchError: mapErrorCodeToSkillErrorKey(appError.code, 'search') });
+      const appError = normalizeAppError(error, {
+        module: "skills",
+        operation: "search",
+      });
+      set({
+        searchError: mapErrorCodeToSkillErrorKey(appError.code, "search"),
+      });
     } finally {
       set({ searching: false });
     }
@@ -184,21 +207,27 @@ export const useSkillsStore = create<SkillsState>((set, get) => ({
   installSkill: async (slug: string, version?: string) => {
     set((state) => ({ installing: { ...state.installing, [slug]: true } }));
     try {
-      const result = await hostApiFetch<{ success: boolean; error?: string }>('/api/clawhub/install', {
-        method: 'POST',
-        body: JSON.stringify({ slug, version }),
-      });
+      const result = await hostApiFetch<{ success: boolean; error?: string }>(
+        "/api/clawhub/install",
+        {
+          method: "POST",
+          body: JSON.stringify({ slug, version }),
+        },
+      );
       if (!result.success) {
-        const appError = normalizeAppError(new Error(result.error || 'Install failed'), {
-          module: 'skills',
-          operation: 'install',
-        });
-        throw new Error(mapErrorCodeToSkillErrorKey(appError.code, 'install'));
+        const appError = normalizeAppError(
+          new Error(result.error || "Install failed"),
+          {
+            module: "skills",
+            operation: "install",
+          },
+        );
+        throw new Error(mapErrorCodeToSkillErrorKey(appError.code, "install"));
       }
       // Refresh skills after install
       await get().fetchSkills();
     } catch (error) {
-      console.error('Install error:', error);
+      console.error("Install error:", error);
       throw error;
     } finally {
       set((state) => {
@@ -212,17 +241,20 @@ export const useSkillsStore = create<SkillsState>((set, get) => ({
   uninstallSkill: async (slug: string) => {
     set((state) => ({ installing: { ...state.installing, [slug]: true } }));
     try {
-      const result = await hostApiFetch<{ success: boolean; error?: string }>('/api/clawhub/uninstall', {
-        method: 'POST',
-        body: JSON.stringify({ slug }),
-      });
+      const result = await hostApiFetch<{ success: boolean; error?: string }>(
+        "/api/clawhub/uninstall",
+        {
+          method: "POST",
+          body: JSON.stringify({ slug }),
+        },
+      );
       if (!result.success) {
-        throw new Error(result.error || 'Uninstall failed');
+        throw new Error(result.error || "Uninstall failed");
       }
       // Refresh skills after uninstall
       await get().fetchSkills();
     } catch (error) {
-      console.error('Uninstall error:', error);
+      console.error("Uninstall error:", error);
       throw error;
     } finally {
       set((state) => {
@@ -237,10 +269,12 @@ export const useSkillsStore = create<SkillsState>((set, get) => ({
     const { updateSkill } = get();
 
     try {
-      await useGatewayStore.getState().rpc('skills.update', { skillKey: skillId, enabled: true });
+      await useGatewayStore
+        .getState()
+        .rpc("skills.update", { skillKey: skillId, enabled: true });
       updateSkill(skillId, { enabled: true });
     } catch (error) {
-      console.error('Failed to enable skill:', error);
+      console.error("Failed to enable skill:", error);
       throw error;
     }
   },
@@ -250,14 +284,16 @@ export const useSkillsStore = create<SkillsState>((set, get) => ({
 
     const skill = skills.find((s) => s.id === skillId);
     if (skill?.isCore) {
-      throw new Error('Cannot disable core skill');
+      throw new Error("Cannot disable core skill");
     }
 
     try {
-      await useGatewayStore.getState().rpc('skills.update', { skillKey: skillId, enabled: false });
+      await useGatewayStore
+        .getState()
+        .rpc("skills.update", { skillKey: skillId, enabled: false });
       updateSkill(skillId, { enabled: false });
     } catch (error) {
-      console.error('Failed to disable skill:', error);
+      console.error("Failed to disable skill:", error);
       throw error;
     }
   },
@@ -267,7 +303,7 @@ export const useSkillsStore = create<SkillsState>((set, get) => ({
   updateSkill: (skillId, updates) => {
     set((state) => ({
       skills: state.skills.map((skill) =>
-        skill.id === skillId ? { ...skill, ...updates } : skill
+        skill.id === skillId ? { ...skill, ...updates } : skill,
       ),
     }));
   },

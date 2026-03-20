@@ -1,10 +1,10 @@
-import { app, utilityProcess } from 'electron';
-import { existsSync, writeFileSync } from 'fs';
-import path from 'path';
-import type { GatewayLaunchContext } from './config-sync';
-import type { GatewayLifecycleState } from './process-policy';
-import { logger } from '../utils/logger';
-import { appendNodeRequireToNodeOptions } from '../utils/paths';
+import { app, utilityProcess } from "electron";
+import { existsSync, writeFileSync } from "fs";
+import path from "path";
+import type { GatewayLaunchContext } from "./config-sync";
+import type { GatewayLifecycleState } from "./process-policy";
+import { logger } from "../utils/logger";
+import { appendNodeRequireToNodeOptions } from "../utils/paths";
 
 const GATEWAY_FETCH_PRELOAD_SOURCE = `'use strict';
 (function () {
@@ -79,9 +79,9 @@ const GATEWAY_FETCH_PRELOAD_SOURCE = `'use strict';
 `;
 
 function ensureGatewayFetchPreload(): string {
-  const dest = path.join(app.getPath('userData'), 'gateway-fetch-preload.cjs');
+  const dest = path.join(app.getPath("userData"), "gateway-fetch-preload.cjs");
   try {
-    writeFileSync(dest, GATEWAY_FETCH_PRELOAD_SOURCE, 'utf-8');
+    writeFileSync(dest, GATEWAY_FETCH_PRELOAD_SOURCE, "utf-8");
   } catch {
     // best-effort
   }
@@ -112,9 +112,9 @@ export async function launchGatewayProcess(options: {
   } = options.launchContext;
 
   logger.info(
-    `Starting Gateway process (mode=${mode}, port=${options.port}, entry="${entryScript}", args="${options.sanitizeSpawnArgs(gatewayArgs).join(' ')}", cwd="${openclawDir}", bundledBin=${binPathExists ? 'yes' : 'no'}, providerKeys=${loadedProviderKeyCount}, channels=${channelStartupSummary}, proxy=${proxySummary})`,
+    `Starting Gateway process (mode=${mode}, port=${options.port}, entry="${entryScript}", args="${options.sanitizeSpawnArgs(gatewayArgs).join(" ")}", cwd="${openclawDir}", bundledBin=${binPathExists ? "yes" : "no"}, providerKeys=${loadedProviderKeyCount}, channels=${channelStartupSummary}, proxy=${proxySummary})`,
   );
-  const lastSpawnSummary = `mode=${mode}, entry="${entryScript}", args="${options.sanitizeSpawnArgs(gatewayArgs).join(' ')}", cwd="${openclawDir}"`;
+  const lastSpawnSummary = `mode=${mode}, entry="${entryScript}", args="${options.sanitizeSpawnArgs(gatewayArgs).join(" ")}", cwd="${openclawDir}"`;
 
   const runtimeEnv = { ...forkEnv };
   if (!app.isPackaged) {
@@ -127,16 +127,19 @@ export async function launchGatewayProcess(options: {
         );
       }
     } catch (err) {
-      logger.warn('Failed to set up OpenRouter headers preload:', err);
+      logger.warn("Failed to set up OpenRouter headers preload:", err);
     }
   }
 
-  return await new Promise<{ child: Electron.UtilityProcess; lastSpawnSummary: string }>((resolve, reject) => {
+  return await new Promise<{
+    child: Electron.UtilityProcess;
+    lastSpawnSummary: string;
+  }>((resolve, reject) => {
     const child = utilityProcess.fork(entryScript, gatewayArgs, {
       cwd: openclawDir,
-      stdio: 'pipe',
+      stdio: "pipe",
       env: runtimeEnv as NodeJS.ProcessEnv,
-      serviceName: 'OpenClaw Gateway',
+      serviceName: "OpenClaw Gateway",
     });
 
     let settled = false;
@@ -151,34 +154,41 @@ export async function launchGatewayProcess(options: {
       reject(error);
     };
 
-    child.on('error', (error) => {
+    child.on("error", (error) => {
       let err: Error;
-      if (error && typeof error === 'object') {
+      if (error && typeof error === "object") {
         const anyErr = error as { message?: unknown };
-        err = typeof anyErr.message === 'string' ? (error as Error) : new Error(String(error));
+        err =
+          typeof anyErr.message === "string"
+            ? (error as Error)
+            : new Error(String(error));
       } else {
         err = new Error(String(error));
       }
-      logger.error('Gateway process spawn error:', err);
+      logger.error("Gateway process spawn error:", err);
       options.onError(err);
       rejectOnce(err);
     });
 
-    child.on('exit', (code: number) => {
-      const expectedExit = !options.getShouldReconnect() || options.getCurrentState() === 'stopped';
+    child.on("exit", (code: number) => {
+      const expectedExit =
+        !options.getShouldReconnect() ||
+        options.getCurrentState() === "stopped";
       const level = expectedExit ? logger.info : logger.warn;
-      level(`Gateway process exited (code=${code}, expected=${expectedExit ? 'yes' : 'no'})`);
+      level(
+        `Gateway process exited (code=${code}, expected=${expectedExit ? "yes" : "no"})`,
+      );
       options.onExit(child, code);
     });
 
-    child.stderr?.on('data', (data) => {
+    child.stderr?.on("data", (data) => {
       const raw = data.toString();
       for (const line of raw.split(/\r?\n/)) {
         options.onStderrLine(line);
       }
     });
 
-    child.on('spawn', () => {
+    child.on("spawn", () => {
       logger.info(`Gateway process started (pid=${child.pid})`);
       options.onSpawn(child.pid);
       resolveOnce();

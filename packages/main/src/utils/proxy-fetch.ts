@@ -6,11 +6,11 @@
 
 export async function proxyAwareFetch(
   input: string | URL,
-  init?: RequestInit
+  init?: RequestInit,
 ): Promise<Response> {
   if (process.versions.electron) {
     try {
-      const { net } = await import('electron');
+      const { net } = await import("electron");
       const netInput = input instanceof URL ? input.toString() : input;
       return await net.fetch(netInput, init);
     } catch {

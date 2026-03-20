@@ -2,7 +2,7 @@
  * Window Management Utilities
  * Handles window state persistence and multi-window management
  */
-import { BrowserWindow, screen } from 'electron';
+import { BrowserWindow, screen } from "electron";
 
 interface WindowState {
   x?: number;
@@ -13,14 +13,14 @@ interface WindowState {
 }
 
 // Lazy-load electron-store (ESM module)
-// eslint-disable-next-line @typescript-eslint/no-explicit-any
+
 let windowStateStore: any = null;
 
 async function getStore() {
   if (!windowStateStore) {
-    const Store = (await import('electron-store')).default;
+    const Store = (await import("electron-store")).default;
     windowStateStore = new Store<{ windowState: WindowState }>({
-      name: 'window-state',
+      name: "window-state",
       defaults: {
         windowState: {
           width: 1280,
@@ -38,8 +38,8 @@ async function getStore() {
  */
 export async function getWindowState(): Promise<WindowState> {
   const store = await getStore();
-  const state = store.get('windowState');
-  
+  const state = store.get("windowState");
+
   // Validate that the window is visible on a screen
   if (state.x !== undefined && state.y !== undefined) {
     const displays = screen.getAllDisplays();
@@ -52,14 +52,14 @@ export async function getWindowState(): Promise<WindowState> {
         state.y! < y + height
       );
     });
-    
+
     if (!isVisible) {
       // Reset position if not visible
       delete state.x;
       delete state.y;
     }
   }
-  
+
   return state;
 }
 
@@ -69,10 +69,10 @@ export async function getWindowState(): Promise<WindowState> {
 export async function saveWindowState(win: BrowserWindow): Promise<void> {
   const store = await getStore();
   const isMaximized = win.isMaximized();
-  
+
   if (!isMaximized) {
     const bounds = win.getBounds();
-    store.set('windowState', {
+    store.set("windowState", {
       x: bounds.x,
       y: bounds.y,
       width: bounds.width,
@@ -80,7 +80,7 @@ export async function saveWindowState(win: BrowserWindow): Promise<void> {
       isMaximized,
     });
   } else {
-    store.set('windowState.isMaximized', true);
+    store.set("windowState.isMaximized", true);
   }
 }
 
@@ -89,8 +89,7 @@ export async function saveWindowState(win: BrowserWindow): Promise<void> {
  */
 export function trackWindowState(win: BrowserWindow): void {
   // Save state on window events
-  ['resize', 'move', 'close'].forEach((event) => {
-    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  ["resize", "move", "close"].forEach((event) => {
     win.on(event as any, () => saveWindowState(win));
   });
 }

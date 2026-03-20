@@ -3,16 +3,41 @@
  * Renders user / assistant / system / toolresult messages
  * with markdown, thinking sections, images, and tool cards.
  */
-import { useState, useCallback, useEffect, memo } from 'react';
-import { Sparkles, Copy, Check, ChevronDown, ChevronRight, Wrench, FileText, Film, Music, FileArchive, File, X, FolderOpen, ZoomIn, Loader2, CheckCircle2, AlertCircle } from 'lucide-react';
-import ReactMarkdown from 'react-markdown';
-import remarkGfm from 'remark-gfm';
-import { createPortal } from 'react-dom';
-import { Button } from '@/components/ui/button';
-import { cn } from '@/lib/utils';
-import { invokeIpc } from '@/lib/api-client';
-import type { RawMessage, AttachedFileMeta } from '@/stores/chat';
-import { extractText, extractThinking, extractImages, extractToolUse, formatTimestamp } from './message-utils';
+import { useState, useCallback, useEffect, memo } from "react";
+import { motion } from "framer-motion";
+import {
+  Sparkles,
+  Copy,
+  Check,
+  ChevronDown,
+  ChevronRight,
+  Wrench,
+  FileText,
+  Film,
+  Music,
+  FileArchive,
+  File,
+  X,
+  FolderOpen,
+  ZoomIn,
+  Loader2,
+  CheckCircle2,
+  AlertCircle,
+} from "lucide-react";
+import ReactMarkdown from "react-markdown";
+import remarkGfm from "remark-gfm";
+import { createPortal } from "react-dom";
+import { Button } from "@/components/ui/button";
+import { cn } from "@/lib/utils";
+import { invokeIpc } from "@/lib/api-client";
+import type { RawMessage, AttachedFileMeta } from "@/stores/chat";
+import {
+  extractText,
+  extractThinking,
+  extractImages,
+  extractToolUse,
+  formatTimestamp,
+} from "./message-utils";
 
 interface ChatMessageProps {
   message: RawMessage;
@@ -22,13 +47,17 @@ interface ChatMessageProps {
     id?: string;
     toolCallId?: string;
     name: string;
-    status: 'running' | 'completed' | 'error';
+    status: "running" | "completed" | "error";
     durationMs?: number;
     summary?: string;
   }>;
 }
 
-interface ExtractedImage { url?: string; data?: string; mimeType: string; }
+interface ExtractedImage {
+  url?: string;
+  data?: string;
+  mimeType: string;
+}
 
 /** Resolve an ExtractedImage to a displayable src string, or null if not possible. */
 function imageSrc(img: ExtractedImage): string | null {
@@ -43,9 +72,10 @@ export const ChatMessage = memo(function ChatMessage({
   isStreaming = false,
   streamingTools = [],
 }: ChatMessageProps) {
-  const isUser = message.role === 'user';
-  const role = typeof message.role === 'string' ? message.role.toLowerCase() : '';
-  const isToolResult = role === 'toolresult' || role === 'tool_result';
+  const isUser = message.role === "user";
+  const role =
+    typeof message.role === "string" ? message.role.toLowerCase() : "";
+  const isToolResult = role === "toolresult" || role === "tool_result";
   const text = extractText(message);
   const hasText = text.trim().length > 0;
   const thinking = extractThinking(message);
@@ -55,33 +85,54 @@ export const ChatMessage = memo(function ChatMessage({
   const visibleTools = tools;
 
   const attachedFiles = message._attachedFiles || [];
-  const [lightboxImg, setLightboxImg] = useState<{ src: string; fileName: string; filePath?: string; base64?: string; mimeType?: string } | null>(null);
+  const [lightboxImg, setLightboxImg] = useState<{
+    src: string;
+    fileName: string;
+    filePath?: string;
+    base64?: string;
+    mimeType?: string;
+  } | null>(null);
 
   // Never render tool result messages in chat UI
   if (isToolResult) return null;
 
   const hasStreamingToolStatus = isStreaming && streamingTools.length > 0;
-  if (!hasText && !visibleThinking && images.length === 0 && visibleTools.length === 0 && attachedFiles.length === 0 && !hasStreamingToolStatus) return null;
+  if (
+    !hasText &&
+    !visibleThinking &&
+    images.length === 0 &&
+    visibleTools.length === 0 &&
+    attachedFiles.length === 0 &&
+    !hasStreamingToolStatus
+  )
+    return null;
 
   return (
-    <div
+    <motion.div
+      initial={{ opacity: 0, y: 10 }}
+      animate={{ opacity: 1, y: 0 }}
+      transition={{ duration: 0.5, ease: [0.25, 0.1, 0.25, 1] }}
       className={cn(
-        'flex gap-3 group',
-        isUser ? 'flex-row-reverse' : 'flex-row',
+        "flex gap-3 group",
+        isUser ? "flex-row-reverse" : "flex-row",
       )}
     >
       {/* Avatar */}
       {!isUser && (
-        <div className="flex h-8 w-8 shrink-0 items-center justify-center rounded-full mt-1 bg-black/5 dark:bg-white/5 text-foreground">
+        <motion.div
+          className="flex h-8 w-8 shrink-0 items-center justify-center rounded-full mt-1 bg-black/5 dark:bg-white/5 text-foreground"
+          animate={{ y: [0, -2, 0] }}
+          transition={{ duration: 2, repeat: Infinity, repeatDelay: 5 }}
+        >
           <Sparkles className="h-4 w-4" />
-        </div>
+        </motion.div>
       )}
 
       {/* Content */}
       <div
         className={cn(
-          'flex flex-col w-full min-w-0 max-w-[80%] space-y-2',
-          isUser ? 'items-end' : 'items-start',
+          "flex flex-col w-full min-w-0 max-w-[80%] space-y-2",
+          isUser ? "items-end" : "items-start",
         )}
       >
         {isStreaming && !isUser && streamingTools.length > 0 && (
@@ -89,15 +140,17 @@ export const ChatMessage = memo(function ChatMessage({
         )}
 
         {/* Thinking section */}
-        {visibleThinking && (
-          <ThinkingBlock content={visibleThinking} />
-        )}
+        {visibleThinking && <ThinkingBlock content={visibleThinking} />}
 
         {/* Tool use cards */}
         {visibleTools.length > 0 && (
           <div className="space-y-1">
             {visibleTools.map((tool, i) => (
-              <ToolCard key={tool.id || i} name={tool.name} input={tool.input} />
+              <ToolCard
+                key={tool.id || i}
+                name={tool.name}
+                input={tool.input}
+              />
             ))}
           </div>
         )}
@@ -116,7 +169,14 @@ export const ChatMessage = memo(function ChatMessage({
                   fileName="image"
                   base64={img.data}
                   mimeType={img.mimeType}
-                  onPreview={() => setLightboxImg({ src, fileName: 'image', base64: img.data, mimeType: img.mimeType })}
+                  onPreview={() =>
+                    setLightboxImg({
+                      src,
+                      fileName: "image",
+                      base64: img.data,
+                      mimeType: img.mimeType,
+                    })
+                  }
                 />
               );
             })}
@@ -127,7 +187,7 @@ export const ChatMessage = memo(function ChatMessage({
         {isUser && attachedFiles.length > 0 && (
           <div className="flex flex-wrap gap-2">
             {attachedFiles.map((file, i) => {
-              const isImage = file.mimeType.startsWith('image/');
+              const isImage = file.mimeType.startsWith("image/");
               // Skip image attachments if we already have images from content blocks
               if (isImage && images.length > 0) return null;
               if (isImage) {
@@ -138,7 +198,14 @@ export const ChatMessage = memo(function ChatMessage({
                     fileName={file.fileName}
                     filePath={file.filePath}
                     mimeType={file.mimeType}
-                    onPreview={() => setLightboxImg({ src: file.preview!, fileName: file.fileName, filePath: file.filePath, mimeType: file.mimeType })}
+                    onPreview={() =>
+                      setLightboxImg({
+                        src: file.preview!,
+                        fileName: file.fileName,
+                        filePath: file.filePath,
+                        mimeType: file.mimeType,
+                      })
+                    }
                   />
                 ) : (
                   <div
@@ -177,7 +244,14 @@ export const ChatMessage = memo(function ChatMessage({
                   fileName="image"
                   base64={img.data}
                   mimeType={img.mimeType}
-                  onPreview={() => setLightboxImg({ src, fileName: 'image', base64: img.data, mimeType: img.mimeType })}
+                  onPreview={() =>
+                    setLightboxImg({
+                      src,
+                      fileName: "image",
+                      base64: img.data,
+                      mimeType: img.mimeType,
+                    })
+                  }
                 />
               );
             })}
@@ -188,7 +262,7 @@ export const ChatMessage = memo(function ChatMessage({
         {!isUser && attachedFiles.length > 0 && (
           <div className="flex flex-wrap gap-2">
             {attachedFiles.map((file, i) => {
-              const isImage = file.mimeType.startsWith('image/');
+              const isImage = file.mimeType.startsWith("image/");
               if (isImage && images.length > 0) return null;
               if (isImage && file.preview) {
                 return (
@@ -198,13 +272,23 @@ export const ChatMessage = memo(function ChatMessage({
                     fileName={file.fileName}
                     filePath={file.filePath}
                     mimeType={file.mimeType}
-                    onPreview={() => setLightboxImg({ src: file.preview!, fileName: file.fileName, filePath: file.filePath, mimeType: file.mimeType })}
+                    onPreview={() =>
+                      setLightboxImg({
+                        src: file.preview!,
+                        fileName: file.fileName,
+                        filePath: file.filePath,
+                        mimeType: file.mimeType,
+                      })
+                    }
                   />
                 );
               }
               if (isImage && !file.preview) {
                 return (
-                  <div key={`local-${i}`} className="w-36 h-36 rounded-xl border border-black/10 dark:border-white/10 bg-black/5 dark:bg-white/5 flex items-center justify-center text-muted-foreground">
+                  <div
+                    key={`local-${i}`}
+                    className="w-36 h-36 rounded-xl border border-black/10 dark:border-white/10 bg-black/5 dark:bg-white/5 flex items-center justify-center text-muted-foreground"
+                  >
                     <File className="h-8 w-8" />
                   </div>
                 );
@@ -238,7 +322,7 @@ export const ChatMessage = memo(function ChatMessage({
           onClose={() => setLightboxImg(null)}
         />
       )}
-    </div>
+    </motion.div>
   );
 });
 
@@ -255,7 +339,7 @@ function ToolStatusBar({
     id?: string;
     toolCallId?: string;
     name: string;
-    status: 'running' | 'completed' | 'error';
+    status: "running" | "completed" | "error";
     durationMs?: number;
     summary?: string;
   }>;
@@ -264,26 +348,43 @@ function ToolStatusBar({
     <div className="w-full space-y-1">
       {tools.map((tool) => {
         const duration = formatDuration(tool.durationMs);
-        const isRunning = tool.status === 'running';
-        const isError = tool.status === 'error';
+        const isRunning = tool.status === "running";
+        const isError = tool.status === "error";
         return (
           <div
             key={tool.toolCallId || tool.id || tool.name}
             className={cn(
-              'flex items-center gap-2 rounded-lg border px-3 py-2 text-xs transition-colors',
-              isRunning && 'border-primary/30 bg-primary/5 text-foreground',
-              !isRunning && !isError && 'border-border/50 bg-muted/20 text-muted-foreground',
-              isError && 'border-destructive/30 bg-destructive/5 text-destructive',
+              "flex items-center gap-2 rounded-lg border px-3 py-2 text-xs transition-colors",
+              isRunning && "border-primary/30 bg-primary/5 text-foreground",
+              !isRunning &&
+                !isError &&
+                "border-border/50 bg-muted/20 text-muted-foreground",
+              isError &&
+                "border-destructive/30 bg-destructive/5 text-destructive",
             )}
           >
-            {isRunning && <Loader2 className="h-3.5 w-3.5 animate-spin text-primary shrink-0" />}
-            {!isRunning && !isError && <CheckCircle2 className="h-3.5 w-3.5 text-green-500 shrink-0" />}
-            {isError && <AlertCircle className="h-3.5 w-3.5 text-destructive shrink-0" />}
+            {isRunning && (
+              <Loader2 className="h-3.5 w-3.5 animate-spin text-primary shrink-0" />
+            )}
+            {!isRunning && !isError && (
+              <CheckCircle2 className="h-3.5 w-3.5 text-green-500 shrink-0" />
+            )}
+            {isError && (
+              <AlertCircle className="h-3.5 w-3.5 text-destructive shrink-0" />
+            )}
             <Wrench className="h-3 w-3 shrink-0 opacity-60" />
-            <span className="font-mono text-[12px] font-medium">{tool.name}</span>
-            {duration && <span className="text-[11px] opacity-60">{tool.summary ? `(${duration})` : duration}</span>}
+            <span className="font-mono text-[12px] font-medium">
+              {tool.name}
+            </span>
+            {duration && (
+              <span className="text-[11px] opacity-60">
+                {tool.summary ? `(${duration})` : duration}
+              </span>
+            )}
             {tool.summary && (
-              <span className="truncate text-[11px] opacity-70">{tool.summary}</span>
+              <span className="truncate text-[11px] opacity-70">
+                {tool.summary}
+              </span>
             )}
           </div>
         );
@@ -294,7 +395,13 @@ function ToolStatusBar({
 
 // ── Assistant hover bar (timestamp + copy, shown on group hover) ─
 
-function AssistantHoverBar({ text, timestamp }: { text: string; timestamp?: number }) {
+function AssistantHoverBar({
+  text,
+  timestamp,
+}: {
+  text: string;
+  timestamp?: number;
+}) {
   const [copied, setCopied] = useState(false);
 
   const copyContent = useCallback(() => {
@@ -306,7 +413,7 @@ function AssistantHoverBar({ text, timestamp }: { text: string; timestamp?: numb
   return (
     <div className="flex items-center justify-between w-full opacity-0 group-hover:opacity-100 transition-opacity duration-200 select-none px-1">
       <span className="text-xs text-muted-foreground">
-        {timestamp ? formatTimestamp(timestamp) : ''}
+        {timestamp ? formatTimestamp(timestamp) : ""}
       </span>
       <Button
         variant="ghost"
@@ -314,7 +421,11 @@ function AssistantHoverBar({ text, timestamp }: { text: string; timestamp?: numb
         className="h-6 w-6"
         onClick={copyContent}
       >
-        {copied ? <Check className="h-3 w-3 text-green-500" /> : <Copy className="h-3 w-3" />}
+        {copied ? (
+          <Check className="h-3 w-3 text-green-500" />
+        ) : (
+          <Copy className="h-3 w-3" />
+        )}
       </Button>
     </div>
   );
@@ -332,35 +443,47 @@ function MessageBubble({
   isStreaming: boolean;
 }) {
   return (
-    <div
+    <motion.div
+      initial={{ opacity: 0, scale: 0.98 }}
+      animate={{ opacity: 1, scale: 1 }}
+      transition={{ duration: 0.2 }}
       className={cn(
-        'relative rounded-2xl px-4 py-3',
-        !isUser && 'w-full',
+        "relative rounded-2xl px-4 py-3",
+        !isUser && "w-full",
         isUser
-          ? 'bg-[#0a84ff] text-white shadow-sm'
-          : 'bg-black/5 dark:bg-white/5 text-foreground',
+          ? "bg-[#0a84ff] text-white shadow-sm"
+          : "bg-black/5 dark:bg-white/5 text-foreground",
       )}
+      whileHover={{ y: -1 }}
     >
       {isUser ? (
-        <p className="whitespace-pre-wrap break-words break-all text-sm">{text}</p>
+        <p className="whitespace-pre-wrap break-words break-all text-sm">
+          {text}
+        </p>
       ) : (
         <div className="prose prose-sm dark:prose-invert max-w-none break-words break-all">
           <ReactMarkdown
             remarkPlugins={[remarkGfm]}
             components={{
               code({ className, children, ...props }) {
-                const match = /language-(\w+)/.exec(className || '');
+                const match = /language-(\w+)/.exec(className || "");
                 const isInline = !match && !className;
                 if (isInline) {
                   return (
-                    <code className="bg-background/50 px-1.5 py-0.5 rounded text-sm font-mono break-words break-all" {...props}>
+                    <code
+                      className="bg-background/50 px-1.5 py-0.5 rounded text-sm font-mono break-words break-all"
+                      {...props}
+                    >
                       {children}
                     </code>
                   );
                 }
                 return (
                   <pre className="bg-background/50 rounded-lg p-4 overflow-x-auto">
-                    <code className={cn('text-sm font-mono', className)} {...props}>
+                    <code
+                      className={cn("text-sm font-mono", className)}
+                      {...props}
+                    >
                       {children}
                     </code>
                   </pre>
@@ -368,7 +491,12 @@ function MessageBubble({
               },
               a({ href, children }) {
                 return (
-                  <a href={href} target="_blank" rel="noopener noreferrer" className="text-primary hover:underline break-words break-all">
+                  <a
+                    href={href}
+                    target="_blank"
+                    rel="noopener noreferrer"
+                    className="text-primary hover:underline break-words break-all"
+                  >
                     {children}
                   </a>
                 );
@@ -382,8 +510,7 @@ function MessageBubble({
           )}
         </div>
       )}
-
-    </div>
+    </motion.div>
   );
 }
 
@@ -398,7 +525,11 @@ function ThinkingBlock({ content }: { content: string }) {
         className="flex items-center gap-2 w-full px-3 py-2 text-muted-foreground hover:text-foreground transition-colors"
         onClick={() => setExpanded(!expanded)}
       >
-        {expanded ? <ChevronDown className="h-3.5 w-3.5" /> : <ChevronRight className="h-3.5 w-3.5" />}
+        {expanded ? (
+          <ChevronDown className="h-3.5 w-3.5" />
+        ) : (
+          <ChevronRight className="h-3.5 w-3.5" />
+        )}
         <span className="font-medium">Thinking</span>
       </button>
       {expanded && (
@@ -417,27 +548,50 @@ function ThinkingBlock({ content }: { content: string }) {
 function formatFileSize(bytes: number): string {
   if (bytes < 1024) return `${bytes} B`;
   if (bytes < 1024 * 1024) return `${(bytes / 1024).toFixed(1)} KB`;
-  if (bytes < 1024 * 1024 * 1024) return `${(bytes / (1024 * 1024)).toFixed(2)} MB`;
+  if (bytes < 1024 * 1024 * 1024)
+    return `${(bytes / (1024 * 1024)).toFixed(2)} MB`;
   return `${(bytes / (1024 * 1024 * 1024)).toFixed(2)} GB`;
 }
 
-function FileIcon({ mimeType, className }: { mimeType: string; className?: string }) {
-  if (mimeType.startsWith('video/')) return <Film className={className} />;
-  if (mimeType.startsWith('audio/')) return <Music className={className} />;
-  if (mimeType.startsWith('text/') || mimeType === 'application/json' || mimeType === 'application/xml') return <FileText className={className} />;
-  if (mimeType.includes('zip') || mimeType.includes('compressed') || mimeType.includes('archive') || mimeType.includes('tar') || mimeType.includes('rar') || mimeType.includes('7z')) return <FileArchive className={className} />;
-  if (mimeType === 'application/pdf') return <FileText className={className} />;
+function FileIcon({
+  mimeType,
+  className,
+}: {
+  mimeType: string;
+  className?: string;
+}) {
+  if (mimeType.startsWith("video/")) return <Film className={className} />;
+  if (mimeType.startsWith("audio/")) return <Music className={className} />;
+  if (
+    mimeType.startsWith("text/") ||
+    mimeType === "application/json" ||
+    mimeType === "application/xml"
+  )
+    return <FileText className={className} />;
+  if (
+    mimeType.includes("zip") ||
+    mimeType.includes("compressed") ||
+    mimeType.includes("archive") ||
+    mimeType.includes("tar") ||
+    mimeType.includes("rar") ||
+    mimeType.includes("7z")
+  )
+    return <FileArchive className={className} />;
+  if (mimeType === "application/pdf") return <FileText className={className} />;
   return <File className={className} />;
 }
 
 function FileCard({ file }: { file: AttachedFileMeta }) {
   return (
     <div className="flex items-center gap-3 rounded-xl border border-black/10 dark:border-white/10 px-3 py-2.5 bg-black/5 dark:bg-white/5 max-w-[220px]">
-      <FileIcon mimeType={file.mimeType} className="h-5 w-5 shrink-0 text-muted-foreground" />
+      <FileIcon
+        mimeType={file.mimeType}
+        className="h-5 w-5 shrink-0 text-muted-foreground"
+      />
       <div className="min-w-0 overflow-hidden">
         <p className="text-xs font-medium truncate">{file.fileName}</p>
         <p className="text-[10px] text-muted-foreground">
-          {file.fileSize > 0 ? formatFileSize(file.fileSize) : 'File'}
+          {file.fileSize > 0 ? formatFileSize(file.fileSize) : "File"}
         </p>
       </div>
     </div>
@@ -461,7 +615,9 @@ function ImageThumbnail({
   mimeType?: string;
   onPreview: () => void;
 }) {
-  void filePath; void base64; void mimeType;
+  void filePath;
+  void base64;
+  void mimeType;
   return (
     <div
       className="relative w-36 h-36 rounded-xl border overflow-hidden border-black/10 dark:border-white/10 bg-black/5 dark:bg-white/5 group/img cursor-zoom-in"
@@ -492,7 +648,9 @@ function ImagePreviewCard({
   mimeType?: string;
   onPreview: () => void;
 }) {
-  void filePath; void base64; void mimeType;
+  void filePath;
+  void base64;
+  void mimeType;
   return (
     <div
       className="relative max-w-xs rounded-xl border overflow-hidden border-black/10 dark:border-white/10 bg-black/5 dark:bg-white/5 group/img cursor-zoom-in"
@@ -523,19 +681,22 @@ function ImageLightbox({
   mimeType?: string;
   onClose: () => void;
 }) {
-  void src; void base64; void mimeType; void fileName;
+  void src;
+  void base64;
+  void mimeType;
+  void fileName;
 
   useEffect(() => {
     const handleKey = (e: KeyboardEvent) => {
-      if (e.key === 'Escape') onClose();
+      if (e.key === "Escape") onClose();
     };
-    window.addEventListener('keydown', handleKey);
-    return () => window.removeEventListener('keydown', handleKey);
+    window.addEventListener("keydown", handleKey);
+    return () => window.removeEventListener("keydown", handleKey);
   }, [onClose]);
 
   const handleShowInFolder = useCallback(() => {
     if (filePath) {
-      invokeIpc('shell:showItemInFolder', filePath);
+      invokeIpc("shell:showItemInFolder", filePath);
     }
   }, [filePath]);
 
@@ -598,11 +759,17 @@ function ToolCard({ name, input }: { name: string; input: unknown }) {
         <CheckCircle2 className="h-3.5 w-3.5 text-green-500 shrink-0" />
         <Wrench className="h-3 w-3 shrink-0 opacity-60" />
         <span className="font-mono text-xs">{name}</span>
-        {expanded ? <ChevronDown className="h-3 w-3 ml-auto" /> : <ChevronRight className="h-3 w-3 ml-auto" />}
+        {expanded ? (
+          <ChevronDown className="h-3 w-3 ml-auto" />
+        ) : (
+          <ChevronRight className="h-3 w-3 ml-auto" />
+        )}
       </button>
       {expanded && input != null && (
         <pre className="px-3 pb-2 text-xs text-muted-foreground overflow-x-auto">
-          {typeof input === 'string' ? input : JSON.stringify(input, null, 2) as string}
+          {typeof input === "string"
+            ? input
+            : (JSON.stringify(input, null, 2) as string)}
         </pre>
       )}
     </div>

@@ -1,20 +1,20 @@
-import { createHostEventSource } from './host-api';
+import { createHostEventSource } from "./host-api";
 
 let eventSource: EventSource | null = null;
 
 const HOST_EVENT_TO_IPC_CHANNEL: Record<string, string> = {
-  'gateway:status': 'gateway:status-changed',
-  'gateway:error': 'gateway:error',
-  'gateway:notification': 'gateway:notification',
-  'gateway:chat-message': 'gateway:chat-message',
-  'gateway:channel-status': 'gateway:channel-status',
-  'gateway:exit': 'gateway:exit',
-  'oauth:code': 'oauth:code',
-  'oauth:success': 'oauth:success',
-  'oauth:error': 'oauth:error',
-  'channel:whatsapp-qr': 'channel:whatsapp-qr',
-  'channel:whatsapp-success': 'channel:whatsapp-success',
-  'channel:whatsapp-error': 'channel:whatsapp-error',
+  "gateway:status": "gateway:status-changed",
+  "gateway:error": "gateway:error",
+  "gateway:notification": "gateway:notification",
+  "gateway:chat-message": "gateway:chat-message",
+  "gateway:channel-status": "gateway:channel-status",
+  "gateway:exit": "gateway:exit",
+  "oauth:code": "oauth:code",
+  "oauth:success": "oauth:success",
+  "oauth:error": "oauth:error",
+  "channel:whatsapp-qr": "channel:whatsapp-qr",
+  "channel:whatsapp-success": "channel:whatsapp-success",
+  "channel:whatsapp-error": "channel:whatsapp-error",
 };
 
 function getEventSource(): EventSource {
@@ -26,7 +26,7 @@ function getEventSource(): EventSource {
 
 function allowSseFallback(): boolean {
   try {
-    return window.localStorage.getItem('UfrenClaw:allow-sse-fallback') === '1';
+    return window.localStorage.getItem("UfrenClaw:allow-sse-fallback") === "1";
   } catch {
     return false;
   }
@@ -49,7 +49,9 @@ export function subscribeHostEvent<T = unknown>(
   }
 
   if (!allowSseFallback()) {
-    console.warn(`[host-events] no IPC mapping for event "${eventName}", SSE fallback disabled`);
+    console.warn(
+      `[host-events] no IPC mapping for event "${eventName}", SSE fallback disabled`,
+    );
     return () => {};
   }
 

@@ -1,12 +1,16 @@
-import type { ProviderAccount, ProviderConfig, ProviderType } from '../../shared/providers/types';
-import { getProviderDefinition } from '../../shared/providers/registry';
-import { getUfrenClawProviderStore } from './store-instance';
+import type {
+  ProviderAccount,
+  ProviderConfig,
+  ProviderType,
+} from "../../shared/providers/types";
+import { getProviderDefinition } from "../../shared/providers/registry";
+import { getUfrenClawProviderStore } from "./store-instance";
 
 const PROVIDER_STORE_SCHEMA_VERSION = 1;
 
-function inferAuthMode(type: ProviderType): ProviderAccount['authMode'] {
-  if (type === 'ollama') {
-    return 'local';
+function inferAuthMode(type: ProviderType): ProviderAccount["authMode"] {
+  if (type === "ollama") {
+    return "local";
   }
 
   const definition = getProviderDefinition(type);
@@ -14,7 +18,7 @@ function inferAuthMode(type: ProviderType): ProviderAccount['authMode'] {
     return definition.defaultAuthMode;
   }
 
-  return 'api_key';
+  return "api_key";
 }
 
 export function providerConfigToAccount(
@@ -27,9 +31,11 @@ export function providerConfigToAccount(
     label: config.name,
     authMode: inferAuthMode(config.type),
     baseUrl: config.baseUrl,
-    apiProtocol: config.apiProtocol || (config.type === 'custom' || config.type === 'ollama'
-      ? 'openai-completions'
-      : getProviderDefinition(config.type)?.providerConfig?.api),
+    apiProtocol:
+      config.apiProtocol ||
+      (config.type === "custom" || config.type === "ollama"
+        ? "openai-completions"
+        : getProviderDefinition(config.type)?.providerConfig?.api),
     model: config.model,
     fallbackModels: config.fallbackModels,
     fallbackAccountIds: config.fallbackProviderIds,
@@ -40,7 +46,9 @@ export function providerConfigToAccount(
   };
 }
 
-export function providerAccountToConfig(account: ProviderAccount): ProviderConfig {
+export function providerAccountToConfig(
+  account: ProviderAccount,
+): ProviderConfig {
   return {
     id: account.id,
     name: account.label,
@@ -58,47 +66,68 @@ export function providerAccountToConfig(account: ProviderAccount): ProviderConfi
 
 export async function listProviderAccounts(): Promise<ProviderAccount[]> {
   const store = await getUfrenClawProviderStore();
-  const accounts = store.get('providerAccounts') as Record<string, ProviderAccount> | undefined;
+  const accounts = store.get("providerAccounts") as
+    | Record<string, ProviderAccount>
+    | undefined;
   return Object.values(accounts ?? {});
 }
 
-export async function getProviderAccount(accountId: string): Promise<ProviderAccount | null> {
+export async function getProviderAccount(
+  accountId: string,
+): Promise<ProviderAccount | null> {
   const store = await getUfrenClawProviderStore();
-  const accounts = store.get('providerAccounts') as Record<string, ProviderAccount> | undefined;
+  const accounts = store.get("providerAccounts") as
+    | Record<string, ProviderAccount>
+    | undefined;
   return accounts?.[accountId] ?? null;
 }
 
-export async function saveProviderAccount(account: ProviderAccount): Promise<void> {
+export async function saveProviderAccount(
+  account: ProviderAccount,
+): Promise<void> {
   const store = await getUfrenClawProviderStore();
-  const accounts = (store.get('providerAccounts') ?? {}) as Record<string, ProviderAccount>;
+  const accounts = (store.get("providerAccounts") ?? {}) as Record<
+    string,
+    ProviderAccount
+  >;
   accounts[account.id] = account;
-  store.set('providerAccounts', accounts);
-  store.set('schemaVersion', PROVIDER_STORE_SCHEMA_VERSION);
+  store.set("providerAccounts", accounts);
+  store.set("schemaVersion", PROVIDER_STORE_SCHEMA_VERSION);
 }
 
 export async function deleteProviderAccount(accountId: string): Promise<void> {
   const store = await getUfrenClawProviderStore();
-  const accounts = (store.get('providerAccounts') ?? {}) as Record<string, ProviderAccount>;
+  const accounts = (store.get("providerAccounts") ?? {}) as Record<
+    string,
+    ProviderAccount
+  >;
   delete accounts[accountId];
-  store.set('providerAccounts', accounts);
+  store.set("providerAccounts", accounts);
 
-  if (store.get('defaultProviderAccountId') === accountId) {
-    store.delete('defaultProviderAccountId');
+  if (store.get("defaultProviderAccountId") === accountId) {
+    store.delete("defaultProviderAccountId");
   }
 }
 
-export async function setDefaultProviderAccount(accountId: string): Promise<void> {
+export async function setDefaultProviderAccount(
+  accountId: string,
+): Promise<void> {
   const store = await getUfrenClawProviderStore();
-  store.set('defaultProviderAccountId', accountId);
+  store.set("defaultProviderAccountId", accountId);
 
-  const accounts = (store.get('providerAccounts') ?? {}) as Record<string, ProviderAccount>;
+  const accounts = (store.get("providerAccounts") ?? {}) as Record<
+    string,
+    ProviderAccount
+  >;
   for (const account of Object.values(accounts)) {
     account.isDefault = account.id === accountId;
   }
-  store.set('providerAccounts', accounts);
+  store.set("providerAccounts", accounts);
 }
 
-export async function getDefaultProviderAccountId(): Promise<string | undefined> {
+export async function getDefaultProviderAccountId(): Promise<
+  string | undefined
+> {
   const store = await getUfrenClawProviderStore();
-  return store.get('defaultProviderAccountId') as string | undefined;
+  return store.get("defaultProviderAccountId") as string | undefined;
 }

@@ -1,9 +1,9 @@
-import { logger } from '../utils/logger';
+import { logger } from "../utils/logger";
 import {
   getDeferredRestartAction,
   shouldDeferRestart,
   type GatewayLifecycleState,
-} from './process-policy';
+} from "./process-policy";
 
 type RestartDeferralState = {
   state: GatewayLifecycleState;
@@ -47,8 +47,8 @@ export class GatewayRestartController {
       shouldReconnect: context.shouldReconnect,
     });
 
-    if (action === 'none') return;
-    if (action === 'wait') {
+    if (action === "none") return;
+    if (action === "wait") {
       logger.debug(
         `Deferred Gateway restart still waiting (${trigger}, state=${context.state}, startLock=${context.startLock})`,
       );
@@ -56,7 +56,7 @@ export class GatewayRestartController {
     }
 
     this.deferredRestartPending = false;
-    if (action === 'drop') {
+    if (action === "drop") {
       logger.info(
         `Dropping deferred Gateway restart (${trigger}) because lifecycle already recovered (state=${context.state}, shouldReconnect=${context.shouldReconnect})`,
       );

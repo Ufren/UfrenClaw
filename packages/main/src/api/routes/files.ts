@@ -1,75 +1,79 @@
-import type { IncomingMessage, ServerResponse } from 'http';
-import { dialog, nativeImage } from 'electron';
-import crypto from 'node:crypto';
-import { extname, join } from 'node:path';
-import { homedir } from 'node:os';
-import type { HostApiContext } from '../context';
-import { parseJsonBody, sendJson } from '../route-utils';
+import type { IncomingMessage, ServerResponse } from "http";
+import { dialog, nativeImage } from "electron";
+import crypto from "node:crypto";
+import { extname, join } from "node:path";
+import { homedir } from "node:os";
+import type { HostApiContext } from "../context";
+import { parseJsonBody, sendJson } from "../route-utils";
 
 const EXT_MIME_MAP: Record<string, string> = {
-  '.png': 'image/png',
-  '.jpg': 'image/jpeg',
-  '.jpeg': 'image/jpeg',
-  '.gif': 'image/gif',
-  '.webp': 'image/webp',
-  '.svg': 'image/svg+xml',
-  '.bmp': 'image/bmp',
-  '.ico': 'image/x-icon',
-  '.mp4': 'video/mp4',
-  '.webm': 'video/webm',
-  '.mov': 'video/quicktime',
-  '.avi': 'video/x-msvideo',
-  '.mkv': 'video/x-matroska',
-  '.mp3': 'audio/mpeg',
-  '.wav': 'audio/wav',
-  '.ogg': 'audio/ogg',
-  '.flac': 'audio/flac',
-  '.pdf': 'application/pdf',
-  '.zip': 'application/zip',
-  '.gz': 'application/gzip',
-  '.tar': 'application/x-tar',
-  '.7z': 'application/x-7z-compressed',
-  '.rar': 'application/vnd.rar',
-  '.json': 'application/json',
-  '.xml': 'application/xml',
-  '.csv': 'text/csv',
-  '.txt': 'text/plain',
-  '.md': 'text/markdown',
-  '.html': 'text/html',
-  '.css': 'text/css',
-  '.js': 'text/javascript',
-  '.ts': 'text/typescript',
-  '.py': 'text/x-python',
+  ".png": "image/png",
+  ".jpg": "image/jpeg",
+  ".jpeg": "image/jpeg",
+  ".gif": "image/gif",
+  ".webp": "image/webp",
+  ".svg": "image/svg+xml",
+  ".bmp": "image/bmp",
+  ".ico": "image/x-icon",
+  ".mp4": "video/mp4",
+  ".webm": "video/webm",
+  ".mov": "video/quicktime",
+  ".avi": "video/x-msvideo",
+  ".mkv": "video/x-matroska",
+  ".mp3": "audio/mpeg",
+  ".wav": "audio/wav",
+  ".ogg": "audio/ogg",
+  ".flac": "audio/flac",
+  ".pdf": "application/pdf",
+  ".zip": "application/zip",
+  ".gz": "application/gzip",
+  ".tar": "application/x-tar",
+  ".7z": "application/x-7z-compressed",
+  ".rar": "application/vnd.rar",
+  ".json": "application/json",
+  ".xml": "application/xml",
+  ".csv": "text/csv",
+  ".txt": "text/plain",
+  ".md": "text/markdown",
+  ".html": "text/html",
+  ".css": "text/css",
+  ".js": "text/javascript",
+  ".ts": "text/typescript",
+  ".py": "text/x-python",
 };
 
 function getMimeType(ext: string): string {
-  return EXT_MIME_MAP[ext.toLowerCase()] || 'application/octet-stream';
+  return EXT_MIME_MAP[ext.toLowerCase()] || "application/octet-stream";
 }
 
 function mimeToExt(mimeType: string): string {
   for (const [ext, mime] of Object.entries(EXT_MIME_MAP)) {
     if (mime === mimeType) return ext;
   }
-  return '';
+  return "";
 }
 
-const OUTBOUND_DIR = join(homedir(), '.openclaw', 'media', 'outbound');
+const OUTBOUND_DIR = join(homedir(), ".openclaw", "media", "outbound");
 
-async function generateImagePreview(filePath: string, mimeType: string): Promise<string | null> {
+async function generateImagePreview(
+  filePath: string,
+  mimeType: string,
+): Promise<string | null> {
   try {
     const img = nativeImage.createFromPath(filePath);
     if (img.isEmpty()) return null;
     const size = img.getSize();
     const maxDim = 512;
     if (size.width > maxDim || size.height > maxDim) {
-      const resized = size.width >= size.height
-        ? img.resize({ width: maxDim })
-        : img.resize({ height: maxDim });
-      return `data:image/png;base64,${resized.toPNG().toString('base64')}`;
+      const resized =
+        size.width >= size.height
+          ? img.resize({ width: maxDim })
+          : img.resize({ height: maxDim });
+      return `data:image/png;base64,${resized.toPNG().toString("base64")}`;
     }
-    const { readFile } = await import('node:fs/promises');
+    const { readFile } = await import("node:fs/promises");
     const buf = await readFile(filePath);
-    return `data:${mimeType};base64,${buf.toString('base64')}`;
+    return `data:${mimeType};base64,${buf.toString("base64")}`;
   } catch {
     return null;
   }
@@ -81,10 +85,10 @@ export async function handleFileRoutes(
   url: URL,
   _ctx: HostApiContext,
 ): Promise<boolean> {
-  if (url.pathname === '/api/files/stage-paths' && req.method === 'POST') {
+  if (url.pathname === "/api/files/stage-paths" && req.method === "POST") {
     try {
       const body = await parseJsonBody<{ filePaths: string[] }>(req);
-      const fsP = await import('node:fs/promises');
+      const fsP = await import("node:fs/promises");
       await fsP.mkdir(OUTBOUND_DIR, { recursive: true });
       const results = [];
       for (const filePath of body.filePaths) {
@@ -94,11 +98,18 @@ export async function handleFileRoutes(
         await fsP.copyFile(filePath, stagedPath);
         const s = await fsP.stat(stagedPath);
         const mimeType = getMimeType(ext);
-        const fileName = filePath.split(/[\\/]/).pop() || 'file';
-        const preview = mimeType.startsWith('image/')
+        const fileName = filePath.split(/[\\/]/).pop() || "file";
+        const preview = mimeType.startsWith("image/")
           ? await generateImagePreview(stagedPath, mimeType)
           : null;
-        results.push({ id, fileName, mimeType, fileSize: s.size, stagedPath, preview });
+        results.push({
+          id,
+          fileName,
+          mimeType,
+          fileSize: s.size,
+          stagedPath,
+          preview,
+        });
       }
       sendJson(res, 200, results);
     } catch (error) {
@@ -107,18 +118,22 @@ export async function handleFileRoutes(
     return true;
   }
 
-  if (url.pathname === '/api/files/stage-buffer' && req.method === 'POST') {
+  if (url.pathname === "/api/files/stage-buffer" && req.method === "POST") {
     try {
-      const body = await parseJsonBody<{ base64: string; fileName: string; mimeType: string }>(req);
-      const fsP = await import('node:fs/promises');
+      const body = await parseJsonBody<{
+        base64: string;
+        fileName: string;
+        mimeType: string;
+      }>(req);
+      const fsP = await import("node:fs/promises");
       await fsP.mkdir(OUTBOUND_DIR, { recursive: true });
       const id = crypto.randomUUID();
       const ext = extname(body.fileName) || mimeToExt(body.mimeType);
       const stagedPath = join(OUTBOUND_DIR, `${id}${ext}`);
-      const buffer = Buffer.from(body.base64, 'base64');
+      const buffer = Buffer.from(body.base64, "base64");
       await fsP.writeFile(stagedPath, buffer);
       const mimeType = body.mimeType || getMimeType(ext);
-      const preview = mimeType.startsWith('image/')
+      const preview = mimeType.startsWith("image/")
         ? await generateImagePreview(stagedPath, mimeType)
         : null;
       sendJson(res, 200, {
@@ -135,15 +150,20 @@ export async function handleFileRoutes(
     return true;
   }
 
-  if (url.pathname === '/api/files/thumbnails' && req.method === 'POST') {
+  if (url.pathname === "/api/files/thumbnails" && req.method === "POST") {
     try {
-      const body = await parseJsonBody<{ paths: Array<{ filePath: string; mimeType: string }> }>(req);
-      const fsP = await import('node:fs/promises');
-      const results: Record<string, { preview: string | null; fileSize: number }> = {};
+      const body = await parseJsonBody<{
+        paths: Array<{ filePath: string; mimeType: string }>;
+      }>(req);
+      const fsP = await import("node:fs/promises");
+      const results: Record<
+        string,
+        { preview: string | null; fileSize: number }
+      > = {};
       for (const { filePath, mimeType } of body.paths) {
         try {
           const s = await fsP.stat(filePath);
-          const preview = mimeType.startsWith('image/')
+          const preview = mimeType.startsWith("image/")
             ? await generateImagePreview(filePath, mimeType)
             : null;
           results[filePath] = { preview, fileSize: s.size };
@@ -158,7 +178,7 @@ export async function handleFileRoutes(
     return true;
   }
 
-  if (url.pathname === '/api/files/save-image' && req.method === 'POST') {
+  if (url.pathname === "/api/files/save-image" && req.method === "POST") {
     try {
       const body = await parseJsonBody<{
         base64?: string;
@@ -166,27 +186,33 @@ export async function handleFileRoutes(
         filePath?: string;
         defaultFileName: string;
       }>(req);
-      const ext = body.defaultFileName.includes('.')
-        ? body.defaultFileName.split('.').pop()!
-        : (body.mimeType?.split('/')[1] || 'png');
+      const ext = body.defaultFileName.includes(".")
+        ? body.defaultFileName.split(".").pop()!
+        : body.mimeType?.split("/")[1] || "png";
       const result = await dialog.showSaveDialog({
-        defaultPath: join(homedir(), 'Downloads', body.defaultFileName),
+        defaultPath: join(homedir(), "Downloads", body.defaultFileName),
         filters: [
-          { name: 'Images', extensions: [ext, 'png', 'jpg', 'jpeg', 'webp', 'gif'] },
-          { name: 'All Files', extensions: ['*'] },
+          {
+            name: "Images",
+            extensions: [ext, "png", "jpg", "jpeg", "webp", "gif"],
+          },
+          { name: "All Files", extensions: ["*"] },
         ],
       });
       if (result.canceled || !result.filePath) {
         sendJson(res, 200, { success: false });
         return true;
       }
-      const fsP = await import('node:fs/promises');
+      const fsP = await import("node:fs/promises");
       if (body.filePath) {
         await fsP.copyFile(body.filePath, result.filePath);
       } else if (body.base64) {
-        await fsP.writeFile(result.filePath, Buffer.from(body.base64, 'base64'));
+        await fsP.writeFile(
+          result.filePath,
+          Buffer.from(body.base64, "base64"),
+        );
       } else {
-        sendJson(res, 400, { success: false, error: 'No image data provided' });
+        sendJson(res, 400, { success: false, error: "No image data provided" });
         return true;
       }
       sendJson(res, 200, { success: true, savedPath: result.filePath });

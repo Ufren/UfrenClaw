@@ -1,4 +1,4 @@
-import { useState, useEffect, useRef, useCallback } from 'react';
+import { useState, useEffect, useRef, useCallback } from "react";
 import {
   X,
   Loader2,
@@ -11,18 +11,24 @@ import {
   AlertCircle,
   CheckCircle,
   ShieldCheck,
-} from 'lucide-react';
-import { Button } from '@/components/ui/button';
-import { Input } from '@/components/ui/input';
-import { Label } from '@/components/ui/label';
-import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
-import { Separator } from '@/components/ui/separator';
-import { Badge } from '@/components/ui/badge';
-import { useChannelsStore } from '@/stores/channels';
-import { useGatewayStore } from '@/stores/gateway';
-import { hostApiFetch } from '@/lib/host-api';
-import { subscribeHostEvent } from '@/lib/host-events';
-import { cn } from '@/lib/utils';
+} from "lucide-react";
+import { Button } from "@/components/ui/button";
+import { Input } from "@/components/ui/input";
+import { Label } from "@/components/ui/label";
+import {
+  Card,
+  CardContent,
+  CardDescription,
+  CardHeader,
+  CardTitle,
+} from "@/components/ui/card";
+import { Separator } from "@/components/ui/separator";
+import { Badge } from "@/components/ui/badge";
+import { useChannelsStore } from "@/stores/channels";
+import { useGatewayStore } from "@/stores/gateway";
+import { hostApiFetch } from "@/lib/host-api";
+import { subscribeHostEvent } from "@/lib/host-events";
+import { cn } from "@/lib/utils";
 import {
   CHANNEL_ICONS,
   CHANNEL_NAMES,
@@ -31,16 +37,16 @@ import {
   type ChannelType,
   type ChannelMeta,
   type ChannelConfigField,
-} from '@/types/channel';
-import { toast } from 'sonner';
-import { useTranslation } from 'react-i18next';
-import telegramIcon from '@/assets/channels/telegram.svg';
-import discordIcon from '@/assets/channels/discord.svg';
-import whatsappIcon from '@/assets/channels/whatsapp.svg';
-import dingtalkIcon from '@/assets/channels/dingtalk.svg';
-import feishuIcon from '@/assets/channels/feishu.svg';
-import wecomIcon from '@/assets/channels/wecom.svg';
-import qqIcon from '@/assets/channels/qq.svg';
+} from "@/types/channel";
+import { toast } from "sonner";
+import { useTranslation } from "react-i18next";
+import telegramIcon from "@/assets/channels/telegram.svg";
+import discordIcon from "@/assets/channels/discord.svg";
+import whatsappIcon from "@/assets/channels/whatsapp.svg";
+import dingtalkIcon from "@/assets/channels/dingtalk.svg";
+import feishuIcon from "@/assets/channels/feishu.svg";
+import wecomIcon from "@/assets/channels/wecom.svg";
+import qqIcon from "@/assets/channels/qq.svg";
 
 interface ChannelConfigModalProps {
   initialSelectedType?: ChannelType | null;
@@ -52,10 +58,13 @@ interface ChannelConfigModalProps {
   onChannelSaved?: (channelType: ChannelType) => void | Promise<void>;
 }
 
-const inputClasses = 'h-[44px] rounded-xl font-mono text-[13px] bg-black/5 dark:bg-muted border-black/10 dark:border-white/10 focus-visible:ring-2 focus-visible:ring-blue-500/50 focus-visible:border-blue-500 shadow-sm transition-all text-foreground placeholder:text-foreground/40';
-const labelClasses = 'text-[14px] text-foreground/80 font-bold';
-const outlineButtonClasses = 'h-9 text-[13px] font-medium rounded-full px-4 border-black/10 dark:border-white/10 bg-transparent hover:bg-black/5 dark:hover:bg-white/5 shadow-none text-foreground/80 hover:text-foreground';
-const primaryButtonClasses = 'h-9 text-[13px] font-medium rounded-full px-4 shadow-none';
+const inputClasses =
+  "h-[44px] rounded-xl font-mono text-[13px] bg-black/5 dark:bg-muted border-black/10 dark:border-white/10 focus-visible:ring-2 focus-visible:ring-blue-500/50 focus-visible:border-blue-500 shadow-sm transition-all text-foreground placeholder:text-foreground/40";
+const labelClasses = "text-[14px] text-foreground/80 font-bold";
+const outlineButtonClasses =
+  "h-9 text-[13px] font-medium rounded-full px-4 border-black/10 dark:border-white/10 bg-transparent hover:bg-black/5 dark:hover:bg-white/5 shadow-none text-foreground/80 hover:text-foreground";
+const primaryButtonClasses =
+  "h-9 text-[13px] font-medium rounded-full px-4 shadow-none";
 
 export function ChannelConfigModal({
   initialSelectedType = null,
@@ -66,11 +75,13 @@ export function ChannelConfigModal({
   onClose,
   onChannelSaved,
 }: ChannelConfigModalProps) {
-  const { t } = useTranslation('channels');
+  const { t } = useTranslation("channels");
   const { channels, addChannel, fetchChannels } = useChannelsStore();
-  const [selectedType, setSelectedType] = useState<ChannelType | null>(initialSelectedType);
+  const [selectedType, setSelectedType] = useState<ChannelType | null>(
+    initialSelectedType,
+  );
   const [configValues, setConfigValues] = useState<Record<string, string>>({});
-  const [channelName, setChannelName] = useState('');
+  const [channelName, setChannelName] = useState("");
   const [connecting, setConnecting] = useState(false);
   const [showSecrets, setShowSecrets] = useState<Record<string, boolean>>({});
   const [qrCode, setQrCode] = useState<string | null>(null);
@@ -84,7 +95,9 @@ export function ChannelConfigModal({
     warnings: string[];
   } | null>(null);
 
-  const meta: ChannelMeta | null = selectedType ? CHANNEL_META[selectedType] : null;
+  const meta: ChannelMeta | null = selectedType
+    ? CHANNEL_META[selectedType]
+    : null;
 
   useEffect(() => {
     setSelectedType(initialSelectedType);
@@ -93,37 +106,49 @@ export function ChannelConfigModal({
   useEffect(() => {
     if (!selectedType) {
       setConfigValues({});
-      setChannelName('');
+      setChannelName("");
       setIsExistingConfig(false);
       setValidationResult(null);
       setQrCode(null);
       setConnecting(false);
-      hostApiFetch('/api/channels/whatsapp/cancel', { method: 'POST' }).catch(() => {});
+      hostApiFetch("/api/channels/whatsapp/cancel", { method: "POST" }).catch(
+        () => {},
+      );
       return;
     }
 
-    const shouldLoadExistingConfig = allowExistingConfig && configuredTypes.includes(selectedType);
+    const shouldLoadExistingConfig =
+      allowExistingConfig && configuredTypes.includes(selectedType);
     if (!shouldLoadExistingConfig) {
       setConfigValues({});
       setIsExistingConfig(false);
       setLoadingConfig(false);
-      setChannelName(showChannelName ? CHANNEL_NAMES[selectedType] : '');
+      setChannelName(showChannelName ? CHANNEL_NAMES[selectedType] : "");
       return;
     }
 
     let cancelled = false;
     setLoadingConfig(true);
-    setChannelName(showChannelName ? CHANNEL_NAMES[selectedType] : '');
+    setChannelName(showChannelName ? CHANNEL_NAMES[selectedType] : "");
 
     (async () => {
       try {
-        const accountParam = agentId ? `?accountId=${encodeURIComponent(agentId === 'main' ? 'default' : agentId)}` : '';
-        const result = await hostApiFetch<{ success: boolean; values?: Record<string, string> }>(
-          `/api/channels/config/${encodeURIComponent(selectedType)}${accountParam}`
+        const accountParam = agentId
+          ? `?accountId=${encodeURIComponent(agentId === "main" ? "default" : agentId)}`
+          : "";
+        const result = await hostApiFetch<{
+          success: boolean;
+          values?: Record<string, string>;
+        }>(
+          `/api/channels/config/${encodeURIComponent(selectedType)}${accountParam}`,
         );
         if (cancelled) return;
 
-        if (result.success && result.values && Object.keys(result.values).length > 0) {
+        if (
+          result.success &&
+          result.values &&
+          Object.keys(result.values).length > 0
+        ) {
           setConfigValues(result.values);
           setIsExistingConfig(true);
         } else {
@@ -143,35 +168,63 @@ export function ChannelConfigModal({
     return () => {
       cancelled = true;
     };
-  }, [agentId, allowExistingConfig, configuredTypes, selectedType, showChannelName]);
+  }, [
+    agentId,
+    allowExistingConfig,
+    configuredTypes,
+    selectedType,
+    showChannelName,
+  ]);
 
   useEffect(() => {
-    if (selectedType && !loadingConfig && showChannelName && firstInputRef.current) {
+    if (
+      selectedType &&
+      !loadingConfig &&
+      showChannelName &&
+      firstInputRef.current
+    ) {
       firstInputRef.current.focus();
     }
   }, [selectedType, loadingConfig, showChannelName]);
 
-  const finishSave = useCallback(async (channelType: ChannelType) => {
-    const displayName = showChannelName && channelName.trim()
-      ? channelName.trim()
-      : CHANNEL_NAMES[channelType];
-    const existingChannel = channels.find((channel) => channel.type === channelType);
+  const finishSave = useCallback(
+    async (channelType: ChannelType) => {
+      const displayName =
+        showChannelName && channelName.trim()
+          ? channelName.trim()
+          : CHANNEL_NAMES[channelType];
+      const existingChannel = channels.find(
+        (channel) => channel.type === channelType,
+      );
 
-    if (!existingChannel) {
-      await addChannel({
-        type: channelType,
-        name: displayName,
-        token: meta?.configFields[0]?.key ? configValues[meta.configFields[0].key] : undefined,
-      });
-    } else {
-      await fetchChannels();
-    }
+      if (!existingChannel) {
+        await addChannel({
+          type: channelType,
+          name: displayName,
+          token: meta?.configFields[0]?.key
+            ? configValues[meta.configFields[0].key]
+            : undefined,
+        });
+      } else {
+        await fetchChannels();
+      }
 
-    await onChannelSaved?.(channelType);
-  }, [addChannel, channelName, channels, configValues, fetchChannels, meta?.configFields, onChannelSaved, showChannelName]);
+      await onChannelSaved?.(channelType);
+    },
+    [
+      addChannel,
+      channelName,
+      channels,
+      configValues,
+      fetchChannels,
+      meta?.configFields,
+      onChannelSaved,
+      showChannelName,
+    ],
+  );
 
   useEffect(() => {
-    if (selectedType !== 'whatsapp') return;
+    if (selectedType !== "whatsapp") return;
 
     const onQr = (...args: unknown[]) => {
       const data = args[0] as { qr: string; raw: string };
@@ -182,41 +235,57 @@ export function ChannelConfigModal({
     const onSuccess = async (...args: unknown[]) => {
       const data = args[0] as { accountId?: string } | undefined;
       void data?.accountId;
-      toast.success(t('toast.whatsappConnected'));
+      toast.success(t("toast.whatsappConnected"));
       try {
-        const saveResult = await hostApiFetch<{ success?: boolean; error?: string }>('/api/channels/config', {
-          method: 'POST',
-          body: JSON.stringify({ channelType: 'whatsapp', config: { enabled: true } }),
+        const saveResult = await hostApiFetch<{
+          success?: boolean;
+          error?: string;
+        }>("/api/channels/config", {
+          method: "POST",
+          body: JSON.stringify({
+            channelType: "whatsapp",
+            config: { enabled: true },
+          }),
         });
         if (!saveResult?.success) {
-          throw new Error(saveResult?.error || 'Failed to save WhatsApp config');
+          throw new Error(
+            saveResult?.error || "Failed to save WhatsApp config",
+          );
         }
 
-        await finishSave('whatsapp');
+        await finishSave("whatsapp");
         useGatewayStore.getState().restart().catch(console.error);
         onClose();
       } catch (error) {
-        toast.error(t('toast.configFailed', { error: String(error) }));
+        toast.error(t("toast.configFailed", { error: String(error) }));
         setConnecting(false);
       }
     };
 
     const onError = (...args: unknown[]) => {
       const err = args[0] as string;
-      toast.error(t('toast.whatsappFailed', { error: err }));
+      toast.error(t("toast.whatsappFailed", { error: err }));
       setQrCode(null);
       setConnecting(false);
     };
 
-    const removeQrListener = subscribeHostEvent('channel:whatsapp-qr', onQr);
-    const removeSuccessListener = subscribeHostEvent('channel:whatsapp-success', onSuccess);
-    const removeErrorListener = subscribeHostEvent('channel:whatsapp-error', onError);
+    const removeQrListener = subscribeHostEvent("channel:whatsapp-qr", onQr);
+    const removeSuccessListener = subscribeHostEvent(
+      "channel:whatsapp-success",
+      onSuccess,
+    );
+    const removeErrorListener = subscribeHostEvent(
+      "channel:whatsapp-error",
+      onError,
+    );
 
     return () => {
       removeQrListener();
       removeSuccessListener();
       removeErrorListener();
-      hostApiFetch('/api/channels/whatsapp/cancel', { method: 'POST' }).catch(() => {});
+      hostApiFetch("/api/channels/whatsapp/cancel", { method: "POST" }).catch(
+        () => {},
+      );
     };
   }, [selectedType, finishSave, onClose, t]);
 
@@ -233,9 +302,12 @@ export function ChannelConfigModal({
         errors?: string[];
         warnings?: string[];
         details?: Record<string, string>;
-      }>('/api/channels/credentials/validate', {
-        method: 'POST',
-        body: JSON.stringify({ channelType: selectedType, config: configValues }),
+      }>("/api/channels/credentials/validate", {
+        method: "POST",
+        body: JSON.stringify({
+          channelType: selectedType,
+          config: configValues,
+        }),
       });
 
       const warnings = result.warnings || [];
@@ -243,7 +315,8 @@ export function ChannelConfigModal({
         const details = result.details;
         if (details.botUsername) warnings.push(`Bot: @${details.botUsername}`);
         if (details.guildName) warnings.push(`Server: ${details.guildName}`);
-        if (details.channelName) warnings.push(`Channel: #${details.channelName}`);
+        if (details.channelName)
+          warnings.push(`Channel: #${details.channelName}`);
       }
 
       setValidationResult({
@@ -269,30 +342,33 @@ export function ChannelConfigModal({
     setValidationResult(null);
 
     try {
-      if (meta.connectionType === 'qr') {
-        await hostApiFetch('/api/channels/whatsapp/start', {
-          method: 'POST',
-          body: JSON.stringify({ accountId: 'default' }),
+      if (meta.connectionType === "qr") {
+        await hostApiFetch("/api/channels/whatsapp/start", {
+          method: "POST",
+          body: JSON.stringify({ accountId: "default" }),
         });
         return;
       }
 
-      if (meta.connectionType === 'token') {
+      if (meta.connectionType === "token") {
         const validationResponse = await hostApiFetch<{
           success: boolean;
           valid?: boolean;
           errors?: string[];
           warnings?: string[];
           details?: Record<string, string>;
-        }>('/api/channels/credentials/validate', {
-          method: 'POST',
-          body: JSON.stringify({ channelType: selectedType, config: configValues }),
+        }>("/api/channels/credentials/validate", {
+          method: "POST",
+          body: JSON.stringify({
+            channelType: selectedType,
+            config: configValues,
+          }),
         });
 
         if (!validationResponse.valid) {
           setValidationResult({
             valid: false,
-            errors: validationResponse.errors || ['Validation failed'],
+            errors: validationResponse.errors || ["Validation failed"],
             warnings: validationResponse.warnings || [],
           });
           setConnecting(false);
@@ -302,9 +378,11 @@ export function ChannelConfigModal({
         const warnings = validationResponse.warnings || [];
         if (validationResponse.details) {
           const details = validationResponse.details;
-          if (details.botUsername) warnings.push(`Bot: @${details.botUsername}`);
+          if (details.botUsername)
+            warnings.push(`Bot: @${details.botUsername}`);
           if (details.guildName) warnings.push(`Server: ${details.guildName}`);
-          if (details.channelName) warnings.push(`Channel: #${details.channelName}`);
+          if (details.channelName)
+            warnings.push(`Channel: #${details.channelName}`);
         }
 
         setValidationResult({
@@ -315,30 +393,38 @@ export function ChannelConfigModal({
       }
 
       const config: Record<string, unknown> = { ...configValues };
-      const resolvedAccountId = agentId ? (agentId === 'main' ? 'default' : agentId) : undefined;
+      const resolvedAccountId = agentId
+        ? agentId === "main"
+          ? "default"
+          : agentId
+        : undefined;
       const saveResult = await hostApiFetch<{
         success?: boolean;
         error?: string;
         warning?: string;
-      }>('/api/channels/config', {
-        method: 'POST',
-        body: JSON.stringify({ channelType: selectedType, config, accountId: resolvedAccountId }),
+      }>("/api/channels/config", {
+        method: "POST",
+        body: JSON.stringify({
+          channelType: selectedType,
+          config,
+          accountId: resolvedAccountId,
+        }),
       });
       if (!saveResult?.success) {
-        throw new Error(saveResult?.error || 'Failed to save channel config');
+        throw new Error(saveResult?.error || "Failed to save channel config");
       }
-      if (typeof saveResult.warning === 'string' && saveResult.warning) {
+      if (typeof saveResult.warning === "string" && saveResult.warning) {
         toast.warning(saveResult.warning);
       }
 
       await finishSave(selectedType);
 
-      toast.success(t('toast.channelSaved', { name: meta.name }));
-      toast.success(t('toast.channelConnecting', { name: meta.name }));
+      toast.success(t("toast.channelSaved", { name: meta.name }));
+      toast.success(t("toast.channelConnecting", { name: meta.name }));
       await new Promise((resolve) => setTimeout(resolve, 800));
       onClose();
     } catch (error) {
-      toast.error(t('toast.configFailed', { error: String(error) }));
+      toast.error(t("toast.configFailed", { error: String(error) }));
       setConnecting(false);
     }
   };
@@ -350,10 +436,10 @@ export function ChannelConfigModal({
       if (window.electron?.openExternal) {
         window.electron.openExternal(url);
       } else {
-        window.open(url, '_blank');
+        window.open(url, "_blank");
       }
     } catch {
-      window.open(url, '_blank');
+      window.open(url, "_blank");
     }
   };
 
@@ -373,7 +459,10 @@ export function ChannelConfigModal({
   };
 
   return (
-    <div className="fixed inset-0 z-50 bg-black/50 flex items-center justify-center p-4" onClick={onClose}>
+    <div
+      className="fixed inset-0 z-50 bg-black/50 flex items-center justify-center p-4"
+      onClick={onClose}
+    >
       <Card
         className="w-full max-w-3xl max-h-[90vh] flex flex-col rounded-3xl border-0 shadow-2xl bg-card overflow-hidden"
         onClick={(event) => event.stopPropagation()}
@@ -383,14 +472,20 @@ export function ChannelConfigModal({
             <CardTitle className="text-2xl font-serif font-normal tracking-tight">
               {selectedType
                 ? isExistingConfig
-                  ? t('dialog.updateTitle', { name: CHANNEL_NAMES[selectedType] })
-                  : t('dialog.configureTitle', { name: CHANNEL_NAMES[selectedType] })
-                : t('dialog.addTitle')}
+                  ? t("dialog.updateTitle", {
+                      name: CHANNEL_NAMES[selectedType],
+                    })
+                  : t("dialog.configureTitle", {
+                      name: CHANNEL_NAMES[selectedType],
+                    })
+                : t("dialog.addTitle")}
             </CardTitle>
             <CardDescription className="text-[15px] mt-1 text-foreground/70">
               {selectedType && isExistingConfig
-                ? t('dialog.existingDesc')
-                : meta ? t(meta.description.replace('channels:', '')) : t('dialog.selectDesc')}
+                ? t("dialog.existingDesc")
+                : meta
+                  ? t(meta.description.replace("channels:", ""))
+                  : t("dialog.selectDesc")}
             </CardDescription>
           </div>
           <Button
@@ -413,10 +508,10 @@ export function ChannelConfigModal({
                     key={type}
                     onClick={() => setSelectedType(type)}
                     className={cn(
-                      'group flex items-start gap-4 p-4 rounded-2xl transition-all text-left border relative overflow-hidden bg-black/5 dark:bg-muted shadow-sm',
+                      "group flex items-start gap-4 p-4 rounded-2xl transition-all text-left border relative overflow-hidden bg-black/5 dark:bg-muted shadow-sm",
                       isConfigured
-                        ? 'border-green-500/40 bg-green-500/5 dark:bg-green-500/10'
-                        : 'border-black/5 dark:border-white/10 hover:bg-black/5 dark:hover:bg-white/5'
+                        ? "border-green-500/40 bg-green-500/5 dark:bg-green-500/10"
+                        : "border-black/5 dark:border-white/10 hover:bg-black/5 dark:hover:bg-white/5",
                     )}
                   >
                     <div className="h-[46px] w-[46px] shrink-0 flex items-center justify-center text-foreground bg-black/5 dark:bg-white/5 border border-black/5 dark:border-white/10 rounded-full shadow-sm">
@@ -424,26 +519,30 @@ export function ChannelConfigModal({
                     </div>
                     <div className="flex flex-col flex-1 min-w-0 py-0.5 mt-1">
                       <div className="flex items-center gap-2 mb-1">
-                        <p className="text-[16px] font-semibold text-foreground truncate">{channelMeta.name}</p>
+                        <p className="text-[16px] font-semibold text-foreground truncate">
+                          {channelMeta.name}
+                        </p>
                         {channelMeta.isPlugin && (
                           <Badge
                             variant="secondary"
                             className="font-mono text-[10px] font-medium px-2 py-0.5 rounded-full bg-black/[0.04] dark:bg-white/[0.08] border-0 shadow-none text-foreground/70"
                           >
-                            {t('pluginBadge')}
+                            {t("pluginBadge")}
                           </Badge>
                         )}
                       </div>
                       <p className="text-[13.5px] text-muted-foreground line-clamp-2 leading-[1.5]">
-                        {t(channelMeta.description.replace('channels:', ''))}
+                        {t(channelMeta.description.replace("channels:", ""))}
                       </p>
                       <p className="text-[12px] font-medium text-muted-foreground/80 mt-2">
-                        {channelMeta.connectionType === 'qr' ? t('dialog.qrCode') : t('dialog.token')}
+                        {channelMeta.connectionType === "qr"
+                          ? t("dialog.qrCode")
+                          : t("dialog.token")}
                       </p>
                     </div>
                     {isConfigured && (
                       <Badge className="absolute top-3 right-3 text-[10px] font-medium rounded-full bg-green-600 hover:bg-green-600">
-                        {t('configuredBadge')}
+                        {t("configuredBadge")}
                       </Badge>
                     )}
                   </button>
@@ -453,8 +552,12 @@ export function ChannelConfigModal({
           ) : qrCode ? (
             <div className="text-center space-y-6">
               <div className="bg-black/5 dark:bg-muted p-4 rounded-3xl inline-block shadow-sm border border-black/10 dark:border-white/10">
-                {qrCode.startsWith('data:image') ? (
-                  <img src={qrCode} alt="Scan QR Code" className="w-64 h-64 object-contain rounded-2xl" />
+                {qrCode.startsWith("data:image") ? (
+                  <img
+                    src={qrCode}
+                    alt="Scan QR Code"
+                    className="w-64 h-64 object-contain rounded-2xl"
+                  />
                 ) : (
                   <div className="w-64 h-64 bg-white dark:bg-background rounded-2xl flex items-center justify-center">
                     <QrCode className="h-32 w-32 text-gray-400" />
@@ -462,7 +565,7 @@ export function ChannelConfigModal({
                 )}
               </div>
               <p className="text-[14px] text-muted-foreground">
-                {t('dialog.scanQR', { name: meta?.name })}
+                {t("dialog.scanQR", { name: meta?.name })}
               </p>
               <div className="flex justify-center gap-2">
                 <Button
@@ -473,39 +576,41 @@ export function ChannelConfigModal({
                     void handleConnect();
                   }}
                 >
-                  {t('dialog.refreshCode')}
+                  {t("dialog.refreshCode")}
                 </Button>
               </div>
             </div>
           ) : loadingConfig ? (
             <div className="flex items-center justify-center py-10 rounded-2xl bg-black/5 dark:bg-muted border border-black/10 dark:border-white/10">
               <Loader2 className="h-6 w-6 animate-spin text-muted-foreground" />
-              <span className="ml-2 text-[14px] text-muted-foreground">{t('dialog.loadingConfig')}</span>
+              <span className="ml-2 text-[14px] text-muted-foreground">
+                {t("dialog.loadingConfig")}
+              </span>
             </div>
           ) : (
             <div className="space-y-6">
               {isExistingConfig && (
                 <div className="bg-blue-500/10 text-blue-600 dark:text-blue-400 p-4 rounded-2xl text-[13.5px] flex items-center gap-2 border border-blue-500/20">
                   <CheckCircle className="h-4 w-4 shrink-0" />
-                  <span>{t('dialog.existingHint')}</span>
+                  <span>{t("dialog.existingHint")}</span>
                 </div>
               )}
 
               <div className="bg-black/5 dark:bg-muted p-4 rounded-2xl space-y-4 shadow-sm border border-black/10 dark:border-white/10">
                 <div className="flex items-center justify-between gap-3">
                   <div>
-                    <p className={labelClasses}>{t('dialog.howToConnect')}</p>
+                    <p className={labelClasses}>{t("dialog.howToConnect")}</p>
                     <p className="text-[13px] text-muted-foreground mt-1">
-                      {meta ? t(meta.description.replace('channels:', '')) : ''}
+                      {meta ? t(meta.description.replace("channels:", "")) : ""}
                     </p>
                   </div>
                   <Button
                     variant="outline"
-                    className={cn(outlineButtonClasses, 'h-8 px-3 shrink-0')}
+                    className={cn(outlineButtonClasses, "h-8 px-3 shrink-0")}
                     onClick={openDocs}
                   >
                     <BookOpen className="h-3 w-3 mr-1" />
-                    {t('dialog.viewDocs')}
+                    {t("dialog.viewDocs")}
                     <ExternalLink className="h-3 w-3 ml-1" />
                   </Button>
                 </div>
@@ -518,11 +623,15 @@ export function ChannelConfigModal({
 
               {showChannelName && (
                 <div className="space-y-2.5">
-                  <Label htmlFor="name" className={labelClasses}>{t('dialog.channelName')}</Label>
+                  <Label htmlFor="name" className={labelClasses}>
+                    {t("dialog.channelName")}
+                  </Label>
                   <Input
                     ref={firstInputRef}
                     id="name"
-                    placeholder={t('dialog.channelNamePlaceholder', { name: meta?.name })}
+                    placeholder={t("dialog.channelNamePlaceholder", {
+                      name: meta?.name,
+                    })}
                     value={channelName}
                     onChange={(event) => setChannelName(event.target.value)}
                     className={inputClasses}
@@ -535,7 +644,7 @@ export function ChannelConfigModal({
                   <ConfigField
                     key={field.key}
                     field={field}
-                    value={configValues[field.key] || ''}
+                    value={configValues[field.key] || ""}
                     onChange={(value) => updateConfigValue(field.key, value)}
                     showSecret={showSecrets[field.key] || false}
                     onToggleSecret={() => toggleSecretVisibility(field.key)}
@@ -546,10 +655,10 @@ export function ChannelConfigModal({
               {validationResult && (
                 <div
                   className={cn(
-                    'p-4 rounded-2xl text-sm border',
+                    "p-4 rounded-2xl text-sm border",
                     validationResult.valid
-                      ? 'bg-green-500/10 text-green-700 dark:text-green-400 border-green-500/20'
-                      : 'bg-destructive/10 text-destructive border-destructive/20'
+                      ? "bg-green-500/10 text-green-700 dark:text-green-400 border-green-500/20"
+                      : "bg-destructive/10 text-destructive border-destructive/20",
                   )}
                 >
                   <div className="flex items-start gap-2">
@@ -560,7 +669,9 @@ export function ChannelConfigModal({
                     )}
                     <div className="min-w-0">
                       <h4 className="font-medium mb-1">
-                        {validationResult.valid ? t('dialog.credentialsVerified') : t('dialog.validationFailed')}
+                        {validationResult.valid
+                          ? t("dialog.credentialsVerified")
+                          : t("dialog.validationFailed")}
                       </h4>
                       {validationResult.errors.length > 0 && (
                         <ul className="list-disc list-inside space-y-0.5">
@@ -569,23 +680,29 @@ export function ChannelConfigModal({
                           ))}
                         </ul>
                       )}
-                      {validationResult.valid && validationResult.warnings.length > 0 && (
-                        <div className="mt-1 text-green-600 dark:text-green-400 space-y-0.5">
-                          {validationResult.warnings.map((info, index) => (
-                            <p key={index} className="text-xs">{info}</p>
-                          ))}
-                        </div>
-                      )}
-                      {!validationResult.valid && validationResult.warnings.length > 0 && (
-                        <div className="mt-2 text-yellow-600 dark:text-yellow-500">
-                          <p className="font-medium text-xs uppercase mb-1">{t('dialog.warnings')}</p>
-                          <ul className="list-disc list-inside space-y-0.5">
-                            {validationResult.warnings.map((warn, index) => (
-                              <li key={index}>{warn}</li>
+                      {validationResult.valid &&
+                        validationResult.warnings.length > 0 && (
+                          <div className="mt-1 text-green-600 dark:text-green-400 space-y-0.5">
+                            {validationResult.warnings.map((info, index) => (
+                              <p key={index} className="text-xs">
+                                {info}
+                              </p>
                             ))}
-                          </ul>
-                        </div>
-                      )}
+                          </div>
+                        )}
+                      {!validationResult.valid &&
+                        validationResult.warnings.length > 0 && (
+                          <div className="mt-2 text-yellow-600 dark:text-yellow-500">
+                            <p className="font-medium text-xs uppercase mb-1">
+                              {t("dialog.warnings")}
+                            </p>
+                            <ul className="list-disc list-inside space-y-0.5">
+                              {validationResult.warnings.map((warn, index) => (
+                                <li key={index}>{warn}</li>
+                              ))}
+                            </ul>
+                          </div>
+                        )}
                     </div>
                   </div>
                 </div>
@@ -595,7 +712,7 @@ export function ChannelConfigModal({
 
               <div className="flex flex-col sm:flex-row sm:justify-end gap-3 pt-2">
                 <div className="flex flex-col sm:flex-row gap-2">
-                  {meta?.connectionType === 'token' && (
+                  {meta?.connectionType === "token" && (
                     <Button
                       variant="outline"
                       onClick={handleValidate}
@@ -605,12 +722,12 @@ export function ChannelConfigModal({
                       {validating ? (
                         <>
                           <Loader2 className="h-4 w-4 mr-2 animate-spin" />
-                          {t('dialog.validating')}
+                          {t("dialog.validating")}
                         </>
                       ) : (
                         <>
                           <ShieldCheck className="h-4 w-4 mr-2" />
-                          {t('dialog.validateConfig')}
+                          {t("dialog.validateConfig")}
                         </>
                       )}
                     </Button>
@@ -625,14 +742,18 @@ export function ChannelConfigModal({
                     {connecting ? (
                       <>
                         <Loader2 className="h-4 w-4 mr-2 animate-spin" />
-                        {meta?.connectionType === 'qr' ? t('dialog.generatingQR') : t('dialog.validatingAndSaving')}
+                        {meta?.connectionType === "qr"
+                          ? t("dialog.generatingQR")
+                          : t("dialog.validatingAndSaving")}
                       </>
-                    ) : meta?.connectionType === 'qr' ? (
-                      t('dialog.generateQRCode')
+                    ) : meta?.connectionType === "qr" ? (
+                      t("dialog.generateQRCode")
                     ) : (
                       <>
                         <Check className="h-4 w-4 mr-2" />
-                        {isExistingConfig ? t('dialog.updateAndReconnect') : t('dialog.saveAndConnect')}
+                        {isExistingConfig
+                          ? t("dialog.updateAndReconnect")
+                          : t("dialog.saveAndConnect")}
                       </>
                     )}
                   </Button>
@@ -656,28 +777,72 @@ interface ConfigFieldProps {
 
 function ChannelLogo({ type }: { type: ChannelType }) {
   switch (type) {
-    case 'telegram':
-      return <img src={telegramIcon} alt="Telegram" className="w-[22px] h-[22px] dark:invert" />;
-    case 'discord':
-      return <img src={discordIcon} alt="Discord" className="w-[22px] h-[22px] dark:invert" />;
-    case 'whatsapp':
-      return <img src={whatsappIcon} alt="WhatsApp" className="w-[22px] h-[22px] dark:invert" />;
-    case 'dingtalk':
-      return <img src={dingtalkIcon} alt="DingTalk" className="w-[22px] h-[22px] dark:invert" />;
-    case 'feishu':
-      return <img src={feishuIcon} alt="Feishu" className="w-[22px] h-[22px] dark:invert" />;
-    case 'wecom':
-      return <img src={wecomIcon} alt="WeCom" className="w-[22px] h-[22px] dark:invert" />;
-    case 'qqbot':
-      return <img src={qqIcon} alt="QQ" className="w-[22px] h-[22px] dark:invert" />;
+    case "telegram":
+      return (
+        <img
+          src={telegramIcon}
+          alt="Telegram"
+          className="w-[22px] h-[22px] dark:invert"
+        />
+      );
+    case "discord":
+      return (
+        <img
+          src={discordIcon}
+          alt="Discord"
+          className="w-[22px] h-[22px] dark:invert"
+        />
+      );
+    case "whatsapp":
+      return (
+        <img
+          src={whatsappIcon}
+          alt="WhatsApp"
+          className="w-[22px] h-[22px] dark:invert"
+        />
+      );
+    case "dingtalk":
+      return (
+        <img
+          src={dingtalkIcon}
+          alt="DingTalk"
+          className="w-[22px] h-[22px] dark:invert"
+        />
+      );
+    case "feishu":
+      return (
+        <img
+          src={feishuIcon}
+          alt="Feishu"
+          className="w-[22px] h-[22px] dark:invert"
+        />
+      );
+    case "wecom":
+      return (
+        <img
+          src={wecomIcon}
+          alt="WeCom"
+          className="w-[22px] h-[22px] dark:invert"
+        />
+      );
+    case "qqbot":
+      return (
+        <img src={qqIcon} alt="QQ" className="w-[22px] h-[22px] dark:invert" />
+      );
     default:
-      return <span className="text-[22px]">{CHANNEL_ICONS[type] || '💬'}</span>;
+      return <span className="text-[22px]">{CHANNEL_ICONS[type] || "💬"}</span>;
   }
 }
 
-function ConfigField({ field, value, onChange, showSecret, onToggleSecret }: ConfigFieldProps) {
-  const { t } = useTranslation('channels');
-  const isPassword = field.type === 'password';
+function ConfigField({
+  field,
+  value,
+  onChange,
+  showSecret,
+  onToggleSecret,
+}: ConfigFieldProps) {
+  const { t } = useTranslation("channels");
+  const isPassword = field.type === "password";
 
   return (
     <div className="space-y-2.5">
@@ -688,7 +853,7 @@ function ConfigField({ field, value, onChange, showSecret, onToggleSecret }: Con
       <div className="flex gap-2">
         <Input
           id={field.key}
-          type={isPassword && !showSecret ? 'password' : 'text'}
+          type={isPassword && !showSecret ? "password" : "text"}
           placeholder={field.placeholder ? t(field.placeholder) : undefined}
           value={value}
           onChange={(event) => onChange(event.target.value)}
@@ -702,7 +867,11 @@ function ConfigField({ field, value, onChange, showSecret, onToggleSecret }: Con
             onClick={onToggleSecret}
             className="h-[44px] w-[44px] rounded-xl bg-black/5 dark:bg-muted border-black/10 dark:border-white/10 text-muted-foreground hover:text-foreground shrink-0 shadow-sm"
           >
-            {showSecret ? <EyeOff className="h-4 w-4" /> : <Eye className="h-4 w-4" />}
+            {showSecret ? (
+              <EyeOff className="h-4 w-4" />
+            ) : (
+              <Eye className="h-4 w-4" />
+            )}
           </Button>
         )}
       </div>
@@ -713,7 +882,7 @@ function ConfigField({ field, value, onChange, showSecret, onToggleSecret }: Con
       )}
       {field.envVar && (
         <p className="text-[12px] text-muted-foreground/70 font-mono">
-          {t('dialog.envVar', { var: field.envVar })}
+          {t("dialog.envVar", { var: field.envVar })}
         </p>
       )}
     </div>

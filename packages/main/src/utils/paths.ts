@@ -2,14 +2,14 @@
  * Path Utilities
  * Cross-platform path resolution helpers
  */
-import { app } from 'electron';
-import { join } from 'path';
-import { homedir } from 'os';
-import { existsSync, mkdirSync, readFileSync, realpathSync } from 'fs';
-import { logger } from './logger';
+import { app } from "electron";
+import { join } from "path";
+import { homedir } from "os";
+import { existsSync, mkdirSync, readFileSync, realpathSync } from "fs";
+import { logger } from "./logger";
 
-import { fileURLToPath } from 'url';
-import { dirname } from 'path';
+import { fileURLToPath } from "url";
+import { dirname } from "path";
 
 // Fix for __dirname in ESM
 const __filename = fileURLToPath(import.meta.url);
@@ -21,14 +21,14 @@ export {
   prepareWinSpawn,
   normalizeNodeRequirePathForNodeOptions,
   appendNodeRequireToNodeOptions,
-} from './win-shell';
+} from "./win-shell";
 
 /**
  * Expand ~ to home directory
  */
 export function expandPath(path: string): string {
-  if (path.startsWith('~')) {
-    return path.replace('~', homedir());
+  if (path.startsWith("~")) {
+    return path.replace("~", homedir());
   }
   return path;
 }
@@ -37,35 +37,35 @@ export function expandPath(path: string): string {
  * Get OpenClaw config directory
  */
 export function getOpenClawConfigDir(): string {
-  return join(homedir(), '.openclaw');
+  return join(homedir(), ".openclaw");
 }
 
 /**
  * Get OpenClaw skills directory
  */
 export function getOpenClawSkillsDir(): string {
-  return join(getOpenClawConfigDir(), 'skills');
+  return join(getOpenClawConfigDir(), "skills");
 }
 
 /**
  * Get UfrenClaw config directory
  */
 export function getUfrenClawConfigDir(): string {
-  return join(homedir(), '.UfrenClaw');
+  return join(homedir(), ".UfrenClaw");
 }
 
 /**
  * Get UfrenClaw logs directory
  */
 export function getLogsDir(): string {
-  return join(app.getPath('userData'), 'logs');
+  return join(app.getPath("userData"), "logs");
 }
 
 /**
  * Get UfrenClaw data directory
  */
 export function getDataDir(): string {
-  return app.getPath('userData');
+  return app.getPath("userData");
 }
 
 /**
@@ -82,9 +82,9 @@ export function ensureDir(dir: string): void {
  */
 export function getResourcesDir(): string {
   if (app.isPackaged) {
-    return join(process.resourcesPath, 'resources');
+    return join(process.resourcesPath, "resources");
   }
-  return join(__dirname, '../../../resources');
+  return join(__dirname, "../../../resources");
 }
 
 /**
@@ -92,9 +92,12 @@ export function getResourcesDir(): string {
  */
 export function getPreloadPath(): string {
   if (app.isPackaged) {
-    return join(process.resourcesPath, 'app.asar/packages/preload/dist/index.js');
+    return join(
+      process.resourcesPath,
+      "app.asar/packages/preload/dist/index.js",
+    );
   }
-  return join(__dirname, '../../preload/dist/index.js');
+  return join(__dirname, "../../preload/dist/index.js");
 }
 
 /**
@@ -104,10 +107,10 @@ export function getPreloadPath(): string {
  */
 export function getOpenClawDir(): string {
   if (app.isPackaged) {
-    return join(process.resourcesPath, 'node_modules', 'openclaw');
+    return join(process.resourcesPath, "node_modules", "openclaw");
   }
   // Development: use node_modules/openclaw
-  return join(__dirname, '../../../node_modules/openclaw');
+  return join(__dirname, "../../../node_modules/openclaw");
 }
 
 /**
@@ -130,22 +133,28 @@ export function getOpenClawResolvedDir(): string {
  * Get OpenClaw entry script path (openclaw.mjs)
  */
 export function getOpenClawEntryPath(): string {
-  return join(getOpenClawDir(), 'openclaw.mjs');
+  return join(getOpenClawDir(), "openclaw.mjs");
 }
 
 /**
  * Get ClawHub CLI entry script path (clawdhub.js)
  */
 export function getClawHubCliEntryPath(): string {
-  return join(app.getAppPath(), 'node_modules', 'clawhub', 'bin', 'clawdhub.js');
+  return join(
+    app.getAppPath(),
+    "node_modules",
+    "clawhub",
+    "bin",
+    "clawdhub.js",
+  );
 }
 
 /**
  * Get ClawHub CLI binary path (node_modules/.bin)
  */
 export function getClawHubCliBinPath(): string {
-  const binName = process.platform === 'win32' ? 'clawhub.cmd' : 'clawhub';
-  return join(app.getAppPath(), 'node_modules', '.bin', binName);
+  const binName = process.platform === "win32" ? "clawhub.cmd" : "clawhub";
+  return join(app.getAppPath(), "node_modules", ".bin", binName);
 }
 
 /**
@@ -153,7 +162,7 @@ export function getClawHubCliBinPath(): string {
  */
 export function isOpenClawPresent(): boolean {
   const dir = getOpenClawDir();
-  const pkgJsonPath = join(dir, 'package.json');
+  const pkgJsonPath = join(dir, "package.json");
   return existsSync(dir) && existsSync(pkgJsonPath);
 }
 
@@ -163,10 +172,10 @@ export function isOpenClawPresent(): boolean {
  */
 export function isOpenClawBuilt(): boolean {
   const dir = getOpenClawDir();
-  const distDir = join(dir, 'dist');
+  const distDir = join(dir, "dist");
   if (!existsSync(distDir)) return false;
-  const entryJs = join(distDir, 'entry.js');
-  const entryMjs = join(distDir, 'entry.mjs');
+  const entryJs = join(distDir, "entry.js");
+  const entryMjs = join(distDir, "entry.mjs");
   return existsSync(entryJs) || existsSync(entryMjs);
 }
 
@@ -187,9 +196,9 @@ export function getOpenClawStatus(): OpenClawStatus {
 
   // Try to read version from package.json
   try {
-    const pkgPath = join(dir, 'package.json');
+    const pkgPath = join(dir, "package.json");
     if (existsSync(pkgPath)) {
-      const pkg = JSON.parse(readFileSync(pkgPath, 'utf-8'));
+      const pkg = JSON.parse(readFileSync(pkgPath, "utf-8"));
       version = pkg.version;
     }
   } catch {
@@ -204,6 +213,6 @@ export function getOpenClawStatus(): OpenClawStatus {
     version,
   };
 
-  logger.info('OpenClaw status:', status);
+  logger.info("OpenClaw status:", status);
   return status;
 }

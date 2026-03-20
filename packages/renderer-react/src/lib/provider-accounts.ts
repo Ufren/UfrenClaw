@@ -1,10 +1,10 @@
-import { hostApiFetch } from '@/lib/host-api';
+import { hostApiFetch } from "@/lib/host-api";
 import type {
   ProviderAccount,
   ProviderType,
   ProviderVendorInfo,
   ProviderWithKeyInfo,
-} from '@/lib/providers';
+} from "@/lib/providers";
 
 export interface ProviderSnapshot {
   accounts: ProviderAccount[];
@@ -21,10 +21,12 @@ export interface ProviderListItem {
 
 export async function fetchProviderSnapshot(): Promise<ProviderSnapshot> {
   const [accounts, statuses, vendors, defaultInfo] = await Promise.all([
-    hostApiFetch<ProviderAccount[]>('/api/provider-accounts'),
-    hostApiFetch<ProviderWithKeyInfo[]>('/api/providers'),
-    hostApiFetch<ProviderVendorInfo[]>('/api/provider-vendors'),
-    hostApiFetch<{ accountId: string | null }>('/api/provider-accounts/default'),
+    hostApiFetch<ProviderAccount[]>("/api/provider-accounts"),
+    hostApiFetch<ProviderWithKeyInfo[]>("/api/providers"),
+    hostApiFetch<ProviderVendorInfo[]>("/api/provider-vendors"),
+    hostApiFetch<{ accountId: string | null }>(
+      "/api/provider-accounts/default",
+    ),
   ]);
 
   return {
@@ -39,7 +41,11 @@ export function hasConfiguredCredentials(
   account: ProviderAccount,
   status?: ProviderWithKeyInfo,
 ): boolean {
-  if (account.authMode === 'oauth_device' || account.authMode === 'oauth_browser' || account.authMode === 'local') {
+  if (
+    account.authMode === "oauth_device" ||
+    account.authMode === "oauth_browser" ||
+    account.authMode === "local"
+  ) {
     return true;
   }
   return status?.hasKey ?? false;
@@ -51,13 +57,19 @@ export function pickPreferredAccount(
   vendorId: ProviderType | string,
   statusMap: Map<string, ProviderWithKeyInfo>,
 ): ProviderAccount | null {
-  const sameVendor = accounts.filter((account) => account.vendorId === vendorId);
+  const sameVendor = accounts.filter(
+    (account) => account.vendorId === vendorId,
+  );
   if (sameVendor.length === 0) return null;
 
   return (
-    (defaultAccountId ? sameVendor.find((account) => account.id === defaultAccountId) : undefined)
-    || sameVendor.find((account) => hasConfiguredCredentials(account, statusMap.get(account.id)))
-    || sameVendor[0]
+    (defaultAccountId
+      ? sameVendor.find((account) => account.id === defaultAccountId)
+      : undefined) ||
+    sameVendor.find((account) =>
+      hasConfiguredCredentials(account, statusMap.get(account.id)),
+    ) ||
+    sameVendor[0]
   );
 }
 
@@ -71,15 +83,19 @@ export function buildProviderAccountId(
   }
 
   const vendor = vendors.find((candidate) => candidate.id === vendorId);
-  return vendor?.supportsMultipleAccounts ? `${vendorId}-${crypto.randomUUID()}` : vendorId;
+  return vendor?.supportsMultipleAccounts
+    ? `${vendorId}-${crypto.randomUUID()}`
+    : vendorId;
 }
 
-export function legacyProviderToAccount(provider: ProviderWithKeyInfo): ProviderAccount {
+export function legacyProviderToAccount(
+  provider: ProviderWithKeyInfo,
+): ProviderAccount {
   return {
     id: provider.id,
     vendorId: provider.type,
     label: provider.name,
-    authMode: provider.type === 'ollama' ? 'local' : 'api_key',
+    authMode: provider.type === "ollama" ? "local" : "api_key",
     baseUrl: provider.baseUrl,
     model: provider.model,
     fallbackModels: provider.fallbackModels,

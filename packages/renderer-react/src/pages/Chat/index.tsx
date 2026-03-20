@@ -4,23 +4,28 @@
  * via gateway:rpc IPC. Session selector, thinking toggle, and refresh
  * are in the toolbar; messages render with markdown + streaming.
  */
-import { useEffect, useRef, useState } from 'react';
-import { AlertCircle, Loader2, Sparkles } from 'lucide-react';
-import { useChatStore, type RawMessage } from '@/stores/chat';
-import { useGatewayStore } from '@/stores/gateway';
-import { useAgentsStore } from '@/stores/agents';
-import { LoadingSpinner } from '@/components/common/LoadingSpinner';
-import { ChatMessage } from './ChatMessage';
-import { ChatInput } from './ChatInput';
-import { ChatToolbar } from './ChatToolbar';
-import { extractImages, extractText, extractThinking, extractToolUse } from './message-utils';
-import { useTranslation } from 'react-i18next';
-import { cn } from '@/lib/utils';
+import { useEffect, useRef, useState } from "react";
+import { AlertCircle, Loader2, Sparkles } from "lucide-react";
+import { useChatStore, type RawMessage } from "@/stores/chat";
+import { useGatewayStore } from "@/stores/gateway";
+import { useAgentsStore } from "@/stores/agents";
+import { LoadingSpinner } from "@/components/common/LoadingSpinner";
+import { ChatMessage } from "./ChatMessage";
+import { ChatInput } from "./ChatInput";
+import { ChatToolbar } from "./ChatToolbar";
+import {
+  extractImages,
+  extractText,
+  extractThinking,
+  extractToolUse,
+} from "./message-utils";
+import { useTranslation } from "react-i18next";
+import { cn } from "@/lib/utils";
 
 export function Chat() {
-  const { t } = useTranslation('chat');
+  const { t } = useTranslation("chat");
   const gatewayStatus = useGatewayStore((s) => s.status);
-  const isGatewayRunning = gatewayStatus.state === 'running';
+  const isGatewayRunning = gatewayStatus.state === "running";
 
   const messages = useChatStore((s) => s.messages);
   const loading = useChatStore((s) => s.loading);
@@ -59,7 +64,7 @@ export function Chat() {
 
   // Auto-scroll on new messages, streaming, or activity changes
   useEffect(() => {
-    messagesEndRef.current?.scrollIntoView({ behavior: 'smooth' });
+    messagesEndRef.current?.scrollIntoView({ behavior: "smooth" });
   }, [messages, streamingMessage, sending, pendingFinal]);
 
   // Update timestamp when sending starts
@@ -73,25 +78,51 @@ export function Chat() {
 
   // Gateway not running block has been completely removed so the UI always renders.
 
-  const streamMsg = streamingMessage && typeof streamingMessage === 'object'
-    ? streamingMessage as unknown as { role?: string; content?: unknown; timestamp?: number }
-    : null;
-  const streamText = streamMsg ? extractText(streamMsg) : (typeof streamingMessage === 'string' ? streamingMessage : '');
+  const streamMsg =
+    streamingMessage && typeof streamingMessage === "object"
+      ? (streamingMessage as unknown as {
+          role?: string;
+          content?: unknown;
+          timestamp?: number;
+        })
+      : null;
+  const streamText = streamMsg
+    ? extractText(streamMsg)
+    : typeof streamingMessage === "string"
+      ? streamingMessage
+      : "";
   const hasStreamText = streamText.trim().length > 0;
   const streamThinking = streamMsg ? extractThinking(streamMsg) : null;
-  const hasStreamThinking = showThinking && !!streamThinking && streamThinking.trim().length > 0;
+  const hasStreamThinking =
+    showThinking && !!streamThinking && streamThinking.trim().length > 0;
   const streamTools = streamMsg ? extractToolUse(streamMsg) : [];
   const hasStreamTools = streamTools.length > 0;
   const streamImages = streamMsg ? extractImages(streamMsg) : [];
   const hasStreamImages = streamImages.length > 0;
   const hasStreamToolStatus = streamingTools.length > 0;
-  const shouldRenderStreaming = sending && (hasStreamText || hasStreamThinking || hasStreamTools || hasStreamImages || hasStreamToolStatus);
-  const hasAnyStreamContent = hasStreamText || hasStreamThinking || hasStreamTools || hasStreamImages || hasStreamToolStatus;
+  const shouldRenderStreaming =
+    sending &&
+    (hasStreamText ||
+      hasStreamThinking ||
+      hasStreamTools ||
+      hasStreamImages ||
+      hasStreamToolStatus);
+  const hasAnyStreamContent =
+    hasStreamText ||
+    hasStreamThinking ||
+    hasStreamTools ||
+    hasStreamImages ||
+    hasStreamToolStatus;
 
   const isEmpty = messages.length === 0 && !loading && !sending;
 
   return (
-    <div className={cn("flex flex-col -m-6 transition-colors duration-500 dark:bg-background")} style={{ height: 'calc(100vh - 2.5rem)' }}>
+    <div
+      className={cn(
+        "flex flex-col -m-6 transition-colors duration-500 dark:bg-background",
+      )}
+      style={{ height: "calc(100vh - 2.5rem)" }}
+    >
       {/* Toolbar */}
       <div className="flex shrink-0 items-center justify-end px-4 py-2">
         <ChatToolbar />
@@ -119,18 +150,22 @@ export function Chat() {
               {/* Streaming message */}
               {shouldRenderStreaming && (
                 <ChatMessage
-                  message={(streamMsg
-                    ? {
-                        ...(streamMsg as Record<string, unknown>),
-                        role: (typeof streamMsg.role === 'string' ? streamMsg.role : 'assistant') as RawMessage['role'],
-                        content: streamMsg.content ?? streamText,
-                        timestamp: streamMsg.timestamp ?? streamingTimestamp,
-                      }
-                    : {
-                        role: 'assistant',
-                        content: streamText,
-                        timestamp: streamingTimestamp,
-                      }) as RawMessage}
+                  message={
+                    (streamMsg
+                      ? {
+                          ...(streamMsg as Record<string, unknown>),
+                          role: (typeof streamMsg.role === "string"
+                            ? streamMsg.role
+                            : "assistant") as RawMessage["role"],
+                          content: streamMsg.content ?? streamText,
+                          timestamp: streamMsg.timestamp ?? streamingTimestamp,
+                        }
+                      : {
+                          role: "assistant",
+                          content: streamText,
+                          timestamp: streamingTimestamp,
+                        }) as RawMessage
+                  }
                   showThinking={showThinking}
                   isStreaming
                   streamingTools={streamingTools}
@@ -166,7 +201,7 @@ export function Chat() {
               onClick={clearError}
               className="text-xs text-destructive/60 hover:text-destructive underline"
             >
-              {t('common:actions.dismiss')}
+              {t("common:actions.dismiss")}
             </button>
           </div>
         </div>
@@ -187,20 +222,29 @@ export function Chat() {
 // ── Welcome Screen ──────────────────────────────────────────────
 
 function WelcomeScreen() {
-  const { t } = useTranslation('chat');
+  const { t } = useTranslation("chat");
   return (
     <div className="flex flex-col items-center justify-center text-center h-[60vh]">
-      <h1 className="text-6xl md:text-7xl font-serif text-foreground mb-3 font-normal tracking-tight" style={{ fontFamily: 'Georgia, Cambria, "Times New Roman", Times, serif' }}>
-        {t('welcome.title')}
+      <h1
+        className="text-6xl md:text-7xl font-serif text-foreground mb-3 font-normal tracking-tight"
+        style={{
+          fontFamily: 'Georgia, Cambria, "Times New Roman", Times, serif',
+        }}
+      >
+        {t("welcome.title")}
       </h1>
       <p className="text-[17px] text-foreground/80 mb-8 font-medium">
-        {t('welcome.subtitle')}
+        {t("welcome.subtitle")}
       </p>
 
       <div className="flex flex-wrap items-center justify-center gap-2.5 max-w-lg w-full">
-        {[t('welcome.askQuestions'), t('welcome.creativeTasks'), t('welcome.brainstorming')].map((label, i) => (
-          <button 
-            key={i} 
+        {[
+          t("welcome.askQuestions"),
+          t("welcome.creativeTasks"),
+          t("welcome.brainstorming"),
+        ].map((label, i) => (
+          <button
+            key={i}
             className="px-4 py-1.5 rounded-full border border-black/10 dark:border-white/10 text-[13px] font-medium text-foreground/70 hover:bg-black/5 dark:hover:bg-white/5 transition-colors bg-black/[0.02]"
           >
             {label}
@@ -221,9 +265,18 @@ function TypingIndicator() {
       </div>
       <div className="bg-muted rounded-2xl px-4 py-3">
         <div className="flex gap-1">
-          <span className="w-2 h-2 bg-muted-foreground/50 rounded-full animate-bounce" style={{ animationDelay: '0ms' }} />
-          <span className="w-2 h-2 bg-muted-foreground/50 rounded-full animate-bounce" style={{ animationDelay: '150ms' }} />
-          <span className="w-2 h-2 bg-muted-foreground/50 rounded-full animate-bounce" style={{ animationDelay: '300ms' }} />
+          <span
+            className="w-2 h-2 bg-muted-foreground/50 rounded-full animate-bounce"
+            style={{ animationDelay: "0ms" }}
+          />
+          <span
+            className="w-2 h-2 bg-muted-foreground/50 rounded-full animate-bounce"
+            style={{ animationDelay: "150ms" }}
+          />
+          <span
+            className="w-2 h-2 bg-muted-foreground/50 rounded-full animate-bounce"
+            style={{ animationDelay: "300ms" }}
+          />
         </div>
       </div>
     </div>
@@ -232,8 +285,8 @@ function TypingIndicator() {
 
 // ── Activity Indicator (shown between tool cycles) ─────────────
 
-function ActivityIndicator({ phase }: { phase: 'tool_processing' }) {
-  const { t } = useTranslation('chat');
+function ActivityIndicator({ phase }: { phase: "tool_processing" }) {
+  const { t } = useTranslation("chat");
   void phase;
   return (
     <div className="flex gap-3">
@@ -243,7 +296,7 @@ function ActivityIndicator({ phase }: { phase: 'tool_processing' }) {
       <div className="bg-muted rounded-2xl px-4 py-3">
         <div className="flex items-center gap-2 text-sm text-muted-foreground">
           <Loader2 className="h-3.5 w-3.5 animate-spin text-primary" />
-          <span>{t('processingToolResults')}</span>
+          <span>{t("processingToolResults")}</span>
         </div>
       </div>
     </div>

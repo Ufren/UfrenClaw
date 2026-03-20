@@ -35,7 +35,9 @@ function hasFatalStartupStderrSignal(startupStderrLines: string[]): boolean {
   for (const line of startupStderrLines) {
     const normalized = normalizeLogLine(line);
     if (!normalized) continue;
-    if (FATAL_STARTUP_STDERR_PATTERNS.some((pattern) => pattern.test(normalized))) {
+    if (
+      FATAL_STARTUP_STDERR_PATTERNS.some((pattern) => pattern.test(normalized))
+    ) {
       return true;
     }
   }
@@ -65,9 +67,10 @@ export function hasInvalidConfigFailureSignal(
     }
   }
 
-  const errorText = startupError instanceof Error
-    ? `${startupError.name}: ${startupError.message}`
-    : String(startupError ?? '');
+  const errorText =
+    startupError instanceof Error
+      ? `${startupError.name}: ${startupError.message}`
+      : String(startupError ?? "");
 
   return isInvalidConfigSignal(errorText);
 }
@@ -85,13 +88,16 @@ export function shouldAttemptConfigAutoRepair(
 }
 
 export function isTransientGatewayStartError(error: unknown): boolean {
-  const errorText = error instanceof Error
-    ? `${error.name}: ${error.message}`
-    : String(error ?? '');
-  return TRANSIENT_START_ERROR_PATTERNS.some((pattern) => pattern.test(errorText));
+  const errorText =
+    error instanceof Error
+      ? `${error.name}: ${error.message}`
+      : String(error ?? "");
+  return TRANSIENT_START_ERROR_PATTERNS.some((pattern) =>
+    pattern.test(errorText),
+  );
 }
 
-export type GatewayStartupRecoveryAction = 'repair' | 'retry' | 'fail';
+export type GatewayStartupRecoveryAction = "repair" | "retry" | "fail";
 
 export function getGatewayStartupRecoveryAction(options: {
   startupError: unknown;
@@ -100,21 +106,26 @@ export function getGatewayStartupRecoveryAction(options: {
   attempt: number;
   maxAttempts: number;
 }): GatewayStartupRecoveryAction {
-  if (shouldAttemptConfigAutoRepair(
-    options.startupError,
-    options.startupStderrLines,
-    options.configRepairAttempted,
-  )) {
-    return 'repair';
+  if (
+    shouldAttemptConfigAutoRepair(
+      options.startupError,
+      options.startupStderrLines,
+      options.configRepairAttempted,
+    )
+  ) {
+    return "repair";
   }
 
   if (hasFatalStartupStderrSignal(options.startupStderrLines)) {
-    return 'fail';
+    return "fail";
   }
 
-  if (options.attempt < options.maxAttempts && isTransientGatewayStartError(options.startupError)) {
-    return 'retry';
+  if (
+    options.attempt < options.maxAttempts &&
+    isTransientGatewayStartError(options.startupError)
+  ) {
+    return "retry";
   }
 
-  return 'fail';
+  return "fail";
 }

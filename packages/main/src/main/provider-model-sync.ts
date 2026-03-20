@@ -1,6 +1,9 @@
-import { getProviderConfig } from '../utils/provider-registry';
-import { getOpenClawProviderKeyForType, isOAuthProviderType } from '../utils/provider-keys';
-import type { ProviderConfig } from '../utils/secure-storage';
+import { getProviderConfig } from "../utils/provider-registry";
+import {
+  getOpenClawProviderKeyForType,
+  isOAuthProviderType,
+} from "../utils/provider-keys";
+import type { ProviderConfig } from "../utils/secure-storage";
 
 export interface AgentProviderUpdatePayload {
   providerKey: string;
@@ -12,7 +15,10 @@ export interface AgentProviderUpdatePayload {
   };
 }
 
-export function getModelIdFromRef(modelRef: string | undefined, providerKey: string): string | undefined {
+export function getModelIdFromRef(
+  modelRef: string | undefined,
+  providerKey: string,
+): string | undefined {
   if (!modelRef) return undefined;
   if (modelRef.startsWith(`${providerKey}/`)) {
     return modelRef.slice(providerKey.length + 1);
@@ -23,9 +29,13 @@ export function getModelIdFromRef(modelRef: string | undefined, providerKey: str
 export function buildNonOAuthAgentProviderUpdate(
   provider: ProviderConfig,
   providerId: string,
-  modelRef: string | undefined
+  modelRef: string | undefined,
 ): AgentProviderUpdatePayload | null {
-  if (provider.type === 'custom' || provider.type === 'ollama' || isOAuthProviderType(provider.type)) {
+  if (
+    provider.type === "custom" ||
+    provider.type === "ollama" ||
+    isOAuthProviderType(provider.type)
+  ) {
     return null;
   }
 

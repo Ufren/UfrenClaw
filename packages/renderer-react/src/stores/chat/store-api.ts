@@ -1,4 +1,4 @@
-import type { ChatState } from './types';
+import type { ChatState } from "./types";
 
 export type ChatSet = (
   partial: Partial<ChatState> | ((state: ChatState) => Partial<ChatState>),
@@ -9,10 +9,20 @@ export type ChatGet = () => ChatState;
 
 export type SessionHistoryActions = Pick<
   ChatState,
-  'loadSessions' | 'switchSession' | 'newSession' | 'deleteSession' | 'cleanupEmptySession' | 'loadHistory'
+  | "loadSessions"
+  | "switchSession"
+  | "newSession"
+  | "deleteSession"
+  | "cleanupEmptySession"
+  | "loadHistory"
 >;
 
 export type RuntimeActions = Pick<
   ChatState,
-  'sendMessage' | 'abortRun' | 'handleChatEvent' | 'toggleThinking' | 'refresh' | 'clearError'
+  | "sendMessage"
+  | "abortRun"
+  | "handleChatEvent"
+  | "toggleThinking"
+  | "refresh"
+  | "clearError"
 >;

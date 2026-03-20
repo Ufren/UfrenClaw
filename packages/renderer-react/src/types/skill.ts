@@ -36,7 +36,6 @@ export interface SkillBundle {
   recommended?: boolean;
 }
 
-
 /**
  * Marketplace skill data
  */
@@ -54,13 +53,16 @@ export interface MarketplaceSkill {
  * Skill configuration schema
  */
 export interface SkillConfigSchema {
-  type: 'object';
-  properties: Record<string, {
-    type: 'string' | 'number' | 'boolean' | 'array';
-    title?: string;
-    description?: string;
-    default?: unknown;
-    enum?: unknown[];
-  }>;
+  type: "object";
+  properties: Record<
+    string,
+    {
+      type: "string" | "number" | "boolean" | "array";
+      title?: string;
+      description?: string;
+      default?: unknown;
+      enum?: unknown[];
+    }
+  >;
   required?: string[];
 }

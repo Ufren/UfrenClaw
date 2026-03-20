@@ -9,7 +9,7 @@
  * This module is intentionally dependency-free so it can be unit-tested
  * without mocking Electron.
  */
-import path from 'path';
+import path from "path";
 
 /**
  * Quote a path/value for safe use with Windows cmd.exe (shell: true in spawn).
@@ -20,8 +20,8 @@ import path from 'path';
  * unchanged so this function can be called unconditionally.
  */
 export function quoteForCmd(value: string): string {
-  if (process.platform !== 'win32') return value;
-  if (!value.includes(' ')) return value;
+  if (process.platform !== "win32") return value;
+  if (!value.includes(" ")) return value;
   if (value.startsWith('"') && value.endsWith('"')) return value;
   return `"${value}"`;
 }
@@ -35,7 +35,7 @@ export function quoteForCmd(value: string): string {
  * resolution on Windows.
  */
 export function needsWinShell(bin: string): boolean {
-  if (process.platform !== 'win32') return false;
+  if (process.platform !== "win32") return false;
   return !path.win32.isAbsolute(bin);
 }
 
@@ -50,7 +50,7 @@ export function prepareWinSpawn(
   args: string[],
   forceShell?: boolean,
 ): { shell: boolean; command: string; args: string[] } {
-  const isWin = process.platform === 'win32';
+  const isWin = process.platform === "win32";
   const useShell = forceShell ?? (isWin && !path.win32.isAbsolute(command));
 
   if (!useShell || !isWin) {
@@ -60,7 +60,7 @@ export function prepareWinSpawn(
   return {
     shell: true,
     command: quoteForCmd(command),
-    args: args.map(a => quoteForCmd(a)),
+    args: args.map((a) => quoteForCmd(a)),
   };
 }
 
@@ -72,9 +72,11 @@ export function prepareWinSpawn(
  * because backslashes are interpreted as escapes. Using forward slashes
  * keeps the absolute path intact while still being valid on Windows.
  */
-export function normalizeNodeRequirePathForNodeOptions(modulePath: string): string {
-  if (process.platform !== 'win32') return modulePath;
-  return modulePath.replace(/\\/g, '/');
+export function normalizeNodeRequirePathForNodeOptions(
+  modulePath: string,
+): string {
+  if (process.platform !== "win32") return modulePath;
+  return modulePath.replace(/\\/g, "/");
 }
 
 /**
@@ -85,5 +87,5 @@ export function appendNodeRequireToNodeOptions(
   modulePath: string,
 ): string {
   const normalized = normalizeNodeRequirePathForNodeOptions(modulePath);
-  return `${nodeOptions ?? ''} --require "${normalized}"`.trim();
+  return `${nodeOptions ?? ""} --require "${normalized}"`.trim();
 }

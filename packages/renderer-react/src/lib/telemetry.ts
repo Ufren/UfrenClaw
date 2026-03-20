@@ -17,11 +17,14 @@ function safeStringify(payload: TelemetryPayload): string {
   try {
     return JSON.stringify(payload);
   } catch {
-    return '{}';
+    return "{}";
   }
 }
 
-export function trackUiEvent(event: string, payload: TelemetryPayload = {}): void {
+export function trackUiEvent(
+  event: string,
+  payload: TelemetryPayload = {},
+): void {
   const count = (counters.get(event) ?? 0) + 1;
   counters.set(event, count);
 
@@ -73,14 +76,17 @@ export function startUiTiming(
   event: string,
   payload: TelemetryPayload = {},
 ): (nextPayload?: TelemetryPayload) => number {
-  const start = typeof performance !== 'undefined' && typeof performance.now === 'function'
-    ? performance.now()
-    : Date.now();
-
-  return (nextPayload: TelemetryPayload = {}): number => {
-    const end = typeof performance !== 'undefined' && typeof performance.now === 'function'
+  const start =
+    typeof performance !== "undefined" && typeof performance.now === "function"
       ? performance.now()
       : Date.now();
+
+  return (nextPayload: TelemetryPayload = {}): number => {
+    const end =
+      typeof performance !== "undefined" &&
+      typeof performance.now === "function"
+        ? performance.now()
+        : Date.now();
     const durationMs = Math.max(0, end - start);
     trackUiTiming(event, durationMs, { ...payload, ...nextPayload });
     return durationMs;
@@ -102,7 +108,9 @@ export function clearUiTelemetry(): void {
   history.length = 0;
 }
 
-export function subscribeUiTelemetry(listener: (entry: UiTelemetryEntry) => void): () => void {
+export function subscribeUiTelemetry(
+  listener: (entry: UiTelemetryEntry) => void,
+): () => void {
   listeners.add(listener);
   return () => {
     listeners.delete(listener);

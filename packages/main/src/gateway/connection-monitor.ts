@@ -1,4 +1,4 @@
-import { logger } from '../utils/logger';
+import { logger } from "../utils/logger";
 
 type HealthResult = { ok: boolean; error?: string };
 
@@ -35,12 +35,12 @@ export class GatewayConnectionMonitor {
       try {
         const health = await options.checkHealth();
         if (!health.ok) {
-          const errorMessage = health.error ?? 'Health check failed';
+          const errorMessage = health.error ?? "Health check failed";
           logger.warn(`Gateway health check failed: ${errorMessage}`);
           options.onUnhealthy(errorMessage);
         }
       } catch (error) {
-        logger.error('Gateway health check error:', error);
+        logger.error("Gateway health check error:", error);
         options.onError(error);
       }
     }, options.intervalMs ?? 30000);

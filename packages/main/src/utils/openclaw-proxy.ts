@@ -1,12 +1,14 @@
-import { readOpenClawConfig, writeOpenClawConfig } from './channel-config';
-import { resolveProxySettings, type ProxySettings } from './proxy';
-import { logger } from './logger';
+import { readOpenClawConfig, writeOpenClawConfig } from "./channel-config";
+import { resolveProxySettings, type ProxySettings } from "./proxy";
+import { logger } from "./logger";
 
 /**
  * Sync UfrenClaw global proxy settings into OpenClaw channel config where the
  * upstream runtime expects an explicit per-channel proxy knob.
  */
-export async function syncProxyConfigToOpenClaw(settings: ProxySettings): Promise<void> {
+export async function syncProxyConfigToOpenClaw(
+  settings: ProxySettings,
+): Promise<void> {
   const config = await readOpenClawConfig();
   const telegramConfig = config.channels?.telegram;
 
@@ -16,9 +18,10 @@ export async function syncProxyConfigToOpenClaw(settings: ProxySettings): Promis
 
   const resolved = resolveProxySettings(settings);
   const nextProxy = settings.proxyEnabled
-    ? (resolved.allProxy || resolved.httpsProxy || resolved.httpProxy)
-    : '';
-  const currentProxy = typeof telegramConfig.proxy === 'string' ? telegramConfig.proxy : '';
+    ? resolved.allProxy || resolved.httpsProxy || resolved.httpProxy
+    : "";
+  const currentProxy =
+    typeof telegramConfig.proxy === "string" ? telegramConfig.proxy : "";
 
   if (!nextProxy && !currentProxy) {
     return;
@@ -39,5 +42,7 @@ export async function syncProxyConfigToOpenClaw(settings: ProxySettings): Promis
   }
 
   await writeOpenClawConfig(config);
-  logger.info(`Synced Telegram proxy to OpenClaw config (${nextProxy || 'disabled'})`);
+  logger.info(
+    `Synced Telegram proxy to OpenClaw config (${nextProxy || "disabled"})`,
+  );
 }

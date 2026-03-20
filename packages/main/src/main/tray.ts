@@ -2,35 +2,35 @@
  * System Tray Management
  * Creates and manages the system tray icon and menu
  */
-import { Tray, Menu, BrowserWindow, app, nativeImage } from 'electron';
-import { join, dirname } from 'path';
-import { fileURLToPath } from 'url';
+import { Tray, Menu, BrowserWindow, app, nativeImage } from "electron";
+import { join, dirname } from "path";
+import { fileURLToPath } from "url";
 
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = dirname(__filename);
 
 let tray: Tray | null = null;
 let currentMainWindow: BrowserWindow | null = null;
-let currentLang = 'en';
+let currentLang = "en";
 
 const translations = {
   en: {
-    show: 'Show UfrenClaw',
-    gatewayStatus: 'Gateway Status',
-    running: '  Running',
-    quit: 'Quit UfrenClaw',
+    show: "Show UfrenClaw",
+    gatewayStatus: "Gateway Status",
+    running: "  Running",
+    quit: "Quit UfrenClaw",
   },
   zh: {
-    show: '显示 UfrenClaw',
-    gatewayStatus: '网关状态',
-    running: '  运行中',
-    quit: '退出 UfrenClaw',
+    show: "显示 UfrenClaw",
+    gatewayStatus: "网关状态",
+    running: "  运行中",
+    quit: "退出 UfrenClaw",
   },
   ja: {
-    show: 'UfrenClawを表示',
-    gatewayStatus: 'ゲートウェイステータス',
-    running: '  実行中',
-    quit: 'UfrenClawを終了',
+    show: "UfrenClawを表示",
+    gatewayStatus: "ゲートウェイステータス",
+    running: "  実行中",
+    quit: "UfrenClawを終了",
   },
 };
 
@@ -41,9 +41,9 @@ type Language = keyof typeof translations;
  */
 function getIconsDir(): string {
   if (app.isPackaged) {
-    return join(process.resourcesPath, 'resources', 'icons');
+    return join(process.resourcesPath, "resources", "icons");
   }
-  return join(__dirname, '../../../resources/icons');
+  return join(__dirname, "../../../resources/icons");
 }
 
 /**
@@ -55,44 +55,44 @@ export function createTray(mainWindow: BrowserWindow): Tray {
   const iconsDir = getIconsDir();
   let iconPath: string;
 
-  if (process.platform === 'win32') {
+  if (process.platform === "win32") {
     // Windows: use .ico for best quality in system tray
-    iconPath = join(iconsDir, 'icon.ico');
-  } else if (process.platform === 'darwin') {
+    iconPath = join(iconsDir, "icon.ico");
+  } else if (process.platform === "darwin") {
     // macOS: use Template.png for proper status bar icon
     // The "Template" suffix tells macOS to treat it as a template image
-    iconPath = join(iconsDir, 'tray-icon-Template.png');
+    iconPath = join(iconsDir, "tray-icon-Template.png");
   } else {
     // Linux: use 32x32 PNG
-    iconPath = join(iconsDir, '32x32.png');
+    iconPath = join(iconsDir, "32x32.png");
   }
 
   let icon = nativeImage.createFromPath(iconPath);
 
   // Fallback to icon.png if platform-specific icon not found
   if (icon.isEmpty()) {
-    icon = nativeImage.createFromPath(join(iconsDir, 'icon.png'));
+    icon = nativeImage.createFromPath(join(iconsDir, "icon.png"));
     // Still try to set as template for macOS
-    if (process.platform === 'darwin') {
+    if (process.platform === "darwin") {
       icon.setTemplateImage(true);
     }
   }
 
   // Note: Using "Template" suffix in filename automatically marks it as template image
   // But we can also explicitly set it for safety
-  if (process.platform === 'darwin') {
+  if (process.platform === "darwin") {
     icon.setTemplateImage(true);
   }
-  
+
   tray = new Tray(icon);
-  
+
   // Set tooltip
-  tray.setToolTip('UfrenClaw - AI Assistant');
-  
+  tray.setToolTip("UfrenClaw - AI Assistant");
+
   updateTrayMenu(currentLang);
-  
+
   // Click to show window (Windows/Linux)
-  tray.on('click', () => {
+  tray.on("click", () => {
     if (mainWindow.isDestroyed()) return;
     if (mainWindow.isVisible()) {
       mainWindow.hide();
@@ -101,14 +101,14 @@ export function createTray(mainWindow: BrowserWindow): Tray {
       mainWindow.focus();
     }
   });
-  
+
   // Double-click to show window (Windows)
-  tray.on('double-click', () => {
+  tray.on("double-click", () => {
     if (mainWindow.isDestroyed()) return;
     mainWindow.show();
     mainWindow.focus();
   });
-  
+
   return tray;
 }
 
@@ -117,9 +117,9 @@ export function createTray(mainWindow: BrowserWindow): Tray {
  */
 export function updateTrayMenu(lang: string): void {
   if (!tray || !currentMainWindow) return;
-  
+
   // Default to en if lang not found
-  const safeLang = (translations[lang as Language] ? lang : 'en') as Language;
+  const safeLang = (translations[lang as Language] ? lang : "en") as Language;
   currentLang = safeLang;
   const t = translations[safeLang];
 
@@ -135,7 +135,7 @@ export function updateTrayMenu(lang: string): void {
       click: showWindow,
     },
     {
-      type: 'separator',
+      type: "separator",
     },
     {
       label: t.gatewayStatus,
@@ -143,12 +143,12 @@ export function updateTrayMenu(lang: string): void {
     },
     {
       label: t.running,
-      type: 'checkbox',
+      type: "checkbox",
       checked: true,
       enabled: false,
     },
     {
-      type: 'separator',
+      type: "separator",
     },
     {
       label: t.quit,
@@ -157,7 +157,7 @@ export function updateTrayMenu(lang: string): void {
       },
     },
   ]);
-  
+
   tray.setContextMenu(contextMenu);
 }
 

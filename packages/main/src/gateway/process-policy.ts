@@ -14,7 +14,10 @@ export function nextLifecycleEpoch(currentEpoch: number): number {
   return currentEpoch + 1;
 }
 
-export function isLifecycleSuperseded(expectedEpoch: number, currentEpoch: number): boolean {
+export function isLifecycleSuperseded(
+  expectedEpoch: number,
+  currentEpoch: number,
+): boolean {
   return expectedEpoch !== currentEpoch;
 }
 
@@ -24,9 +27,11 @@ export interface ReconnectAttemptContext {
   shouldReconnect: boolean;
 }
 
-export function getReconnectSkipReason(context: ReconnectAttemptContext): string | null {
+export function getReconnectSkipReason(
+  context: ReconnectAttemptContext,
+): string | null {
   if (!context.shouldReconnect) {
-    return 'auto-reconnect disabled';
+    return "auto-reconnect disabled";
   }
   if (isLifecycleSuperseded(context.scheduledEpoch, context.currentEpoch)) {
     return `stale reconnect callback (scheduledEpoch=${context.scheduledEpoch}, currentEpoch=${context.currentEpoch})`;
@@ -44,44 +49,57 @@ export interface ReconnectScheduleContext {
 }
 
 export type ReconnectScheduleDecision =
-  | { action: 'skip'; reason: string }
-  | { action: 'already-scheduled' }
-  | { action: 'fail'; attempts: number; maxAttempts: number }
-  | { action: 'schedule'; nextAttempt: number; maxAttempts: number; delay: number };
+  | { action: "skip"; reason: string }
+  | { action: "already-scheduled" }
+  | { action: "fail"; attempts: number; maxAttempts: number }
+  | {
+      action: "schedule";
+      nextAttempt: number;
+      maxAttempts: number;
+      delay: number;
+    };
 
 export function getReconnectScheduleDecision(
   context: ReconnectScheduleContext,
 ): ReconnectScheduleDecision {
   if (!context.shouldReconnect) {
-    return { action: 'skip', reason: 'auto-reconnect disabled' };
+    return { action: "skip", reason: "auto-reconnect disabled" };
   }
 
   if (context.hasReconnectTimer) {
-    return { action: 'already-scheduled' };
+    return { action: "already-scheduled" };
   }
 
   if (context.reconnectAttempts >= context.maxAttempts) {
     return {
-      action: 'fail',
+      action: "fail",
       attempts: context.reconnectAttempts,
       maxAttempts: context.maxAttempts,
     };
   }
 
-  const delay = Math.min(
+  const baseDelay = Math.min(
     context.baseDelay * Math.pow(2, context.reconnectAttempts),
     context.maxDelay,
   );
 
+  const jitter = 0.8 + Math.random() * 0.4;
+  const delay = Math.floor(baseDelay * jitter);
+
   return {
-    action: 'schedule',
+    action: "schedule",
     nextAttempt: context.reconnectAttempts + 1,
     maxAttempts: context.maxAttempts,
     delay,
   };
 }
 
-export type GatewayLifecycleState = 'stopped' | 'starting' | 'running' | 'error' | 'reconnecting';
+export type GatewayLifecycleState =
+  | "stopped"
+  | "starting"
+  | "running"
+  | "error"
+  | "reconnecting";
 
 export interface RestartDeferralContext {
   state: GatewayLifecycleState;
@@ -93,7 +111,11 @@ export interface RestartDeferralContext {
  * Doing so can kill a just-spawned process and leave the manager stopped.
  */
 export function shouldDeferRestart(context: RestartDeferralContext): boolean {
-  return context.startLock || context.state === 'starting' || context.state === 'reconnecting';
+  return (
+    context.startLock ||
+    context.state === "starting" ||
+    context.state === "reconnecting"
+  );
 }
 
 export interface DeferredRestartActionContext extends RestartDeferralContext {
@@ -101,7 +123,7 @@ export interface DeferredRestartActionContext extends RestartDeferralContext {
   shouldReconnect: boolean;
 }
 
-export type DeferredRestartAction = 'none' | 'wait' | 'drop' | 'execute';
+export type DeferredRestartAction = "none" | "wait" | "drop" | "execute";
 
 /**
  * Decide what to do with a pending deferred restart once lifecycle changes.
@@ -112,9 +134,11 @@ export type DeferredRestartAction = 'none' | 'wait' | 'drop' | 'execute';
  * the caller may have changed config (e.g. provider switch) that the current
  * process hasn't picked up.
  */
-export function getDeferredRestartAction(context: DeferredRestartActionContext): DeferredRestartAction {
-  if (!context.hasPendingRestart) return 'none';
-  if (shouldDeferRestart(context)) return 'wait';
-  if (!context.shouldReconnect) return 'drop';
-  return 'execute';
+export function getDeferredRestartAction(
+  context: DeferredRestartActionContext,
+): DeferredRestartAction {
+  if (!context.hasPendingRestart) return "none";
+  if (shouldDeferRestart(context)) return "wait";
+  if (!context.shouldReconnect) return "drop";
+  return "execute";
 }

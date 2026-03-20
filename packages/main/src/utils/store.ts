@@ -3,17 +3,17 @@
  * Electron-store wrapper for application settings
  */
 
-import { randomBytes } from 'crypto';
+import { randomBytes } from "crypto";
 
 // Lazy-load electron-store (ESM module)
-// eslint-disable-next-line @typescript-eslint/no-explicit-any
+
 let settingsStoreInstance: any = null;
 
 /**
  * Generate a random token for gateway authentication
  */
 function generateToken(): string {
-  return `UfrenClaw-${randomBytes(16).toString('hex')}`;
+  return `UfrenClaw-${randomBytes(16).toString("hex")}`;
 }
 
 /**
@@ -21,7 +21,7 @@ function generateToken(): string {
  */
 export interface AppSettings {
   // General
-  theme: 'light' | 'dark' | 'system';
+  theme: "light" | "dark" | "system";
   language: string;
   startMinimized: boolean;
   launchAtStartup: boolean;
@@ -41,7 +41,7 @@ export interface AppSettings {
   proxyBypassRules: string;
 
   // Update
-  updateChannel: 'stable' | 'beta' | 'dev';
+  updateChannel: "stable" | "beta" | "dev";
   autoCheckUpdate: boolean;
   autoDownloadUpdate: boolean;
   skippedVersions: string[];
@@ -61,12 +61,12 @@ export interface AppSettings {
  */
 const defaults: AppSettings = {
   // General
-  theme: 'system',
-  language: 'en',
+  theme: "system",
+  language: "en",
   startMinimized: false,
   launchAtStartup: false,
   telemetryEnabled: true,
-  machineId: '',
+  machineId: "",
   hasReportedInstall: false,
 
   // Gateway
@@ -74,14 +74,14 @@ const defaults: AppSettings = {
   gatewayPort: 18789,
   gatewayToken: generateToken(),
   proxyEnabled: false,
-  proxyServer: '',
-  proxyHttpServer: '',
-  proxyHttpsServer: '',
-  proxyAllServer: '',
-  proxyBypassRules: '<local>;localhost;127.0.0.1;::1',
+  proxyServer: "",
+  proxyHttpServer: "",
+  proxyHttpsServer: "",
+  proxyAllServer: "",
+  proxyBypassRules: "<local>;localhost;127.0.0.1;::1",
 
   // Update
-  updateChannel: 'stable',
+  updateChannel: "stable",
   autoCheckUpdate: true,
   autoDownloadUpdate: false,
   skippedVersions: [],
@@ -91,7 +91,7 @@ const defaults: AppSettings = {
   devModeUnlocked: false,
 
   // Presets
-  selectedBundles: ['productivity', 'developer'],
+  selectedBundles: ["productivity", "developer"],
   enabledSkills: [],
   disabledSkills: [],
 };
@@ -101,9 +101,9 @@ const defaults: AppSettings = {
  */
 async function getSettingsStore() {
   if (!settingsStoreInstance) {
-    const Store = (await import('electron-store')).default;
+    const Store = (await import("electron-store")).default;
     settingsStoreInstance = new Store<AppSettings>({
-      name: 'settings',
+      name: "settings",
       defaults,
     });
   }
@@ -113,7 +113,9 @@ async function getSettingsStore() {
 /**
  * Get a setting value
  */
-export async function getSetting<K extends keyof AppSettings>(key: K): Promise<AppSettings[K]> {
+export async function getSetting<K extends keyof AppSettings>(
+  key: K,
+): Promise<AppSettings[K]> {
   const store = await getSettingsStore();
   return store.get(key);
 }
@@ -123,7 +125,7 @@ export async function getSetting<K extends keyof AppSettings>(key: K): Promise<A
  */
 export async function setSetting<K extends keyof AppSettings>(
   key: K,
-  value: AppSettings[K]
+  value: AppSettings[K],
 ): Promise<void> {
   const store = await getSettingsStore();
   store.set(key, value);
@@ -162,6 +164,6 @@ export async function importSettings(json: string): Promise<void> {
     const store = await getSettingsStore();
     store.set(settings);
   } catch {
-    throw new Error('Invalid settings JSON');
+    throw new Error("Invalid settings JSON");
   }
 }

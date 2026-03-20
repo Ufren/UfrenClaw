@@ -4,20 +4,32 @@
  * All file I/O is async (fs/promises) to avoid blocking the Electron
  * main thread.
  */
-import { access, readFile, writeFile, readdir, mkdir, unlink } from 'fs/promises';
-import { constants, Dirent } from 'fs';
-import { join } from 'path';
-import { homedir } from 'os';
-import { logger } from './logger';
-import { getResourcesDir } from './paths';
+import {
+  access,
+  readFile,
+  writeFile,
+  readdir,
+  mkdir,
+  unlink,
+} from "fs/promises";
+import { constants, Dirent } from "fs";
+import { join } from "path";
+import { homedir } from "os";
+import { logger } from "./logger";
+import { getResourcesDir } from "./paths";
 
-const UfrenClaw_BEGIN = '<!-- UfrenClaw:begin -->';
-const UfrenClaw_END = '<!-- UfrenClaw:end -->';
+const UfrenClaw_BEGIN = "<!-- UfrenClaw:begin -->";
+const UfrenClaw_END = "<!-- UfrenClaw:end -->";
 
 // ── Helpers ──────────────────────────────────────────────────────
 
 async function fileExists(p: string): Promise<boolean> {
-  try { await access(p, constants.F_OK); return true; } catch { return false; }
+  try {
+    await access(p, constants.F_OK);
+    return true;
+  } catch {
+    return false;
+  }
 }
 
 async function ensureDir(dir: string): Promise<void> {
@@ -33,14 +45,21 @@ async function ensureDir(dir: string): Promise<void> {
  * If markers already exist, replaces the section in-place.
  * Otherwise appends it at the end.
  */
-export function mergeUfrenClawSection(existing: string, section: string): string {
+export function mergeUfrenClawSection(
+  existing: string,
+  section: string,
+): string {
   const wrapped = `${UfrenClaw_BEGIN}\n${section.trim()}\n${UfrenClaw_END}`;
   const beginIdx = existing.indexOf(UfrenClaw_BEGIN);
   const endIdx = existing.indexOf(UfrenClaw_END);
   if (beginIdx !== -1 && endIdx !== -1) {
-    return existing.slice(0, beginIdx) + wrapped + existing.slice(endIdx + UfrenClaw_END.length);
+    return (
+      existing.slice(0, beginIdx) +
+      wrapped +
+      existing.slice(endIdx + UfrenClaw_END.length)
+    );
   }
-  return existing.trimEnd() + '\n\n' + wrapped + '\n';
+  return existing.trimEnd() + "\n\n" + wrapped + "\n";
 }
 
 // ── Workspace directory resolution ───────────────────────────────
@@ -51,16 +70,16 @@ export function mergeUfrenClawSection(existing: string, section: string): string
  * directories that already exist under ~/.openclaw/.
  */
 async function resolveAllWorkspaceDirs(): Promise<string[]> {
-  const openclawDir = join(homedir(), '.openclaw');
+  const openclawDir = join(homedir(), ".openclaw");
   const dirs = new Set<string>();
 
-  const configPath = join(openclawDir, 'openclaw.json');
+  const configPath = join(openclawDir, "openclaw.json");
   try {
     if (await fileExists(configPath)) {
-      const config = JSON.parse(await readFile(configPath, 'utf-8'));
+      const config = JSON.parse(await readFile(configPath, "utf-8"));
 
       const defaultWs = config?.agents?.defaults?.workspace;
-      if (typeof defaultWs === 'string' && defaultWs.trim()) {
+      if (typeof defaultWs === "string" && defaultWs.trim()) {
         dirs.add(defaultWs.replace(/^~/, homedir()));
       }
 
@@ -68,7 +87,7 @@ async function resolveAllWorkspaceDirs(): Promise<string[]> {
       if (Array.isArray(agents)) {
         for (const agent of agents) {
           const ws = agent?.workspace;
-          if (typeof ws === 'string' && ws.trim()) {
+          if (typeof ws === "string" && ws.trim()) {
             dirs.add(ws.replace(/^~/, homedir()));
           }
         }
@@ -79,9 +98,11 @@ async function resolveAllWorkspaceDirs(): Promise<string[]> {
   }
 
   try {
-    const entries: Dirent[] = await readdir(openclawDir, { withFileTypes: true });
+    const entries: Dirent[] = await readdir(openclawDir, {
+      withFileTypes: true,
+    });
     for (const entry of entries) {
-      if (entry.isDirectory() && entry.name.startsWith('workspace')) {
+      if (entry.isDirectory() && entry.name.startsWith("workspace")) {
         dirs.add(join(openclawDir, entry.name));
       }
     }
@@ -90,7 +111,7 @@ async function resolveAllWorkspaceDirs(): Promise<string[]> {
   }
 
   if (dirs.size === 0) {
-    dirs.add(join(openclawDir, 'workspace'));
+    dirs.add(join(openclawDir, "workspace"));
   }
 
   return [...dirs];
@@ -109,7 +130,7 @@ export async function repairUfrenClawOnlyBootstrapFiles(): Promise<void> {
 
     let entries: string[];
     try {
-      entries = (await readdir(workspaceDir)).filter((f) => f.endsWith('.md'));
+      entries = (await readdir(workspaceDir)).filter((f) => f.endsWith(".md"));
     } catch {
       continue;
     }
@@ -118,7 +139,7 @@ export async function repairUfrenClawOnlyBootstrapFiles(): Promise<void> {
       const filePath = join(workspaceDir, file);
       let content: string;
       try {
-        content = await readFile(filePath, 'utf-8');
+        content = await readFile(filePath, "utf-8");
       } catch {
         continue;
       }
@@ -128,12 +149,16 @@ export async function repairUfrenClawOnlyBootstrapFiles(): Promise<void> {
 
       const before = content.slice(0, beginIdx).trim();
       const after = content.slice(endIdx + UfrenClaw_END.length).trim();
-      if (before === '' && after === '') {
+      if (before === "" && after === "") {
         try {
           await unlink(filePath);
-          logger.info(`Removed UfrenClaw-only bootstrap file for re-seeding: ${file} (${workspaceDir})`);
+          logger.info(
+            `Removed UfrenClaw-only bootstrap file for re-seeding: ${file} (${workspaceDir})`,
+          );
         } catch {
-          logger.warn(`Failed to remove UfrenClaw-only bootstrap file: ${filePath}`);
+          logger.warn(
+            `Failed to remove UfrenClaw-only bootstrap file: ${filePath}`,
+          );
         }
       }
     }
@@ -148,15 +173,19 @@ export async function repairUfrenClawOnlyBootstrapFiles(): Promise<void> {
  * skipped because they don't exist yet.
  */
 async function mergeUfrenClawContextOnce(): Promise<number> {
-  const contextDir = join(getResourcesDir(), 'context');
+  const contextDir = join(getResourcesDir(), "context");
   if (!(await fileExists(contextDir))) {
-    logger.debug('UfrenClaw context directory not found, skipping context merge');
+    logger.debug(
+      "UfrenClaw context directory not found, skipping context merge",
+    );
     return 0;
   }
 
   let files: string[];
   try {
-    files = (await readdir(contextDir)).filter((f) => f.endsWith('.UfrenClaw.md'));
+    files = (await readdir(contextDir)).filter((f) =>
+      f.endsWith(".UfrenClaw.md"),
+    );
   } catch {
     return 0;
   }
@@ -168,22 +197,26 @@ async function mergeUfrenClawContextOnce(): Promise<number> {
     await ensureDir(workspaceDir);
 
     for (const file of files) {
-      const targetName = file.replace('.UfrenClaw.md', '.md');
+      const targetName = file.replace(".UfrenClaw.md", ".md");
       const targetPath = join(workspaceDir, targetName);
 
       if (!(await fileExists(targetPath))) {
-        logger.debug(`Skipping ${targetName} in ${workspaceDir} (file does not exist yet, will be seeded by gateway)`);
+        logger.debug(
+          `Skipping ${targetName} in ${workspaceDir} (file does not exist yet, will be seeded by gateway)`,
+        );
         skipped++;
         continue;
       }
 
-      const section = await readFile(join(contextDir, file), 'utf-8');
-      const existing = await readFile(targetPath, 'utf-8');
+      const section = await readFile(join(contextDir, file), "utf-8");
+      const existing = await readFile(targetPath, "utf-8");
 
       const merged = mergeUfrenClawSection(existing, section);
       if (merged !== existing) {
-        await writeFile(targetPath, merged, 'utf-8');
-        logger.info(`Merged UfrenClaw context into ${targetName} (${workspaceDir})`);
+        await writeFile(targetPath, merged, "utf-8");
+        logger.info(
+          `Merged UfrenClaw context into ${targetName} (${workspaceDir})`,
+        );
       }
     }
   }
@@ -206,11 +239,17 @@ export async function ensureUfrenClawContext(): Promise<void> {
     await new Promise((r) => setTimeout(r, RETRY_INTERVAL_MS));
     skipped = await mergeUfrenClawContextOnce();
     if (skipped === 0) {
-      logger.info(`UfrenClaw context merge completed after ${attempt} retry(ies)`);
+      logger.info(
+        `UfrenClaw context merge completed after ${attempt} retry(ies)`,
+      );
       return;
     }
-    logger.debug(`UfrenClaw context merge: ${skipped} file(s) still missing (retry ${attempt}/${MAX_RETRIES})`);
+    logger.debug(
+      `UfrenClaw context merge: ${skipped} file(s) still missing (retry ${attempt}/${MAX_RETRIES})`,
+    );
   }
 
-  logger.warn(`UfrenClaw context merge: ${skipped} file(s) still missing after ${MAX_RETRIES} retries`);
+  logger.warn(
+    `UfrenClaw context merge: ${skipped} file(s) still missing after ${MAX_RETRIES} retries`,
+  );
 }

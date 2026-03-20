@@ -2,9 +2,9 @@
  * Setup Wizard Page
  * First-time setup experience for new users
  */
-import { useState, useEffect, useCallback, useRef, useMemo } from 'react';
-import { useNavigate } from 'react-router-dom';
-import { motion, AnimatePresence } from 'framer-motion';
+import { useState, useEffect, useCallback, useRef, useMemo } from "react";
+import { useNavigate } from "react-router-dom";
+import { motion, AnimatePresence } from "framer-motion";
 import {
   Check,
   ChevronDown,
@@ -19,22 +19,26 @@ import {
   XCircle,
   ExternalLink,
   Copy,
-} from 'lucide-react';
-import { TitleBar } from '@/components/layout/TitleBar';
-import { Button } from '@/components/ui/button';
-import { Input } from '@/components/ui/input';
-import { Tooltip, TooltipTrigger, TooltipContent } from '@/components/ui/tooltip';
-import { Label } from '@/components/ui/label';
-import { cn } from '@/lib/utils';
-import { useGatewayStore } from '@/stores/gateway';
-import { useSettingsStore } from '@/stores/settings';
-import { useTranslation } from 'react-i18next';
-import type { TFunction } from 'i18next';
-import { SUPPORTED_LANGUAGES } from '@/i18n';
-import { toast } from 'sonner';
-import { invokeIpc } from '@/lib/api-client';
-import { hostApiFetch } from '@/lib/host-api';
-import { subscribeHostEvent } from '@/lib/host-events';
+} from "lucide-react";
+import { TitleBar } from "@/components/layout/TitleBar";
+import { Button } from "@/components/ui/button";
+import { Input } from "@/components/ui/input";
+import {
+  Tooltip,
+  TooltipTrigger,
+  TooltipContent,
+} from "@/components/ui/tooltip";
+import { Label } from "@/components/ui/label";
+import { cn } from "@/lib/utils";
+import { useGatewayStore } from "@/stores/gateway";
+import { useSettingsStore } from "@/stores/settings";
+import { useTranslation } from "react-i18next";
+import type { TFunction } from "i18next";
+import { SUPPORTED_LANGUAGES } from "@/i18n";
+import { toast } from "sonner";
+import { invokeIpc } from "@/lib/api-client";
+import { hostApiFetch } from "@/lib/host-api";
+import { subscribeHostEvent } from "@/lib/host-events";
 interface SetupStep {
   id: string;
   title: string;
@@ -51,29 +55,29 @@ const STEP = {
 
 const getSteps = (t: TFunction): SetupStep[] => [
   {
-    id: 'welcome',
-    title: t('steps.welcome.title'),
-    description: t('steps.welcome.description'),
+    id: "welcome",
+    title: t("steps.welcome.title"),
+    description: t("steps.welcome.description"),
   },
   {
-    id: 'runtime',
-    title: t('steps.runtime.title'),
-    description: t('steps.runtime.description'),
+    id: "runtime",
+    title: t("steps.runtime.title"),
+    description: t("steps.runtime.description"),
   },
   {
-    id: 'provider',
-    title: t('steps.provider.title'),
-    description: t('steps.provider.description'),
+    id: "provider",
+    title: t("steps.provider.title"),
+    description: t("steps.provider.description"),
   },
   {
-    id: 'installing',
-    title: t('steps.installing.title'),
-    description: t('steps.installing.description'),
+    id: "installing",
+    title: t("steps.installing.title"),
+    description: t("steps.installing.description"),
   },
   {
-    id: 'complete',
-    title: t('steps.complete.title'),
-    description: t('steps.complete.description'),
+    id: "complete",
+    title: t("steps.complete.title"),
+    description: t("steps.complete.description"),
   },
 ];
 
@@ -85,11 +89,31 @@ interface DefaultSkill {
 }
 
 const getDefaultSkills = (t: TFunction): DefaultSkill[] => [
-  { id: 'opencode', name: t('defaultSkills.opencode.name'), description: t('defaultSkills.opencode.description') },
-  { id: 'python-env', name: t('defaultSkills.python-env.name'), description: t('defaultSkills.python-env.description') },
-  { id: 'code-assist', name: t('defaultSkills.code-assist.name'), description: t('defaultSkills.code-assist.description') },
-  { id: 'file-tools', name: t('defaultSkills.file-tools.name'), description: t('defaultSkills.file-tools.description') },
-  { id: 'terminal', name: t('defaultSkills.terminal.name'), description: t('defaultSkills.terminal.description') },
+  {
+    id: "opencode",
+    name: t("defaultSkills.opencode.name"),
+    description: t("defaultSkills.opencode.description"),
+  },
+  {
+    id: "python-env",
+    name: t("defaultSkills.python-env.name"),
+    description: t("defaultSkills.python-env.description"),
+  },
+  {
+    id: "code-assist",
+    name: t("defaultSkills.code-assist.name"),
+    description: t("defaultSkills.code-assist.description"),
+  },
+  {
+    id: "file-tools",
+    name: t("defaultSkills.file-tools.name"),
+    description: t("defaultSkills.file-tools.description"),
+  },
+  {
+    id: "terminal",
+    name: t("defaultSkills.terminal.name"),
+    description: t("defaultSkills.terminal.description"),
+  },
 ];
 
 import {
@@ -102,14 +126,14 @@ import {
   resolveProviderModelForSave,
   shouldInvertInDark,
   shouldShowProviderModelId,
-} from '@/lib/providers';
+} from "@/lib/providers";
 import {
   buildProviderAccountId,
   fetchProviderSnapshot,
   hasConfiguredCredentials,
   pickPreferredAccount,
-} from '@/lib/provider-accounts';
-import UfrenClawIcon from '@/assets/logo.svg';
+} from "@/lib/provider-accounts";
+import UfrenClawIcon from "@/assets/logo.svg";
 
 // Use the shared provider registry for setup providers
 const providers = SETUP_PROVIDERS;
@@ -118,14 +142,14 @@ const providers = SETUP_PROVIDERS;
 // NOTE: Skill bundles moved to Settings > Skills page - auto-install essential skills during setup
 
 export function Setup() {
-  const { t } = useTranslation(['setup', 'channels']);
+  const { t } = useTranslation(["setup", "channels"]);
   const navigate = useNavigate();
   const [currentStep, setCurrentStep] = useState<number>(STEP.WELCOME);
 
   // Setup state
   const [selectedProvider, setSelectedProvider] = useState<string | null>(null);
   const [providerConfigured, setProviderConfigured] = useState(false);
-  const [apiKey, setApiKey] = useState('');
+  const [apiKey, setApiKey] = useState("");
   // Installation state for the Installing step
   const [installedSkills, setInstalledSkills] = useState<string[]>([]);
   // Runtime check status
@@ -139,7 +163,9 @@ export function Setup() {
   const isFirstStep = safeStepIndex === STEP.WELCOME;
   const isLastStep = safeStepIndex === steps.length - 1;
 
-  const markSetupComplete = useSettingsStore((state) => state.markSetupComplete);
+  const markSetupComplete = useSettingsStore(
+    (state) => state.markSetupComplete,
+  );
 
   // Derive canProceed based on current step - computed directly to avoid useEffect
   const canProceed = useMemo(() => {
@@ -163,8 +189,8 @@ export function Setup() {
     if (isLastStep) {
       // Complete setup
       markSetupComplete();
-      toast.success(t('complete.title'));
-      navigate('/');
+      toast.success(t("complete.title"));
+      navigate("/");
     } else {
       setCurrentStep((i) => i + 1);
     }
@@ -176,7 +202,7 @@ export function Setup() {
 
   const handleSkip = () => {
     markSetupComplete();
-    navigate('/');
+    navigate("/");
   };
 
   // Auto-proceed when installation is complete
@@ -187,7 +213,6 @@ export function Setup() {
       setCurrentStep((i) => i + 1);
     }, 1000);
   }, []);
-
 
   return (
     <div className="flex h-screen flex-col overflow-hidden bg-background text-foreground">
@@ -200,22 +225,28 @@ export function Setup() {
               <div key={s.id} className="flex items-center">
                 <motion.div
                   className={cn(
-                    'flex h-9 w-9 items-center justify-center rounded-full border-2',
+                    "flex h-9 w-9 items-center justify-center rounded-full border-2",
                     i < safeStepIndex
-                      ? 'border-primary bg-primary text-primary-foreground'
+                      ? "border-primary bg-primary text-primary-foreground"
                       : i === safeStepIndex
-                        ? 'border-primary text-primary'
-                        : 'border-slate-600 text-slate-600'
+                        ? "border-primary text-primary"
+                        : "border-slate-600 text-slate-600",
                   )}
                   initial={false}
-                  animate={i <= safeStepIndex ? { scale: [1, 1.1, 1] } : { scale: 1 }}
+                  animate={
+                    i <= safeStepIndex ? { scale: [1, 1.1, 1] } : { scale: 1 }
+                  }
                   transition={{ duration: 0.3 }}
                 >
                   {i < safeStepIndex ? (
                     <motion.div
                       initial={{ scale: 0, rotate: -180 }}
                       animate={{ scale: 1, rotate: 0 }}
-                      transition={{ type: 'spring', stiffness: 300, damping: 20 }}
+                      transition={{
+                        type: "spring",
+                        stiffness: 300,
+                        damping: 20,
+                      }}
                     >
                       <Check className="h-4 w-4" />
                     </motion.div>
@@ -228,12 +259,14 @@ export function Setup() {
                 {i < steps.length - 1 && (
                   <motion.div
                     className={cn(
-                      'h-0.5 w-10',
-                      i < safeStepIndex ? 'bg-primary' : 'bg-slate-600'
+                      "h-0.5 w-10",
+                      i < safeStepIndex ? "bg-primary" : "bg-slate-600",
                     )}
                     initial={false}
-                    animate={i < safeStepIndex ? { scaleX: [0, 1] } : { scaleX: 1 }}
-                    transition={{ duration: 0.4, ease: 'easeInOut' }}
+                    animate={
+                      i < safeStepIndex ? { scaleX: [0, 1] } : { scaleX: 1 }
+                    }
+                    transition={{ duration: 0.4, ease: "easeInOut" }}
                   />
                 )}
               </div>
@@ -248,10 +281,10 @@ export function Setup() {
             initial={{ opacity: 0, y: 30, scale: 0.95 }}
             animate={{ opacity: 1, y: 0, scale: 1 }}
             exit={{ opacity: 0, y: -30, scale: 0.95 }}
-            transition={{ 
-              type: 'spring', 
-              stiffness: 300, 
-              damping: 25 
+            transition={{
+              type: "spring",
+              stiffness: 300,
+              damping: 25,
             }}
             className="mx-auto max-w-2xl p-8 overflow-hidden"
           >
@@ -261,19 +294,25 @@ export function Setup() {
               transition={{ delay: 0.2 }}
               className="text-center mb-8"
             >
-              <h1 className="text-3xl font-bold mb-2">{t(`steps.${step.id}.title`)}</h1>
-              <p className="text-slate-400">{t(`steps.${step.id}.description`)}</p>
+              <h1 className="text-3xl font-bold mb-2">
+                {t(`steps.${step.id}.title`)}
+              </h1>
+              <p className="text-slate-400">
+                {t(`steps.${step.id}.description`)}
+              </p>
             </motion.div>
 
             {/* Step-specific content */}
-            <motion.div 
+            <motion.div
               className="rounded-xl bg-card text-card-foreground border shadow-sm p-6 mb-6 max-h-[calc(100vh-380px)] overflow-auto"
               initial={{ opacity: 0, scale: 0.98 }}
               animate={{ opacity: 1, scale: 1 }}
               transition={{ delay: 0.3, duration: 0.3 }}
             >
               {safeStepIndex === STEP.WELCOME && <WelcomeContent />}
-              {safeStepIndex === STEP.RUNTIME && <RuntimeContent onStatusChange={setRuntimeChecksPassed} />}
+              {safeStepIndex === STEP.RUNTIME && (
+                <RuntimeContent onStatusChange={setRuntimeChecksPassed} />
+              )}
               {safeStepIndex === STEP.PROVIDER && (
                 <ProviderContent
                   providers={providers}
@@ -301,7 +340,7 @@ export function Setup() {
 
             {/* Navigation - hidden during installation step */}
             {safeStepIndex !== STEP.INSTALLING && (
-              <motion.div 
+              <motion.div
                 className="flex justify-between relative z-10"
                 initial={{ opacity: 0 }}
                 animate={{ opacity: 1 }}
@@ -311,22 +350,22 @@ export function Setup() {
                   {!isFirstStep && (
                     <Button variant="ghost" onClick={handleBack}>
                       <ChevronLeft className="h-4 w-4 mr-2" />
-                      {t('nav.back')}
+                      {t("nav.back")}
                     </Button>
                   )}
                 </div>
                 <div className="flex gap-2">
                   {!isLastStep && safeStepIndex !== STEP.RUNTIME && (
                     <Button variant="ghost" onClick={handleSkip}>
-                      {t('nav.skipSetup')}
+                      {t("nav.skipSetup")}
                     </Button>
                   )}
                   <Button onClick={handleNext} disabled={!canProceed}>
                     {isLastStep ? (
-                      t('nav.getStarted')
+                      t("nav.getStarted")
                     ) : (
                       <>
-                        {t('nav.next')}
+                        {t("nav.next")}
                         <ChevronRight className="h-4 w-4 ml-2" />
                       </>
                     )}
@@ -344,14 +383,14 @@ export function Setup() {
 // ==================== Step Content Components ====================
 
 function WelcomeContent() {
-  const { t } = useTranslation(['setup', 'settings']);
+  const { t } = useTranslation(["setup", "settings"]);
   const { language, setLanguage } = useSettingsStore();
 
   const features = [
-    { icon: '🚀', key: 'noCommand' },
-    { icon: '🎨', key: 'modernUI' },
-    { icon: '📦', key: 'bundles' },
-    { icon: '🌐', key: 'crossPlatform' },
+    { icon: "🚀", key: "noCommand" },
+    { icon: "🎨", key: "modernUI" },
+    { icon: "📦", key: "bundles" },
+    { icon: "🌐", key: "crossPlatform" },
   ];
 
   return (
@@ -360,37 +399,37 @@ function WelcomeContent() {
         <motion.div
           initial={{ scale: 0, rotate: -180 }}
           animate={{ scale: 1, rotate: 0 }}
-          transition={{ 
-            type: 'spring', 
-            stiffness: 260, 
+          transition={{
+            type: "spring",
+            stiffness: 260,
             damping: 20,
-            delay: 0.2 
+            delay: 0.2,
           }}
         >
           <img src={UfrenClawIcon} alt="UfrenClaw" className="h-20 w-20" />
         </motion.div>
       </div>
 
-      <motion.h2 
+      <motion.h2
         className="text-2xl font-bold"
         initial={{ opacity: 0, y: 20 }}
         animate={{ opacity: 1, y: 0 }}
         transition={{ delay: 0.4 }}
       >
-        {t('welcome.title')}
+        {t("welcome.title")}
       </motion.h2>
 
-      <motion.p 
+      <motion.p
         className="text-muted-foreground text-lg"
         initial={{ opacity: 0, y: 20 }}
         animate={{ opacity: 1, y: 0 }}
         transition={{ delay: 0.5 }}
       >
-        {t('welcome.description')}
+        {t("welcome.description")}
       </motion.p>
 
       {/* Language Selector */}
-      <motion.div 
+      <motion.div
         className="flex justify-center gap-2 py-2"
         initial={{ opacity: 0 }}
         animate={{ opacity: 1 }}
@@ -405,7 +444,7 @@ function WelcomeContent() {
           >
             <Button
               key={lang.code}
-              variant={language === lang.code ? 'secondary' : 'ghost'}
+              variant={language === lang.code ? "secondary" : "ghost"}
               size="sm"
               onClick={() => setLanguage(lang.code)}
               className="h-8 text-sm px-4"
@@ -418,7 +457,7 @@ function WelcomeContent() {
 
       <ul className="text-left space-y-3 pt-4 max-w-md mx-auto overflow-visible">
         {features.map((feature, index) => (
-          <motion.li 
+          <motion.li
             key={feature.key}
             className="flex items-center gap-3 p-2 rounded-lg hover:bg-accent/50 transition-colors cursor-pointer"
             initial={{ opacity: 0, x: -20 }}
@@ -427,16 +466,16 @@ function WelcomeContent() {
             whileHover={{ x: 4 }}
             whileTap={{ scale: 0.98 }}
           >
-            <motion.span 
+            <motion.span
               className="text-2xl"
-              animate={{ 
+              animate={{
                 rotate: [0, 10, -10, 0],
               }}
-              transition={{ 
+              transition={{
                 duration: 2,
                 repeat: Infinity,
                 repeatDelay: 3,
-                delay: index * 0.5
+                delay: index * 0.5,
               }}
             >
               {feature.icon}
@@ -456,37 +495,46 @@ interface RuntimeContentProps {
 }
 
 function RuntimeContent({ onStatusChange }: RuntimeContentProps) {
-  const { t } = useTranslation('setup');
+  const { t } = useTranslation("setup");
   const gatewayStatus = useGatewayStore((state) => state.status);
   const startGateway = useGatewayStore((state) => state.start);
 
   const [checks, setChecks] = useState({
-    nodejs: { status: 'checking' as 'checking' | 'success' | 'error', message: '' },
-    openclaw: { status: 'checking' as 'checking' | 'success' | 'error', message: '' },
-    gateway: { status: 'checking' as 'checking' | 'success' | 'error', message: '' },
+    nodejs: {
+      status: "checking" as "checking" | "success" | "error",
+      message: "",
+    },
+    openclaw: {
+      status: "checking" as "checking" | "success" | "error",
+      message: "",
+    },
+    gateway: {
+      status: "checking" as "checking" | "success" | "error",
+      message: "",
+    },
   });
   const [showLogs, setShowLogs] = useState(false);
-  const [logContent, setLogContent] = useState('');
-  const [openclawDir, setOpenclawDir] = useState('');
+  const [logContent, setLogContent] = useState("");
+  const [openclawDir, setOpenclawDir] = useState("");
   const gatewayTimeoutRef = useRef<NodeJS.Timeout | null>(null);
 
   const runChecks = useCallback(async () => {
     // Reset checks
     setChecks({
-      nodejs: { status: 'checking', message: '' },
-      openclaw: { status: 'checking', message: '' },
-      gateway: { status: 'checking', message: '' },
+      nodejs: { status: "checking", message: "" },
+      openclaw: { status: "checking", message: "" },
+      gateway: { status: "checking", message: "" },
     });
 
     // Check Node.js — always available in Electron
     setChecks((prev) => ({
       ...prev,
-      nodejs: { status: 'success', message: t('runtime.status.success') },
+      nodejs: { status: "success", message: t("runtime.status.success") },
     }));
 
     // Check OpenClaw package status
     try {
-      const openclawStatus = await invokeIpc('openclaw:status') as {
+      const openclawStatus = (await invokeIpc("openclaw:status")) as {
         packageExists: boolean;
         isBuilt: boolean;
         dir: string;
@@ -499,47 +547,55 @@ function RuntimeContent({ onStatusChange }: RuntimeContentProps) {
         setChecks((prev) => ({
           ...prev,
           openclaw: {
-            status: 'error',
-            message: `OpenClaw package not found at: ${openclawStatus.dir}`
+            status: "error",
+            message: `OpenClaw package not found at: ${openclawStatus.dir}`,
           },
         }));
       } else if (!openclawStatus.isBuilt) {
         setChecks((prev) => ({
           ...prev,
           openclaw: {
-            status: 'error',
-            message: 'OpenClaw package found but dist is missing'
+            status: "error",
+            message: "OpenClaw package found but dist is missing",
           },
         }));
       } else {
-        const versionLabel = openclawStatus.version ? ` v${openclawStatus.version}` : '';
+        const versionLabel = openclawStatus.version
+          ? ` v${openclawStatus.version}`
+          : "";
         setChecks((prev) => ({
           ...prev,
           openclaw: {
-            status: 'success',
-            message: `OpenClaw package ready${versionLabel}`
+            status: "success",
+            message: `OpenClaw package ready${versionLabel}`,
           },
         }));
       }
     } catch (error) {
       setChecks((prev) => ({
         ...prev,
-        openclaw: { status: 'error', message: `Check failed: ${error}` },
+        openclaw: { status: "error", message: `Check failed: ${error}` },
       }));
     }
 
     // Check Gateway — read directly from store to avoid stale closure
     // Don't immediately report error; gateway may still be initializing
     const currentGateway = useGatewayStore.getState().status;
-    if (currentGateway.state === 'running') {
+    if (currentGateway.state === "running") {
       setChecks((prev) => ({
         ...prev,
-        gateway: { status: 'success', message: `Running on port ${currentGateway.port}` },
+        gateway: {
+          status: "success",
+          message: `Running on port ${currentGateway.port}`,
+        },
       }));
-    } else if (currentGateway.state === 'error') {
+    } else if (currentGateway.state === "error") {
       setChecks((prev) => ({
         ...prev,
-        gateway: { status: 'error', message: currentGateway.error || t('runtime.status.error') },
+        gateway: {
+          status: "error",
+          message: currentGateway.error || t("runtime.status.error"),
+        },
       }));
     } else {
       // Gateway is 'stopped', 'starting', or 'reconnecting'
@@ -547,8 +603,11 @@ function RuntimeContent({ onStatusChange }: RuntimeContentProps) {
       setChecks((prev) => ({
         ...prev,
         gateway: {
-          status: 'checking',
-          message: currentGateway.state === 'starting' ? t('runtime.status.checking') : 'Waiting for gateway...'
+          status: "checking",
+          message:
+            currentGateway.state === "starting"
+              ? t("runtime.status.checking")
+              : "Waiting for gateway...",
         },
       }));
     }
@@ -560,28 +619,41 @@ function RuntimeContent({ onStatusChange }: RuntimeContentProps) {
 
   // Update canProceed when gateway status changes
   useEffect(() => {
-    const allPassed = checks.nodejs.status === 'success'
-      && checks.openclaw.status === 'success'
-      && (checks.gateway.status === 'success' || gatewayStatus.state === 'running');
+    const allPassed =
+      checks.nodejs.status === "success" &&
+      checks.openclaw.status === "success" &&
+      (checks.gateway.status === "success" ||
+        gatewayStatus.state === "running");
     onStatusChange(allPassed);
   }, [checks, gatewayStatus, onStatusChange]);
 
   // Update gateway check when gateway status changes
   useEffect(() => {
-    if (gatewayStatus.state === 'running') {
+    if (gatewayStatus.state === "running") {
       setChecks((prev) => ({
         ...prev,
-        gateway: { status: 'success', message: t('runtime.status.gatewayRunning', { port: gatewayStatus.port }) },
+        gateway: {
+          status: "success",
+          message: t("runtime.status.gatewayRunning", {
+            port: gatewayStatus.port,
+          }),
+        },
       }));
-    } else if (gatewayStatus.state === 'error') {
+    } else if (gatewayStatus.state === "error") {
       setChecks((prev) => ({
         ...prev,
-        gateway: { status: 'error', message: gatewayStatus.error || 'Failed to start' },
+        gateway: {
+          status: "error",
+          message: gatewayStatus.error || "Failed to start",
+        },
       }));
-    } else if (gatewayStatus.state === 'starting' || gatewayStatus.state === 'reconnecting') {
+    } else if (
+      gatewayStatus.state === "starting" ||
+      gatewayStatus.state === "reconnecting"
+    ) {
       setChecks((prev) => ({
         ...prev,
-        gateway: { status: 'checking', message: 'Starting...' },
+        gateway: { status: "checking", message: "Starting..." },
       }));
     }
     // 'stopped' state: keep current check status (likely 'checking') to allow startup time
@@ -595,17 +667,17 @@ function RuntimeContent({ onStatusChange }: RuntimeContentProps) {
     }
 
     // If gateway is already in a terminal state, no timeout needed
-    if (gatewayStatus.state === 'running' || gatewayStatus.state === 'error') {
+    if (gatewayStatus.state === "running" || gatewayStatus.state === "error") {
       return;
     }
 
     // Set timeout for non-terminal states (stopped, starting, reconnecting)
     gatewayTimeoutRef.current = setTimeout(() => {
       setChecks((prev) => {
-        if (prev.gateway.status === 'checking') {
+        if (prev.gateway.status === "checking") {
           return {
             ...prev,
-            gateway: { status: 'error', message: 'Gateway startup timed out' },
+            gateway: { status: "error", message: "Gateway startup timed out" },
           };
         }
         return prev;
@@ -623,27 +695,31 @@ function RuntimeContent({ onStatusChange }: RuntimeContentProps) {
   const handleStartGateway = async () => {
     setChecks((prev) => ({
       ...prev,
-      gateway: { status: 'checking', message: 'Starting...' },
+      gateway: { status: "checking", message: "Starting..." },
     }));
     await startGateway();
   };
 
   const handleShowLogs = async () => {
     try {
-      const logs = await hostApiFetch<{ content: string }>('/api/logs?tailLines=100');
+      const logs = await hostApiFetch<{ content: string }>(
+        "/api/logs?tailLines=100",
+      );
       setLogContent(logs.content);
       setShowLogs(true);
     } catch {
-      setLogContent('(Failed to load logs)');
+      setLogContent("(Failed to load logs)");
       setShowLogs(true);
     }
   };
 
   const handleOpenLogDir = async () => {
     try {
-      const { dir: logDir } = await hostApiFetch<{ dir: string | null }>('/api/logs/dir');
+      const { dir: logDir } = await hostApiFetch<{ dir: string | null }>(
+        "/api/logs/dir",
+      );
       if (logDir) {
-        await invokeIpc('shell:showItemInFolder', logDir);
+        await invokeIpc("shell:showItemInFolder", logDir);
       }
     } catch {
       // ignore
@@ -652,16 +728,19 @@ function RuntimeContent({ onStatusChange }: RuntimeContentProps) {
 
   const ERROR_TRUNCATE_LEN = 30;
 
-  const renderStatus = (status: 'checking' | 'success' | 'error', message: string) => {
-    if (status === 'checking') {
+  const renderStatus = (
+    status: "checking" | "success" | "error",
+    message: string,
+  ) => {
+    if (status === "checking") {
       return (
         <span className="flex items-center gap-2 text-yellow-400 whitespace-nowrap">
           <Loader2 className="h-5 w-5 flex-shrink-0 animate-spin" />
-          {message || 'Checking...'}
+          {message || "Checking..."}
         </span>
       );
     }
-    if (status === 'success') {
+    if (status === "success") {
       return (
         <span className="flex items-center gap-2 text-green-400 whitespace-nowrap">
           <CheckCircle2 className="h-5 w-5 flex-shrink-0" />
@@ -680,9 +759,14 @@ function RuntimeContent({ onStatusChange }: RuntimeContentProps) {
         {isLong && (
           <Tooltip>
             <TooltipTrigger asChild>
-              <span className="cursor-pointer text-red-300 hover:text-red-200 font-medium">...</span>
+              <span className="cursor-pointer text-red-300 hover:text-red-200 font-medium">
+                ...
+              </span>
             </TooltipTrigger>
-            <TooltipContent side="top" className="max-w-sm whitespace-normal break-words text-xs">
+            <TooltipContent
+              side="top"
+              className="max-w-sm whitespace-normal break-words text-xs"
+            >
               {message}
             </TooltipContent>
           </Tooltip>
@@ -694,27 +778,27 @@ function RuntimeContent({ onStatusChange }: RuntimeContentProps) {
   return (
     <div className="space-y-4">
       <div className="flex items-center justify-between mb-4">
-        <h2 className="text-xl font-semibold">{t('runtime.title')}</h2>
+        <h2 className="text-xl font-semibold">{t("runtime.title")}</h2>
         <div className="flex gap-2">
           <Button variant="ghost" size="sm" onClick={handleShowLogs}>
-            {t('runtime.viewLogs')}
+            {t("runtime.viewLogs")}
           </Button>
           <Button variant="ghost" size="sm" onClick={runChecks}>
             <RefreshCw className="h-4 w-4 mr-2" />
-            {t('runtime.recheck')}
+            {t("runtime.recheck")}
           </Button>
         </div>
       </div>
       <div className="space-y-3">
         <div className="grid grid-cols-[1fr_auto] items-center gap-4 p-3 rounded-lg bg-muted/50">
-          <span className="text-left">{t('runtime.nodejs')}</span>
+          <span className="text-left">{t("runtime.nodejs")}</span>
           <div className="flex justify-end">
             {renderStatus(checks.nodejs.status, checks.nodejs.message)}
           </div>
         </div>
         <div className="grid grid-cols-[1fr_auto] items-center gap-4 p-3 rounded-lg bg-muted/50">
           <div className="text-left min-w-0">
-            <span>{t('runtime.openclaw')}</span>
+            <span>{t("runtime.openclaw")}</span>
             {openclawDir && (
               <p className="text-xs text-muted-foreground mt-0.5 font-mono break-all">
                 {openclawDir}
@@ -727,10 +811,10 @@ function RuntimeContent({ onStatusChange }: RuntimeContentProps) {
         </div>
         <div className="grid grid-cols-[1fr_auto] items-center gap-4 p-3 rounded-lg bg-muted/50">
           <div className="flex items-center gap-2 text-left">
-            <span>{t('runtime.gateway')}</span>
-            {checks.gateway.status === 'error' && (
+            <span>{t("runtime.gateway")}</span>
+            {checks.gateway.status === "error" && (
               <Button variant="outline" size="sm" onClick={handleStartGateway}>
-                {t('runtime.startGateway')}
+                {t("runtime.startGateway")}
               </Button>
             )}
           </div>
@@ -740,14 +824,17 @@ function RuntimeContent({ onStatusChange }: RuntimeContentProps) {
         </div>
       </div>
 
-      {(checks.nodejs.status === 'error' || checks.openclaw.status === 'error') && (
+      {(checks.nodejs.status === "error" ||
+        checks.openclaw.status === "error") && (
         <div className="mt-4 p-4 rounded-lg bg-red-900/20 border border-red-500/20">
           <div className="flex items-start gap-2">
             <AlertCircle className="h-5 w-5 text-red-400 mt-0.5" />
             <div>
-              <p className="font-medium text-red-400">{t('runtime.issue.title')}</p>
+              <p className="font-medium text-red-400">
+                {t("runtime.issue.title")}
+              </p>
               <p className="text-sm text-muted-foreground mt-1">
-                {t('runtime.issue.desc')}
+                {t("runtime.issue.desc")}
               </p>
             </div>
           </div>
@@ -758,19 +845,31 @@ function RuntimeContent({ onStatusChange }: RuntimeContentProps) {
       {showLogs && (
         <div className="mt-4 p-4 rounded-lg bg-black/40 border border-border">
           <div className="flex items-center justify-between mb-2">
-            <p className="font-medium text-foreground text-sm">{t('runtime.logs.title')}</p>
+            <p className="font-medium text-foreground text-sm">
+              {t("runtime.logs.title")}
+            </p>
             <div className="flex gap-2">
-              <Button variant="ghost" size="sm" className="h-7 text-xs" onClick={handleOpenLogDir}>
+              <Button
+                variant="ghost"
+                size="sm"
+                className="h-7 text-xs"
+                onClick={handleOpenLogDir}
+              >
                 <ExternalLink className="h-3 w-3 mr-1" />
-                {t('runtime.logs.openFolder')}
+                {t("runtime.logs.openFolder")}
               </Button>
-              <Button variant="ghost" size="sm" className="h-7 text-xs" onClick={() => setShowLogs(false)}>
-                {t('runtime.logs.close')}
+              <Button
+                variant="ghost"
+                size="sm"
+                className="h-7 text-xs"
+                onClick={() => setShowLogs(false)}
+              >
+                {t("runtime.logs.close")}
               </Button>
             </div>
           </div>
           <pre className="text-xs text-slate-300 bg-black/50 p-3 rounded max-h-60 overflow-auto whitespace-pre-wrap font-mono">
-            {logContent || t('runtime.logs.noLogs')}
+            {logContent || t("runtime.logs.noLogs")}
           </pre>
         </div>
       )}
@@ -795,50 +894,59 @@ function ProviderContent({
   onApiKeyChange,
   onConfiguredChange,
 }: ProviderContentProps) {
-  const { t } = useTranslation(['setup', 'settings']);
+  const { t } = useTranslation(["setup", "settings"]);
   const devModeUnlocked = useSettingsStore((state) => state.devModeUnlocked);
   const [showKey, setShowKey] = useState(false);
   const [validating, setValidating] = useState(false);
   const [keyValid, setKeyValid] = useState<boolean | null>(null);
-  const [selectedAccountId, setSelectedAccountId] = useState<string | null>(null);
-  const [baseUrl, setBaseUrl] = useState('');
-  const [modelId, setModelId] = useState('');
+  const [selectedAccountId, setSelectedAccountId] = useState<string | null>(
+    null,
+  );
+  const [baseUrl, setBaseUrl] = useState("");
+  const [modelId, setModelId] = useState("");
   const [providerMenuOpen, setProviderMenuOpen] = useState(false);
   const providerMenuRef = useRef<HTMLDivElement | null>(null);
 
-  const [authMode, setAuthMode] = useState<'oauth' | 'apikey'>('oauth');
+  const [authMode, setAuthMode] = useState<"oauth" | "apikey">("oauth");
 
   // OAuth Flow State
   const [oauthFlowing, setOauthFlowing] = useState(false);
-  const [oauthData, setOauthData] = useState<{
-    mode: 'device';
-    verificationUri: string;
-    userCode: string;
-    expiresIn: number;
-  } | {
-    mode: 'manual';
-    authorizationUrl: string;
-    message?: string;
-  } | null>(null);
-  const [manualCodeInput, setManualCodeInput] = useState('');
+  const [oauthData, setOauthData] = useState<
+    | {
+        mode: "device";
+        verificationUri: string;
+        userCode: string;
+        expiresIn: number;
+      }
+    | {
+        mode: "manual";
+        authorizationUrl: string;
+        message?: string;
+      }
+    | null
+  >(null);
+  const [manualCodeInput, setManualCodeInput] = useState("");
   const [oauthError, setOauthError] = useState<string | null>(null);
-  const pendingOAuthRef = useRef<{ accountId: string; label: string } | null>(null);
+  const pendingOAuthRef = useRef<{ accountId: string; label: string } | null>(
+    null,
+  );
 
   // Manage OAuth events
   useEffect(() => {
     const handleCode = (data: unknown) => {
       const payload = data as Record<string, unknown>;
-      if (payload?.mode === 'manual') {
+      if (payload?.mode === "manual") {
         setOauthData({
-          mode: 'manual',
-          authorizationUrl: String(payload.authorizationUrl || ''),
-          message: typeof payload.message === 'string' ? payload.message : undefined,
+          mode: "manual",
+          authorizationUrl: String(payload.authorizationUrl || ""),
+          message:
+            typeof payload.message === "string" ? payload.message : undefined,
         });
       } else {
         setOauthData({
-          mode: 'device',
-          verificationUri: String(payload.verificationUri || ''),
-          userCode: String(payload.userCode || ''),
+          mode: "device",
+          verificationUri: String(payload.verificationUri || ""),
+          userCode: String(payload.userCode || ""),
           expiresIn: Number(payload.expiresIn || 300),
         });
       }
@@ -848,27 +956,28 @@ function ProviderContent({
     const handleSuccess = async (data: unknown) => {
       setOauthFlowing(false);
       setOauthData(null);
-      setManualCodeInput('');
+      setManualCodeInput("");
       setKeyValid(true);
 
       const payload = (data as { accountId?: string } | undefined) || undefined;
-      const accountId = payload?.accountId || pendingOAuthRef.current?.accountId;
+      const accountId =
+        payload?.accountId || pendingOAuthRef.current?.accountId;
 
       if (accountId) {
         try {
-          await hostApiFetch('/api/provider-accounts/default', {
-            method: 'PUT',
+          await hostApiFetch("/api/provider-accounts/default", {
+            method: "PUT",
             body: JSON.stringify({ accountId }),
           });
           setSelectedAccountId(accountId);
         } catch (error) {
-          console.error('Failed to set default provider account:', error);
+          console.error("Failed to set default provider account:", error);
         }
       }
 
       pendingOAuthRef.current = null;
       onConfiguredChange(true);
-      toast.success(t('provider.valid'));
+      toast.success(t("provider.valid"));
     };
 
     const handleError = (data: unknown) => {
@@ -877,9 +986,9 @@ function ProviderContent({
       pendingOAuthRef.current = null;
     };
 
-    const offCode = subscribeHostEvent('oauth:code', handleCode);
-    const offSuccess = subscribeHostEvent('oauth:success', handleSuccess);
-    const offError = subscribeHostEvent('oauth:error', handleError);
+    const offCode = subscribeHostEvent("oauth:code", handleCode);
+    const offSuccess = subscribeHostEvent("oauth:success", handleSuccess);
+    const offError = subscribeHostEvent("oauth:error", handleError);
 
     return () => {
       offCode();
@@ -893,13 +1002,21 @@ function ProviderContent({
 
     try {
       const snapshot = await fetchProviderSnapshot();
-      const existingVendorIds = new Set(snapshot.accounts.map((account) => account.vendorId));
-      if (selectedProvider === 'minimax-portal' && existingVendorIds.has('minimax-portal-cn')) {
-        toast.error(t('settings:aiProviders.toast.minimaxConflict'));
+      const existingVendorIds = new Set(
+        snapshot.accounts.map((account) => account.vendorId),
+      );
+      if (
+        selectedProvider === "minimax-portal" &&
+        existingVendorIds.has("minimax-portal-cn")
+      ) {
+        toast.error(t("settings:aiProviders.toast.minimaxConflict"));
         return;
       }
-      if (selectedProvider === 'minimax-portal-cn' && existingVendorIds.has('minimax-portal')) {
-        toast.error(t('settings:aiProviders.toast.minimaxConflict'));
+      if (
+        selectedProvider === "minimax-portal-cn" &&
+        existingVendorIds.has("minimax-portal")
+      ) {
+        toast.error(t("settings:aiProviders.toast.minimaxConflict"));
         return;
       }
     } catch {
@@ -908,7 +1025,7 @@ function ProviderContent({
 
     setOauthFlowing(true);
     setOauthData(null);
-    setManualCodeInput('');
+    setManualCodeInput("");
     setOauthError(null);
 
     try {
@@ -920,8 +1037,8 @@ function ProviderContent({
       );
       const label = selectedProviderData?.name || selectedProvider;
       pendingOAuthRef.current = { accountId, label };
-      await hostApiFetch('/api/providers/oauth/start', {
-        method: 'POST',
+      await hostApiFetch("/api/providers/oauth/start", {
+        method: "POST",
         body: JSON.stringify({ provider: selectedProvider, accountId, label }),
       });
     } catch (e) {
@@ -934,18 +1051,18 @@ function ProviderContent({
   const handleCancelOAuth = async () => {
     setOauthFlowing(false);
     setOauthData(null);
-    setManualCodeInput('');
+    setManualCodeInput("");
     setOauthError(null);
     pendingOAuthRef.current = null;
-    await hostApiFetch('/api/providers/oauth/cancel', { method: 'POST' });
+    await hostApiFetch("/api/providers/oauth/cancel", { method: "POST" });
   };
 
   const handleSubmitManualOAuthCode = async () => {
     const value = manualCodeInput.trim();
     if (!value) return;
     try {
-      await hostApiFetch('/api/providers/oauth/submit', {
-        method: 'POST',
+      await hostApiFetch("/api/providers/oauth/submit", {
+        method: "POST",
         body: JSON.stringify({ code: value }),
       });
       setOauthError(null);
@@ -960,35 +1077,50 @@ function ProviderContent({
     (async () => {
       try {
         const snapshot = await fetchProviderSnapshot();
-        const statusMap = new Map(snapshot.statuses.map((status) => [status.id, status]));
+        const statusMap = new Map(
+          snapshot.statuses.map((status) => [status.id, status]),
+        );
         const setupProviderTypes = new Set<string>(providers.map((p) => p.id));
-        const setupCandidates = snapshot.accounts.filter((account) => setupProviderTypes.has(account.vendorId));
+        const setupCandidates = snapshot.accounts.filter((account) =>
+          setupProviderTypes.has(account.vendorId),
+        );
         const preferred =
-          (snapshot.defaultAccountId
-            && setupCandidates.find((account) => account.id === snapshot.defaultAccountId))
-          || setupCandidates.find((account) => hasConfiguredCredentials(account, statusMap.get(account.id)))
-          || setupCandidates[0];
+          (snapshot.defaultAccountId &&
+            setupCandidates.find(
+              (account) => account.id === snapshot.defaultAccountId,
+            )) ||
+          setupCandidates.find((account) =>
+            hasConfiguredCredentials(account, statusMap.get(account.id)),
+          ) ||
+          setupCandidates[0];
         if (preferred && !cancelled) {
           onSelectProvider(preferred.vendorId);
           setSelectedAccountId(preferred.id);
           const typeInfo = providers.find((p) => p.id === preferred.vendorId);
           const requiresKey = typeInfo?.requiresApiKey ?? false;
-          onConfiguredChange(!requiresKey || hasConfiguredCredentials(preferred, statusMap.get(preferred.id)));
-          const storedKey = (await hostApiFetch<{ apiKey: string | null }>(
-            `/api/providers/${encodeURIComponent(preferred.id)}/api-key`,
-          )).apiKey;
-          onApiKeyChange(storedKey || '');
+          onConfiguredChange(
+            !requiresKey ||
+              hasConfiguredCredentials(preferred, statusMap.get(preferred.id)),
+          );
+          const storedKey = (
+            await hostApiFetch<{ apiKey: string | null }>(
+              `/api/providers/${encodeURIComponent(preferred.id)}/api-key`,
+            )
+          ).apiKey;
+          onApiKeyChange(storedKey || "");
         } else if (!cancelled) {
           onConfiguredChange(false);
-          onApiKeyChange('');
+          onApiKeyChange("");
         }
       } catch (error) {
         if (!cancelled) {
-          console.error('Failed to load provider list:', error);
+          console.error("Failed to load provider list:", error);
         }
       }
     })();
-    return () => { cancelled = true; };
+    return () => {
+      cancelled = true;
+    };
   }, [onApiKeyChange, onConfiguredChange, onSelectProvider, providers]);
 
   // When provider changes, load stored key + reset base URL
@@ -998,7 +1130,9 @@ function ProviderContent({
       if (!selectedProvider) return;
       try {
         const snapshot = await fetchProviderSnapshot();
-        const statusMap = new Map(snapshot.statuses.map((status) => [status.id, status]));
+        const statusMap = new Map(
+          snapshot.statuses.map((status) => [status.id, status]),
+        );
         const preferredAccount = pickPreferredAccount(
           snapshot.accounts,
           snapshot.defaultAccountId,
@@ -1008,48 +1142,56 @@ function ProviderContent({
         const accountIdForLoad = preferredAccount?.id || selectedProvider;
         setSelectedAccountId(preferredAccount?.id || null);
 
-        const savedProvider = await hostApiFetch<{ baseUrl?: string; model?: string } | null>(
-          `/api/providers/${encodeURIComponent(accountIdForLoad)}`,
-        );
-        const storedKey = (await hostApiFetch<{ apiKey: string | null }>(
-          `/api/providers/${encodeURIComponent(accountIdForLoad)}/api-key`,
-        )).apiKey;
+        const savedProvider = await hostApiFetch<{
+          baseUrl?: string;
+          model?: string;
+        } | null>(`/api/providers/${encodeURIComponent(accountIdForLoad)}`);
+        const storedKey = (
+          await hostApiFetch<{ apiKey: string | null }>(
+            `/api/providers/${encodeURIComponent(accountIdForLoad)}/api-key`,
+          )
+        ).apiKey;
         if (!cancelled) {
-          onApiKeyChange(storedKey || '');
+          onApiKeyChange(storedKey || "");
 
           const info = providers.find((p) => p.id === selectedProvider);
-          setBaseUrl(savedProvider?.baseUrl || info?.defaultBaseUrl || '');
-          setModelId(savedProvider?.model || info?.defaultModelId || '');
+          setBaseUrl(savedProvider?.baseUrl || info?.defaultBaseUrl || "");
+          setModelId(savedProvider?.model || info?.defaultModelId || "");
         }
       } catch (error) {
         if (!cancelled) {
-          console.error('Failed to load provider key:', error);
+          console.error("Failed to load provider key:", error);
         }
       }
     })();
-    return () => { cancelled = true; };
+    return () => {
+      cancelled = true;
+    };
   }, [onApiKeyChange, selectedProvider, providers]);
 
   useEffect(() => {
     if (!providerMenuOpen) return;
 
     const handlePointerDown = (event: MouseEvent) => {
-      if (providerMenuRef.current && !providerMenuRef.current.contains(event.target as Node)) {
+      if (
+        providerMenuRef.current &&
+        !providerMenuRef.current.contains(event.target as Node)
+      ) {
         setProviderMenuOpen(false);
       }
     };
 
     const handleEscape = (event: KeyboardEvent) => {
-      if (event.key === 'Escape') {
+      if (event.key === "Escape") {
         setProviderMenuOpen(false);
       }
     };
 
-    document.addEventListener('mousedown', handlePointerDown);
-    document.addEventListener('keydown', handleEscape);
+    document.addEventListener("mousedown", handlePointerDown);
+    document.addEventListener("keydown", handleEscape);
     return () => {
-      document.removeEventListener('mousedown', handlePointerDown);
-      document.removeEventListener('keydown', handleEscape);
+      document.removeEventListener("mousedown", handlePointerDown);
+      document.removeEventListener("keydown", handleEscape);
     };
   }, [providerMenuOpen]);
 
@@ -1058,24 +1200,35 @@ function ProviderContent({
     ? getProviderIconUrl(selectedProviderData.id)
     : undefined;
   const showBaseUrlField = selectedProviderData?.showBaseUrl ?? false;
-  const showModelIdField = shouldShowProviderModelId(selectedProviderData, devModeUnlocked);
+  const showModelIdField = shouldShowProviderModelId(
+    selectedProviderData,
+    devModeUnlocked,
+  );
   const requiresKey = selectedProviderData?.requiresApiKey ?? false;
   const isOAuth = selectedProviderData?.isOAuth ?? false;
   const supportsApiKey = selectedProviderData?.supportsApiKey ?? false;
-  const useOAuthFlow = isOAuth && (!supportsApiKey || authMode === 'oauth');
+  const useOAuthFlow = isOAuth && (!supportsApiKey || authMode === "oauth");
 
   const handleValidateAndSave = async () => {
     if (!selectedProvider) return;
 
     try {
       const snapshot = await fetchProviderSnapshot();
-      const existingVendorIds = new Set(snapshot.accounts.map((account) => account.vendorId));
-      if (selectedProvider === 'minimax-portal' && existingVendorIds.has('minimax-portal-cn')) {
-        toast.error(t('settings:aiProviders.toast.minimaxConflict'));
+      const existingVendorIds = new Set(
+        snapshot.accounts.map((account) => account.vendorId),
+      );
+      if (
+        selectedProvider === "minimax-portal" &&
+        existingVendorIds.has("minimax-portal-cn")
+      ) {
+        toast.error(t("settings:aiProviders.toast.minimaxConflict"));
         return;
       }
-      if (selectedProvider === 'minimax-portal-cn' && existingVendorIds.has('minimax-portal')) {
-        toast.error(t('settings:aiProviders.toast.minimaxConflict'));
+      if (
+        selectedProvider === "minimax-portal-cn" &&
+        existingVendorIds.has("minimax-portal")
+      ) {
+        toast.error(t("settings:aiProviders.toast.minimaxConflict"));
         return;
       }
     } catch {
@@ -1087,19 +1240,20 @@ function ProviderContent({
 
     try {
       // Validate key if the provider requires one and a key was entered
-      const isApiKeyRequired = requiresKey || (supportsApiKey && authMode === 'apikey');
+      const isApiKeyRequired =
+        requiresKey || (supportsApiKey && authMode === "apikey");
       if (isApiKeyRequired && apiKey) {
-        const result = await invokeIpc(
-          'provider:validateKey',
+        const result = (await invokeIpc(
+          "provider:validateKey",
           selectedAccountId || selectedProvider,
           apiKey,
-          { baseUrl: baseUrl.trim() || undefined }
-        ) as { valid: boolean; error?: string };
+          { baseUrl: baseUrl.trim() || undefined },
+        )) as { valid: boolean; error?: string };
 
         setKeyValid(result.valid);
 
         if (!result.valid) {
-          toast.error(result.error || t('provider.invalid'));
+          toast.error(result.error || t("provider.invalid"));
           setValidating(false);
           return;
         }
@@ -1110,7 +1264,7 @@ function ProviderContent({
       const effectiveModelId = resolveProviderModelForSave(
         selectedProviderData,
         modelId,
-        devModeUnlocked
+        devModeUnlocked,
       );
       const snapshot = await fetchProviderSnapshot();
       const accountIdForSave = buildProviderAccountId(
@@ -1119,16 +1273,18 @@ function ProviderContent({
         snapshot.vendors,
       );
 
-      const effectiveApiKey = resolveProviderApiKeyForSave(selectedProvider, apiKey);
+      const effectiveApiKey = resolveProviderApiKeyForSave(
+        selectedProvider,
+        apiKey,
+      );
       const accountPayload: ProviderAccount = {
         id: accountIdForSave,
         vendorId: selectedProvider as ProviderType,
-        label: selectedProvider === 'custom'
-          ? t('settings:aiProviders.custom')
-          : (selectedProviderData?.name || selectedProvider),
-        authMode: selectedProvider === 'ollama'
-          ? 'local'
-          : 'api_key',
+        label:
+          selectedProvider === "custom"
+            ? t("settings:aiProviders.custom")
+            : selectedProviderData?.name || selectedProvider,
+        authMode: selectedProvider === "ollama" ? "local" : "api_key",
         baseUrl: baseUrl.trim() || undefined,
         model: effectiveModelId,
         enabled: true,
@@ -1139,77 +1295,86 @@ function ProviderContent({
 
       const saveResult = selectedAccountId
         ? await hostApiFetch<{ success: boolean; error?: string }>(
-          `/api/provider-accounts/${encodeURIComponent(accountIdForSave)}`,
-          {
-            method: 'PUT',
-            body: JSON.stringify({
-              updates: {
-                label: accountPayload.label,
-                authMode: accountPayload.authMode,
-                baseUrl: accountPayload.baseUrl,
-                model: accountPayload.model,
-                enabled: accountPayload.enabled,
-              },
-              apiKey: effectiveApiKey,
-            }),
-          },
-        )
-        : await hostApiFetch<{ success: boolean; error?: string }>('/api/provider-accounts', {
-          method: 'POST',
-          body: JSON.stringify({ account: accountPayload, apiKey: effectiveApiKey }),
-        });
+            `/api/provider-accounts/${encodeURIComponent(accountIdForSave)}`,
+            {
+              method: "PUT",
+              body: JSON.stringify({
+                updates: {
+                  label: accountPayload.label,
+                  authMode: accountPayload.authMode,
+                  baseUrl: accountPayload.baseUrl,
+                  model: accountPayload.model,
+                  enabled: accountPayload.enabled,
+                },
+                apiKey: effectiveApiKey,
+              }),
+            },
+          )
+        : await hostApiFetch<{ success: boolean; error?: string }>(
+            "/api/provider-accounts",
+            {
+              method: "POST",
+              body: JSON.stringify({
+                account: accountPayload,
+                apiKey: effectiveApiKey,
+              }),
+            },
+          );
 
       if (!saveResult.success) {
-        throw new Error(saveResult.error || 'Failed to save provider config');
+        throw new Error(saveResult.error || "Failed to save provider config");
       }
 
-      const defaultResult = await hostApiFetch<{ success: boolean; error?: string }>(
-        '/api/provider-accounts/default',
-        {
-          method: 'PUT',
-          body: JSON.stringify({ accountId: accountIdForSave }),
-        },
-      );
+      const defaultResult = await hostApiFetch<{
+        success: boolean;
+        error?: string;
+      }>("/api/provider-accounts/default", {
+        method: "PUT",
+        body: JSON.stringify({ accountId: accountIdForSave }),
+      });
 
       if (!defaultResult.success) {
-        throw new Error(defaultResult.error || 'Failed to set default provider');
+        throw new Error(
+          defaultResult.error || "Failed to set default provider",
+        );
       }
 
       setSelectedAccountId(accountIdForSave);
       onConfiguredChange(true);
-      toast.success(t('provider.valid'));
+      toast.success(t("provider.valid"));
     } catch (error) {
       setKeyValid(false);
       onConfiguredChange(false);
-      toast.error('Configuration failed: ' + String(error));
+      toast.error("Configuration failed: " + String(error));
     } finally {
       setValidating(false);
     }
   };
 
   // Can the user submit?
-  const isApiKeyRequired = requiresKey || (supportsApiKey && authMode === 'apikey');
+  const isApiKeyRequired =
+    requiresKey || (supportsApiKey && authMode === "apikey");
   const canSubmit =
-    selectedProvider
-    && (isApiKeyRequired ? apiKey.length > 0 : true)
-    && (showModelIdField ? modelId.trim().length > 0 : true)
-    && !useOAuthFlow;
+    selectedProvider &&
+    (isApiKeyRequired ? apiKey.length > 0 : true) &&
+    (showModelIdField ? modelId.trim().length > 0 : true) &&
+    !useOAuthFlow;
 
   const handleSelectProvider = (providerId: string) => {
     onSelectProvider(providerId);
     setSelectedAccountId(null);
     onConfiguredChange(false);
-    onApiKeyChange('');
+    onApiKeyChange("");
     setKeyValid(null);
     setProviderMenuOpen(false);
-    setAuthMode('oauth');
+    setAuthMode("oauth");
   };
 
   return (
     <div className="space-y-6">
       {/* Provider selector — dropdown */}
       <div className="space-y-2">
-        <Label>{t('provider.label')}</Label>
+        <Label>{t("provider.label")}</Label>
         <div className="relative" ref={providerMenuRef}>
           <button
             type="button"
@@ -1217,9 +1382,9 @@ function ProviderContent({
             aria-expanded={providerMenuOpen}
             onClick={() => setProviderMenuOpen((open) => !open)}
             className={cn(
-              'w-full rounded-md border border-input bg-background px-3 py-2 text-sm',
-              'flex items-center justify-between gap-2',
-              'focus:outline-none focus:ring-2 focus:ring-ring'
+              "w-full rounded-md border border-input bg-background px-3 py-2 text-sm",
+              "flex items-center justify-between gap-2",
+              "focus:outline-none focus:ring-2 focus:ring-ring",
             )}
           >
             <div className="flex items-center gap-2 min-w-0">
@@ -1228,21 +1393,39 @@ function ProviderContent({
                   <img
                     src={selectedProviderIconUrl}
                     alt={selectedProviderData.name}
-                    className={cn('h-4 w-4 shrink-0', shouldInvertInDark(selectedProviderData.id) && 'dark:invert')}
+                    className={cn(
+                      "h-4 w-4 shrink-0",
+                      shouldInvertInDark(selectedProviderData.id) &&
+                        "dark:invert",
+                    )}
                   />
                 ) : (
-                  <span className="text-sm leading-none shrink-0">{selectedProviderData.icon}</span>
+                  <span className="text-sm leading-none shrink-0">
+                    {selectedProviderData.icon}
+                  </span>
                 )
               ) : (
-                <span className="text-xs text-muted-foreground shrink-0">—</span>
+                <span className="text-xs text-muted-foreground shrink-0">
+                  —
+                </span>
               )}
-              <span className={cn('truncate text-left', !selectedProvider && 'text-muted-foreground')}>
+              <span
+                className={cn(
+                  "truncate text-left",
+                  !selectedProvider && "text-muted-foreground",
+                )}
+              >
                 {selectedProviderData
-                  ? `${selectedProviderData.id === 'custom' ? t('settings:aiProviders.custom') : selectedProviderData.name}${selectedProviderData.model ? ` — ${selectedProviderData.model}` : ''}`
-                  : t('provider.selectPlaceholder')}
+                  ? `${selectedProviderData.id === "custom" ? t("settings:aiProviders.custom") : selectedProviderData.name}${selectedProviderData.model ? ` — ${selectedProviderData.model}` : ""}`
+                  : t("provider.selectPlaceholder")}
               </span>
             </div>
-            <ChevronDown className={cn('h-3.5 w-3.5 text-muted-foreground shrink-0 transition-transform', providerMenuOpen && 'rotate-180')} />
+            <ChevronDown
+              className={cn(
+                "h-3.5 w-3.5 text-muted-foreground shrink-0 transition-transform",
+                providerMenuOpen && "rotate-180",
+              )}
+            />
           </button>
 
           {providerMenuOpen && (
@@ -1262,9 +1445,9 @@ function ProviderContent({
                     aria-selected={isSelected}
                     onClick={() => handleSelectProvider(p.id)}
                     className={cn(
-                      'w-full px-3 py-2 text-left text-sm flex items-center justify-between gap-2',
-                      'hover:bg-accent transition-colors',
-                      isSelected && 'bg-accent/60'
+                      "w-full px-3 py-2 text-left text-sm flex items-center justify-between gap-2",
+                      "hover:bg-accent transition-colors",
+                      isSelected && "bg-accent/60",
                     )}
                   >
                     <div className="flex items-center gap-2 min-w-0">
@@ -1272,14 +1455,26 @@ function ProviderContent({
                         <img
                           src={iconUrl}
                           alt={p.name}
-                          className={cn('h-4 w-4 shrink-0', shouldInvertInDark(p.id) && 'dark:invert')}
+                          className={cn(
+                            "h-4 w-4 shrink-0",
+                            shouldInvertInDark(p.id) && "dark:invert",
+                          )}
                         />
                       ) : (
-                        <span className="text-sm leading-none shrink-0">{p.icon}</span>
+                        <span className="text-sm leading-none shrink-0">
+                          {p.icon}
+                        </span>
                       )}
-                      <span className="truncate">{p.id === 'custom' ? t('settings:aiProviders.custom') : p.name}{p.model ? ` — ${p.model}` : ''}</span>
+                      <span className="truncate">
+                        {p.id === "custom"
+                          ? t("settings:aiProviders.custom")
+                          : p.name}
+                        {p.model ? ` — ${p.model}` : ""}
+                      </span>
                     </div>
-                    {isSelected && <Check className="h-4 w-4 text-primary shrink-0" />}
+                    {isSelected && (
+                      <Check className="h-4 w-4 text-primary shrink-0" />
+                    )}
                   </button>
                 );
               })}
@@ -1299,7 +1494,7 @@ function ProviderContent({
           {/* Base URL field (for siliconflow, ollama, custom) */}
           {showBaseUrlField && (
             <div className="space-y-2">
-              <Label htmlFor="baseUrl">{t('provider.baseUrl')}</Label>
+              <Label htmlFor="baseUrl">{t("provider.baseUrl")}</Label>
               <Input
                 id="baseUrl"
                 type="text"
@@ -1318,11 +1513,14 @@ function ProviderContent({
           {/* Model ID field (for siliconflow etc.) */}
           {showModelIdField && (
             <div className="space-y-2">
-              <Label htmlFor="modelId">{t('provider.modelId')}</Label>
+              <Label htmlFor="modelId">{t("provider.modelId")}</Label>
               <Input
                 id="modelId"
                 type="text"
-                placeholder={selectedProviderData?.modelIdPlaceholder || 'e.g. deepseek-ai/DeepSeek-V3'}
+                placeholder={
+                  selectedProviderData?.modelIdPlaceholder ||
+                  "e.g. deepseek-ai/DeepSeek-V3"
+                }
                 value={modelId}
                 onChange={(e) => {
                   setModelId(e.target.value);
@@ -1332,7 +1530,7 @@ function ProviderContent({
                 className="bg-background border-input"
               />
               <p className="text-xs text-muted-foreground">
-                {t('provider.modelIdDesc')}
+                {t("provider.modelIdDesc")}
               </p>
             </div>
           )}
@@ -1341,34 +1539,38 @@ function ProviderContent({
           {isOAuth && supportsApiKey && (
             <div className="flex rounded-lg border overflow-hidden text-sm">
               <button
-                onClick={() => setAuthMode('oauth')}
+                onClick={() => setAuthMode("oauth")}
                 className={cn(
-                  'flex-1 py-2 px-3 transition-colors',
-                  authMode === 'oauth' ? 'bg-primary text-primary-foreground' : 'hover:bg-muted text-muted-foreground'
+                  "flex-1 py-2 px-3 transition-colors",
+                  authMode === "oauth"
+                    ? "bg-primary text-primary-foreground"
+                    : "hover:bg-muted text-muted-foreground",
                 )}
               >
-                {t('settings:aiProviders.oauth.loginMode')}
+                {t("settings:aiProviders.oauth.loginMode")}
               </button>
               <button
-                onClick={() => setAuthMode('apikey')}
+                onClick={() => setAuthMode("apikey")}
                 className={cn(
-                  'flex-1 py-2 px-3 transition-colors',
-                  authMode === 'apikey' ? 'bg-primary text-primary-foreground' : 'hover:bg-muted text-muted-foreground'
+                  "flex-1 py-2 px-3 transition-colors",
+                  authMode === "apikey"
+                    ? "bg-primary text-primary-foreground"
+                    : "hover:bg-muted text-muted-foreground",
                 )}
               >
-                {t('settings:aiProviders.oauth.apikeyMode')}
+                {t("settings:aiProviders.oauth.apikeyMode")}
               </button>
             </div>
           )}
 
           {/* API Key field (hidden for ollama) */}
-          {(!isOAuth || (supportsApiKey && authMode === 'apikey')) && (
+          {(!isOAuth || (supportsApiKey && authMode === "apikey")) && (
             <div className="space-y-2">
-              <Label htmlFor="apiKey">{t('provider.apiKey')}</Label>
+              <Label htmlFor="apiKey">{t("provider.apiKey")}</Label>
               <div className="relative">
                 <Input
                   id="apiKey"
-                  type={showKey ? 'text' : 'password'}
+                  type={showKey ? "text" : "password"}
                   placeholder={selectedProviderData?.placeholder}
                   value={apiKey}
                   onChange={(e) => {
@@ -1384,7 +1586,11 @@ function ProviderContent({
                   onClick={() => setShowKey(!showKey)}
                   className="absolute right-3 top-1/2 -translate-y-1/2 text-muted-foreground hover:text-foreground"
                 >
-                  {showKey ? <EyeOff className="h-4 w-4" /> : <Eye className="h-4 w-4" />}
+                  {showKey ? (
+                    <EyeOff className="h-4 w-4" />
+                  ) : (
+                    <Eye className="h-4 w-4" />
+                  )}
                 </button>
               </div>
             </div>
@@ -1403,9 +1609,12 @@ function ProviderContent({
                   className="w-full bg-blue-600 hover:bg-blue-700 text-white"
                 >
                   {oauthFlowing ? (
-                    <><Loader2 className="h-4 w-4 mr-2 animate-spin" /> Waiting...</>
+                    <>
+                      <Loader2 className="h-4 w-4 mr-2 animate-spin" />{" "}
+                      Waiting...
+                    </>
                   ) : (
-                    'Login with Browser'
+                    "Login with Browser"
                   )}
                 </Button>
               </div>
@@ -1419,28 +1628,43 @@ function ProviderContent({
                         <XCircle className="h-8 w-8 mx-auto" />
                         <p className="font-medium">Authentication Failed</p>
                         <p className="text-sm opacity-80">{oauthError}</p>
-                        <Button variant="outline" size="sm" onClick={handleCancelOAuth} className="mt-2">
+                        <Button
+                          variant="outline"
+                          size="sm"
+                          onClick={handleCancelOAuth}
+                          className="mt-2"
+                        >
                           Try Again
                         </Button>
                       </div>
                     ) : !oauthData ? (
                       <div className="space-y-3 py-4">
                         <Loader2 className="h-8 w-8 animate-spin text-primary mx-auto" />
-                        <p className="text-sm text-muted-foreground">Requesting secure login code...</p>
+                        <p className="text-sm text-muted-foreground">
+                          Requesting secure login code...
+                        </p>
                       </div>
-                    ) : oauthData.mode === 'manual' ? (
+                    ) : oauthData.mode === "manual" ? (
                       <div className="space-y-4 w-full">
                         <div className="space-y-1">
-                          <h3 className="font-medium text-lg">Complete OpenAI Login</h3>
+                          <h3 className="font-medium text-lg">
+                            Complete OpenAI Login
+                          </h3>
                           <p className="text-sm text-muted-foreground text-left mt-2">
-                            {oauthData.message || 'Open the authorization page, complete login, then paste the callback URL or code below.'}
+                            {oauthData.message ||
+                              "Open the authorization page, complete login, then paste the callback URL or code below."}
                           </p>
                         </div>
 
                         <Button
                           variant="secondary"
                           className="w-full"
-                          onClick={() => invokeIpc('shell:openExternal', oauthData.authorizationUrl)}
+                          onClick={() =>
+                            invokeIpc(
+                              "shell:openExternal",
+                              oauthData.authorizationUrl,
+                            )
+                          }
                         >
                           <ExternalLink className="h-4 w-4 mr-2" />
                           Open Authorization Page
@@ -1460,7 +1684,12 @@ function ProviderContent({
                           Submit Code
                         </Button>
 
-                        <Button variant="ghost" size="sm" className="w-full mt-2" onClick={handleCancelOAuth}>
+                        <Button
+                          variant="ghost"
+                          size="sm"
+                          className="w-full mt-2"
+                          onClick={handleCancelOAuth}
+                        >
                           Cancel
                         </Button>
                       </div>
@@ -1484,7 +1713,7 @@ function ProviderContent({
                             size="icon"
                             onClick={() => {
                               navigator.clipboard.writeText(oauthData.userCode);
-                              toast.success('Code copied to clipboard');
+                              toast.success("Code copied to clipboard");
                             }}
                           >
                             <Copy className="h-4 w-4" />
@@ -1494,7 +1723,12 @@ function ProviderContent({
                         <Button
                           variant="secondary"
                           className="w-full"
-                          onClick={() => invokeIpc('shell:openExternal', oauthData.verificationUri)}
+                          onClick={() =>
+                            invokeIpc(
+                              "shell:openExternal",
+                              oauthData.verificationUri,
+                            )
+                          }
                         >
                           <ExternalLink className="h-4 w-4 mr-2" />
                           Open Login Page
@@ -1505,7 +1739,12 @@ function ProviderContent({
                           <span>Waiting for approval in browser...</span>
                         </div>
 
-                        <Button variant="ghost" size="sm" className="w-full mt-2" onClick={handleCancelOAuth}>
+                        <Button
+                          variant="ghost"
+                          size="sm"
+                          className="w-full mt-2"
+                          onClick={handleCancelOAuth}
+                        >
                           Cancel
                         </Button>
                       </div>
@@ -1525,17 +1764,24 @@ function ProviderContent({
             {validating ? (
               <Loader2 className="h-4 w-4 animate-spin mr-2" />
             ) : null}
-            {requiresKey ? t('provider.validateSave') : t('provider.save')}
+            {requiresKey ? t("provider.validateSave") : t("provider.save")}
           </Button>
 
           {keyValid !== null && (
-            <p className={cn('text-sm text-center', keyValid ? 'text-green-400' : 'text-red-400')}>
-              {keyValid ? `✓ ${t('provider.valid')}` : `✗ ${t('provider.invalid')}`}
+            <p
+              className={cn(
+                "text-sm text-center",
+                keyValid ? "text-green-400" : "text-red-400",
+              )}
+            >
+              {keyValid
+                ? `✓ ${t("provider.valid")}`
+                : `✗ ${t("provider.invalid")}`}
             </p>
           )}
 
           <p className="text-sm text-muted-foreground text-center">
-            {t('provider.storedLocally')}
+            {t("provider.storedLocally")}
           </p>
         </motion.div>
       )}
@@ -1546,7 +1792,7 @@ function ProviderContent({
 // NOTE: SkillsContent component removed - auto-install essential skills
 
 // Installation status for each skill
-type InstallStatus = 'pending' | 'installing' | 'completed' | 'failed';
+type InstallStatus = "pending" | "installing" | "completed" | "failed";
 
 interface SkillInstallState {
   id: string;
@@ -1561,10 +1807,14 @@ interface InstallingContentProps {
   onSkip: () => void;
 }
 
-function InstallingContent({ skills, onComplete, onSkip }: InstallingContentProps) {
-  const { t } = useTranslation('setup');
+function InstallingContent({
+  skills,
+  onComplete,
+  onSkip,
+}: InstallingContentProps) {
+  const { t } = useTranslation("setup");
   const [skillStates, setSkillStates] = useState<SkillInstallState[]>(
-    skills.map((s) => ({ ...s, status: 'pending' as InstallStatus }))
+    skills.map((s) => ({ ...s, status: "pending" as InstallStatus })),
   );
   const [overallProgress, setOverallProgress] = useState(0);
   const [errorMessage, setErrorMessage] = useState<string | null>(null);
@@ -1578,30 +1828,36 @@ function InstallingContent({ skills, onComplete, onSkip }: InstallingContentProp
     const runRealInstall = async () => {
       try {
         // Step 1: Initialize all skills to 'installing' state for UI
-        setSkillStates(prev => prev.map(s => ({ ...s, status: 'installing' })));
+        setSkillStates((prev) =>
+          prev.map((s) => ({ ...s, status: "installing" })),
+        );
         setOverallProgress(10);
 
         // Step 2: Call the backend to install uv and setup Python
-        const result = await invokeIpc('uv:install-all') as {
+        const result = (await invokeIpc("uv:install-all")) as {
           success: boolean;
-          error?: string
+          error?: string;
         };
 
         if (result.success) {
-          setSkillStates(prev => prev.map(s => ({ ...s, status: 'completed' })));
+          setSkillStates((prev) =>
+            prev.map((s) => ({ ...s, status: "completed" })),
+          );
           setOverallProgress(100);
 
           await new Promise((resolve) => setTimeout(resolve, 800));
-          onComplete(skills.map(s => s.id));
+          onComplete(skills.map((s) => s.id));
         } else {
-          setSkillStates(prev => prev.map(s => ({ ...s, status: 'failed' })));
-          setErrorMessage(result.error || 'Unknown error during installation');
-          toast.error('Environment setup failed');
+          setSkillStates((prev) =>
+            prev.map((s) => ({ ...s, status: "failed" })),
+          );
+          setErrorMessage(result.error || "Unknown error during installation");
+          toast.error("Environment setup failed");
         }
       } catch (err) {
-        setSkillStates(prev => prev.map(s => ({ ...s, status: 'failed' })));
+        setSkillStates((prev) => prev.map((s) => ({ ...s, status: "failed" })));
         setErrorMessage(String(err));
-        toast.error('Installation error');
+        toast.error("Installation error");
       }
     };
 
@@ -1610,33 +1866,49 @@ function InstallingContent({ skills, onComplete, onSkip }: InstallingContentProp
 
   const getStatusIcon = (status: InstallStatus) => {
     switch (status) {
-      case 'pending':
-        return <div className="h-5 w-5 rounded-full border-2 border-slate-500" />;
-      case 'installing':
+      case "pending":
+        return (
+          <div className="h-5 w-5 rounded-full border-2 border-slate-500" />
+        );
+      case "installing":
         return <Loader2 className="h-5 w-5 text-primary animate-spin" />;
-      case 'completed':
+      case "completed":
         return <CheckCircle2 className="h-5 w-5 text-green-400" />;
-      case 'failed':
+      case "failed":
         return <XCircle className="h-5 w-5 text-red-400" />;
     }
   };
 
   const getStatusText = (skill: SkillInstallState) => {
     switch (skill.status) {
-      case 'pending':
-        return <span className="text-muted-foreground">{t('installing.status.pending')}</span>;
-      case 'installing':
-        return <span className="text-primary">{t('installing.status.installing')}</span>;
-      case 'completed':
-        return <span className="text-green-400">{t('installing.status.installed')}</span>;
-      case 'failed':
-        return <span className="text-red-400">{t('installing.status.failed')}</span>;
+      case "pending":
+        return (
+          <span className="text-muted-foreground">
+            {t("installing.status.pending")}
+          </span>
+        );
+      case "installing":
+        return (
+          <span className="text-primary">
+            {t("installing.status.installing")}
+          </span>
+        );
+      case "completed":
+        return (
+          <span className="text-green-400">
+            {t("installing.status.installed")}
+          </span>
+        );
+      case "failed":
+        return (
+          <span className="text-red-400">{t("installing.status.failed")}</span>
+        );
     }
   };
 
   return (
     <div className="space-y-6">
-      <motion.div 
+      <motion.div
         className="text-center"
         initial={{ opacity: 0, y: -20 }}
         animate={{ opacity: 1, y: 0 }}
@@ -1644,28 +1916,28 @@ function InstallingContent({ skills, onComplete, onSkip }: InstallingContentProp
       >
         <motion.div
           className="text-5xl mb-4"
-          animate={{ 
+          animate={{
             rotate: [0, 15, -15, 0],
           }}
-          transition={{ 
+          transition={{
             duration: 2,
             repeat: Infinity,
-            repeatDelay: 1
+            repeatDelay: 1,
           }}
         >
           ⚙️
         </motion.div>
-        <h2 className="text-xl font-semibold mb-2">{t('installing.title')}</h2>
-        <p className="text-muted-foreground">
-          {t('installing.subtitle')}
-        </p>
+        <h2 className="text-xl font-semibold mb-2">{t("installing.title")}</h2>
+        <p className="text-muted-foreground">{t("installing.subtitle")}</p>
       </motion.div>
 
       {/* Progress bar */}
       <div className="space-y-2">
         <div className="flex justify-between text-sm">
-          <span className="text-muted-foreground">{t('installing.progress')}</span>
-          <motion.span 
+          <span className="text-muted-foreground">
+            {t("installing.progress")}
+          </span>
+          <motion.span
             className="text-primary font-medium"
             key={overallProgress}
             initial={{ scale: 1.2 }}
@@ -1679,20 +1951,20 @@ function InstallingContent({ skills, onComplete, onSkip }: InstallingContentProp
             className="h-full bg-gradient-to-r from-primary to-primary/70 rounded-full"
             initial={{ width: 0 }}
             animate={{ width: `${overallProgress}%` }}
-            transition={{ 
-              duration: 0.5, 
-              ease: 'easeOut'
+            transition={{
+              duration: 0.5,
+              ease: "easeOut",
             }}
           >
             <motion.div
               className="h-full bg-white/30"
-              animate={{ x: ['-100%', '100%'] }}
-              transition={{ 
-                duration: 1, 
+              animate={{ x: ["-100%", "100%"] }}
+              transition={{
+                duration: 1,
                 repeat: Infinity,
-                ease: 'linear'
+                ease: "linear",
               }}
-              style={{ width: '30%' }}
+              style={{ width: "30%" }}
             />
           </motion.div>
         </div>
@@ -1707,34 +1979,44 @@ function InstallingContent({ skills, onComplete, onSkip }: InstallingContentProp
             animate={{ opacity: 1, x: 0 }}
             transition={{ delay: index * 0.1 }}
             className={cn(
-              'flex items-center justify-between p-3 rounded-lg',
-              skill.status === 'installing' ? 'bg-muted' : 'bg-muted/50'
+              "flex items-center justify-between p-3 rounded-lg",
+              skill.status === "installing" ? "bg-muted" : "bg-muted/50",
             )}
           >
             <div className="flex items-center gap-3">
               <motion.div
-                animate={skill.status === 'installing' ? { 
-                  rotate: 360,
-                  scale: [1, 1.1, 1]
-                } : {}}
-                transition={{ 
-                  rotate: { duration: 1, repeat: Infinity, ease: 'linear' },
-                  scale: { duration: 1, repeat: Infinity }
+                animate={
+                  skill.status === "installing"
+                    ? {
+                        rotate: 360,
+                        scale: [1, 1.1, 1],
+                      }
+                    : {}
+                }
+                transition={{
+                  rotate: { duration: 1, repeat: Infinity, ease: "linear" },
+                  scale: { duration: 1, repeat: Infinity },
                 }}
               >
                 {getStatusIcon(skill.status)}
               </motion.div>
               <div>
-                <motion.p 
+                <motion.p
                   className="font-medium"
-                  animate={skill.status === 'completed' ? {
-                    textDecoration: 'line-through',
-                    opacity: 0.7
-                  } : {}}
+                  animate={
+                    skill.status === "completed"
+                      ? {
+                          textDecoration: "line-through",
+                          opacity: 0.7,
+                        }
+                      : {}
+                  }
                 >
                   {skill.name}
                 </motion.p>
-                <p className="text-xs text-muted-foreground">{skill.description}</p>
+                <p className="text-xs text-muted-foreground">
+                  {skill.description}
+                </p>
               </div>
             </div>
             <motion.div
@@ -1758,7 +2040,7 @@ function InstallingContent({ skills, onComplete, onSkip }: InstallingContentProp
           <div className="flex items-start gap-2">
             <AlertCircle className="h-5 w-5 text-red-400 shrink-0 mt-0.5" />
             <div className="space-y-1">
-              <p className="font-semibold">{t('installing.error')}</p>
+              <p className="font-semibold">{t("installing.error")}</p>
               <pre className="text-xs bg-black/30 p-2 rounded overflow-x-auto whitespace-pre-wrap font-monospace">
                 {errorMessage}
               </pre>
@@ -1767,7 +2049,7 @@ function InstallingContent({ skills, onComplete, onSkip }: InstallingContentProp
                 className="text-red-400 p-0 h-auto text-xs underline"
                 onClick={() => window.location.reload()}
               >
-                {t('installing.restart')}
+                {t("installing.restart")}
               </Button>
             </div>
           </div>
@@ -1776,7 +2058,7 @@ function InstallingContent({ skills, onComplete, onSkip }: InstallingContentProp
 
       {!errorMessage && (
         <p className="text-sm text-slate-400 text-center">
-          {t('installing.wait')}
+          {t("installing.wait")}
         </p>
       )}
       <div className="flex justify-end">
@@ -1785,7 +2067,7 @@ function InstallingContent({ skills, onComplete, onSkip }: InstallingContentProp
           className="text-muted-foreground"
           onClick={onSkip}
         >
-          {t('installing.skip')}
+          {t("installing.skip")}
         </Button>
       </div>
     </div>
@@ -1796,25 +2078,33 @@ interface CompleteContentProps {
   installedSkills: string[];
 }
 
-function CompleteContent({ selectedProvider, installedSkills }: CompleteContentProps) {
-  const { t } = useTranslation(['setup', 'settings']);
+function CompleteContent({
+  selectedProvider,
+  installedSkills,
+}: CompleteContentProps) {
+  const { t } = useTranslation(["setup", "settings"]);
   const gatewayStatus = useGatewayStore((state) => state.status);
-  const [particles, setParticles] = useState<Array<{ id: number; x: number; emoji: string }>>([]);
+  const [particles, setParticles] = useState<
+    Array<{ id: number; x: number; emoji: string }>
+  >([]);
 
   const providerData = providers.find((p) => p.id === selectedProvider);
   const installedSkillNames = getDefaultSkills(t)
     .filter((s: DefaultSkill) => installedSkills.includes(s.id))
     .map((s: DefaultSkill) => s.name)
-    .join(', ');
+    .join(", ");
 
-  const celebrationEmojis = ['🎉', '✨', '🌟', '💫', '🎊', '⭐'];
+  const celebrationEmojis = ["🎉", "✨", "🌟", "💫", "🎊", "⭐"];
 
   useEffect(() => {
     const interval = setInterval(() => {
       const newParticle = {
         id: Date.now(),
         x: Math.random() * 100,
-        emoji: celebrationEmojis[Math.floor(Math.random() * celebrationEmojis.length)],
+        emoji:
+          celebrationEmojis[
+            Math.floor(Math.random() * celebrationEmojis.length)
+          ],
       };
       setParticles((prev) => [...prev.slice(-15), newParticle]);
     }, 300);
@@ -1830,22 +2120,22 @@ function CompleteContent({ selectedProvider, installedSkills }: CompleteContentP
           <motion.div
             key={particle.id}
             className="absolute text-2xl"
-            style={{ left: `${particle.x}%`, bottom: '0%' }}
-            initial={{ 
-              opacity: 1, 
+            style={{ left: `${particle.x}%`, bottom: "0%" }}
+            initial={{
+              opacity: 1,
               y: 0,
               rotate: 0,
-              scale: 0.5
+              scale: 0.5,
             }}
-            animate={{ 
-              opacity: 0, 
+            animate={{
+              opacity: 0,
               y: -400,
               rotate: Math.random() * 360,
-              scale: 1.2
+              scale: 1.2,
             }}
-            transition={{ 
-              duration: 2.5, 
-              ease: 'easeOut' 
+            transition={{
+              duration: 2.5,
+              ease: "easeOut",
             }}
           >
             {particle.emoji}
@@ -1856,142 +2146,153 @@ function CompleteContent({ selectedProvider, installedSkills }: CompleteContentP
       <motion.div
         initial={{ scale: 0, rotate: -180 }}
         animate={{ scale: 1, rotate: 0 }}
-        transition={{ 
-          type: 'spring', 
-          stiffness: 260, 
+        transition={{
+          type: "spring",
+          stiffness: 260,
           damping: 20,
-          delay: 0.2
+          delay: 0.2,
         }}
         className="relative"
       >
         <motion.div
           className="text-7xl mb-4"
-          animate={{ 
+          animate={{
             scale: [1, 1.1, 1],
             rotate: [0, 10, -10, 0],
           }}
-          transition={{ 
+          transition={{
             duration: 1.5,
             repeat: Infinity,
-            repeatDelay: 2
+            repeatDelay: 2,
           }}
         >
           🎉
         </motion.div>
-        
+
         {/* Glow Effect */}
         <motion.div
           className="absolute inset-0 blur-2xl bg-yellow-400/30 rounded-full"
-          animate={{ 
+          animate={{
             scale: [1, 1.5, 1],
-            opacity: [0.3, 0.6, 0.3]
+            opacity: [0.3, 0.6, 0.3],
           }}
-          transition={{ 
+          transition={{
             duration: 2,
-            repeat: Infinity
+            repeat: Infinity,
           }}
-          style={{ 
-            left: '50%', 
-            transform: 'translateX(-50%)',
-            width: '120px',
-            height: '120px'
+          style={{
+            left: "50%",
+            transform: "translateX(-50%)",
+            width: "120px",
+            height: "120px",
           }}
         />
       </motion.div>
 
-      <motion.h2 
+      <motion.h2
         className="text-2xl font-bold"
         initial={{ opacity: 0, y: 20 }}
         animate={{ opacity: 1, y: 0 }}
         transition={{ delay: 0.4 }}
       >
-        {t('complete.title')}
+        {t("complete.title")}
       </motion.h2>
 
-      <motion.p 
+      <motion.p
         className="text-muted-foreground text-lg"
         initial={{ opacity: 0, y: 20 }}
         animate={{ opacity: 1, y: 0 }}
         transition={{ delay: 0.5 }}
       >
-        {t('complete.subtitle')}
+        {t("complete.subtitle")}
       </motion.p>
 
-      <motion.div 
+      <motion.div
         className="space-y-3 text-left max-w-md mx-auto"
         initial={{ opacity: 0, y: 20 }}
         animate={{ opacity: 1, y: 0 }}
         transition={{ delay: 0.6 }}
       >
-        <motion.div 
+        <motion.div
           className="flex items-center justify-between p-3 rounded-lg bg-muted/50"
           whileHover={{ scale: 1.02 }}
-          transition={{ type: 'spring', stiffness: 400 }}
+          transition={{ type: "spring", stiffness: 400 }}
         >
-          <span>{t('complete.provider')}</span>
-          <motion.span 
+          <span>{t("complete.provider")}</span>
+          <motion.span
             className="text-green-400 flex items-center gap-1.5"
             initial={{ scale: 0 }}
             animate={{ scale: 1 }}
-            transition={{ delay: 0.8, type: 'spring' }}
+            transition={{ delay: 0.8, type: "spring" }}
           >
             {providerData ? (
               <>
                 {getProviderIconUrl(providerData.id) ? (
-                  <img 
-                    src={getProviderIconUrl(providerData.id)} 
-                    alt={providerData.name} 
-                    className={`h-4 w-4 inline-block ${shouldInvertInDark(providerData.id) ? 'dark:invert' : ''}`} 
+                  <img
+                    src={getProviderIconUrl(providerData.id)}
+                    alt={providerData.name}
+                    className={`h-4 w-4 inline-block ${shouldInvertInDark(providerData.id) ? "dark:invert" : ""}`}
                   />
                 ) : (
                   providerData.icon
-                )}{' '}
-                {providerData.id === 'custom' ? t('settings:aiProviders.custom') : providerData.name}
+                )}{" "}
+                {providerData.id === "custom"
+                  ? t("settings:aiProviders.custom")
+                  : providerData.name}
               </>
-            ) : '—'}
+            ) : (
+              "—"
+            )}
           </motion.span>
         </motion.div>
 
-        <motion.div 
+        <motion.div
           className="flex items-center justify-between p-3 rounded-lg bg-muted/50"
           whileHover={{ scale: 1.02 }}
-          transition={{ type: 'spring', stiffness: 400 }}
+          transition={{ type: "spring", stiffness: 400 }}
         >
-          <span>{t('complete.components')}</span>
-          <motion.span 
+          <span>{t("complete.components")}</span>
+          <motion.span
             className="text-green-400"
             initial={{ scale: 0 }}
             animate={{ scale: 1 }}
-            transition={{ delay: 0.9, type: 'spring' }}
+            transition={{ delay: 0.9, type: "spring" }}
           >
-            {installedSkillNames || `${installedSkills.length} ${t('installing.status.installed')}`}
+            {installedSkillNames ||
+              `${installedSkills.length} ${t("installing.status.installed")}`}
           </motion.span>
         </motion.div>
 
-        <motion.div 
+        <motion.div
           className="flex items-center justify-between p-3 rounded-lg bg-muted/50"
           whileHover={{ scale: 1.02 }}
-          transition={{ type: 'spring', stiffness: 400 }}
+          transition={{ type: "spring", stiffness: 400 }}
         >
-          <span>{t('complete.gateway')}</span>
-          <motion.span 
-            className={gatewayStatus.state === 'running' ? 'text-green-400' : 'text-yellow-400'}
+          <span>{t("complete.gateway")}</span>
+          <motion.span
+            className={
+              gatewayStatus.state === "running"
+                ? "text-green-400"
+                : "text-yellow-400"
+            }
             initial={{ scale: 0 }}
             animate={{ scale: 1 }}
-            transition={{ delay: 1.0, type: 'spring' }}
+            transition={{ delay: 1.0, type: "spring" }}
           >
-            {gatewayStatus.state === 'running' ? `✓ ${t('complete.running')}` : gatewayStatus.state}
+            {gatewayStatus.state === "running"
+              ? `✓ ${t("complete.running")}`
+              : gatewayStatus.state}
           </motion.span>
         </motion.div>
       </motion.div>
 
-      <motion.p 
+      <motion.p
         className="text-sm text-muted-foreground"
         initial={{ opacity: 0 }}
         animate={{ opacity: 1 }}
         transition={{ delay: 1.2 }}
       >
-        {t('complete.footer')}
+        {t("complete.footer")}
       </motion.p>
     </div>
   );

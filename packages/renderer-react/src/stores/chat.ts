@@ -3,10 +3,10 @@
  * Manages chat messages, sessions, streaming, and thinking state.
  * Communicates with OpenClaw Gateway via renderer WebSocket RPC.
  */
-import { create } from 'zustand';
-import { hostApiFetch } from '@/lib/host-api';
-import { useGatewayStore } from './gateway';
-import { useAgentsStore } from './agents';
+import { create } from "zustand";
+import { hostApiFetch } from "@/lib/host-api";
+import { useGatewayStore } from "./gateway";
+import { useAgentsStore } from "./agents";
 
 // ── Types ────────────────────────────────────────────────────────
 
@@ -21,7 +21,7 @@ export interface AttachedFileMeta {
 
 /** Raw message from OpenClaw chat.history */
 export interface RawMessage {
-  role: 'user' | 'assistant' | 'system' | 'toolresult';
+  role: "user" | "assistant" | "system" | "toolresult";
   content: unknown; // string | ContentBlock[]
   timestamp?: number;
   id?: string;
@@ -35,7 +35,14 @@ export interface RawMessage {
 
 /** Content block inside a message */
 export interface ContentBlock {
-  type: 'text' | 'image' | 'thinking' | 'tool_use' | 'tool_result' | 'toolCall' | 'toolResult';
+  type:
+    | "text"
+    | "image"
+    | "thinking"
+    | "tool_use"
+    | "tool_result"
+    | "toolCall"
+    | "toolResult";
   text?: string;
   thinking?: string;
   source?: { type: string; media_type?: string; data?: string; url?: string };
@@ -62,7 +69,7 @@ export interface ToolStatus {
   id?: string;
   toolCallId?: string;
   name: string;
-  status: 'running' | 'completed' | 'error';
+  status: "running" | "completed" | "error";
   durationMs?: number;
   summary?: string;
   updatedAt: number;
@@ -107,7 +114,13 @@ interface ChatState {
   loadHistory: (quiet?: boolean) => Promise<void>;
   sendMessage: (
     text: string,
-    attachments?: Array<{ fileName: string; mimeType: string; fileSize: number; stagedPath: string; preview: string | null }>,
+    attachments?: Array<{
+      fileName: string;
+      mimeType: string;
+      fileSize: number;
+      stagedPath: string;
+      preview: string | null;
+    }>,
     targetAgentId?: string | null,
   ) => Promise<void>;
   abortRun: () => Promise<void>;
@@ -153,7 +166,7 @@ function clearHistoryPoll(): void {
   }
 }
 
-const DEFAULT_CANONICAL_PREFIX = 'agent:main';
+const DEFAULT_CANONICAL_PREFIX = "agent:main";
 const DEFAULT_SESSION_KEY = `${DEFAULT_CANONICAL_PREFIX}:main`;
 
 // ── Local image cache ─────────────────────────────────────────
@@ -162,7 +175,7 @@ const DEFAULT_SESSION_KEY = `${DEFAULT_CANONICAL_PREFIX}:main`;
 // [media attached: <path> ...] reference in the Gateway's user message text).
 // Keying by path avoids the race condition of keying by runId (which is only
 // available after the RPC returns, but history may load before that).
-const IMAGE_CACHE_KEY = 'UfrenClaw:image-cache';
+const IMAGE_CACHE_KEY = "UfrenClaw:image-cache";
 const IMAGE_CACHE_MAX = 100; // max entries to prevent unbounded growth
 
 function loadImageCache(): Map<string, AttachedFileMeta> {
@@ -172,7 +185,9 @@ function loadImageCache(): Map<string, AttachedFileMeta> {
       const entries = JSON.parse(raw) as Array<[string, AttachedFileMeta]>;
       return new Map(entries);
     }
-  } catch { /* ignore parse errors */ }
+  } catch {
+    /* ignore parse errors */
+  }
   return new Map();
 }
 
@@ -180,29 +195,34 @@ function saveImageCache(cache: Map<string, AttachedFileMeta>): void {
   try {
     // Evict oldest entries if over limit
     const entries = Array.from(cache.entries());
-    const trimmed = entries.length > IMAGE_CACHE_MAX
-      ? entries.slice(entries.length - IMAGE_CACHE_MAX)
-      : entries;
+    const trimmed =
+      entries.length > IMAGE_CACHE_MAX
+        ? entries.slice(entries.length - IMAGE_CACHE_MAX)
+        : entries;
     localStorage.setItem(IMAGE_CACHE_KEY, JSON.stringify(trimmed));
-  } catch { /* ignore quota errors */ }
+  } catch {
+    /* ignore quota errors */
+  }
 }
 
 const _imageCache = loadImageCache();
 
 /** Extract plain text from message content (string or content blocks) */
 function getMessageText(content: unknown): string {
-  if (typeof content === 'string') return content;
+  if (typeof content === "string") return content;
   if (Array.isArray(content)) {
     return (content as Array<{ type?: string; text?: string }>)
-      .filter(b => b.type === 'text' && b.text)
-      .map(b => b.text!)
-      .join('\n');
+      .filter((b) => b.type === "text" && b.text)
+      .map((b) => b.text!)
+      .join("\n");
   }
-  return '';
+  return "";
 }
 
 /** Extract media file refs from [media attached: <path> (<mime>) | ...] patterns */
-function extractMediaRefs(text: string): Array<{ filePath: string; mimeType: string }> {
+function extractMediaRefs(
+  text: string,
+): Array<{ filePath: string; mimeType: string }> {
   const refs: Array<{ filePath: string; mimeType: string }> = [];
   const regex = /\[media attached:\s*([^\s(]+)\s*\(([^)]+)\)\s*\|[^\]]*\]/g;
   let match;
@@ -214,52 +234,52 @@ function extractMediaRefs(text: string): Array<{ filePath: string; mimeType: str
 
 /** Map common file extensions to MIME types */
 function mimeFromExtension(filePath: string): string {
-  const ext = filePath.split('.').pop()?.toLowerCase() || '';
+  const ext = filePath.split(".").pop()?.toLowerCase() || "";
   const map: Record<string, string> = {
     // Images
-    'png': 'image/png',
-    'jpg': 'image/jpeg',
-    'jpeg': 'image/jpeg',
-    'gif': 'image/gif',
-    'webp': 'image/webp',
-    'bmp': 'image/bmp',
-    'avif': 'image/avif',
-    'svg': 'image/svg+xml',
+    png: "image/png",
+    jpg: "image/jpeg",
+    jpeg: "image/jpeg",
+    gif: "image/gif",
+    webp: "image/webp",
+    bmp: "image/bmp",
+    avif: "image/avif",
+    svg: "image/svg+xml",
     // Documents
-    'pdf': 'application/pdf',
-    'doc': 'application/msword',
-    'docx': 'application/vnd.openxmlformats-officedocument.wordprocessingml.document',
-    'xls': 'application/vnd.ms-excel',
-    'xlsx': 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet',
-    'ppt': 'application/vnd.ms-powerpoint',
-    'pptx': 'application/vnd.openxmlformats-officedocument.presentationml.presentation',
-    'txt': 'text/plain',
-    'csv': 'text/csv',
-    'md': 'text/markdown',
-    'rtf': 'application/rtf',
-    'epub': 'application/epub+zip',
+    pdf: "application/pdf",
+    doc: "application/msword",
+    docx: "application/vnd.openxmlformats-officedocument.wordprocessingml.document",
+    xls: "application/vnd.ms-excel",
+    xlsx: "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
+    ppt: "application/vnd.ms-powerpoint",
+    pptx: "application/vnd.openxmlformats-officedocument.presentationml.presentation",
+    txt: "text/plain",
+    csv: "text/csv",
+    md: "text/markdown",
+    rtf: "application/rtf",
+    epub: "application/epub+zip",
     // Archives
-    'zip': 'application/zip',
-    'tar': 'application/x-tar',
-    'gz': 'application/gzip',
-    'rar': 'application/vnd.rar',
-    '7z': 'application/x-7z-compressed',
+    zip: "application/zip",
+    tar: "application/x-tar",
+    gz: "application/gzip",
+    rar: "application/vnd.rar",
+    "7z": "application/x-7z-compressed",
     // Audio
-    'mp3': 'audio/mpeg',
-    'wav': 'audio/wav',
-    'ogg': 'audio/ogg',
-    'aac': 'audio/aac',
-    'flac': 'audio/flac',
-    'm4a': 'audio/mp4',
+    mp3: "audio/mpeg",
+    wav: "audio/wav",
+    ogg: "audio/ogg",
+    aac: "audio/aac",
+    flac: "audio/flac",
+    m4a: "audio/mp4",
     // Video
-    'mp4': 'video/mp4',
-    'mov': 'video/quicktime',
-    'avi': 'video/x-msvideo',
-    'mkv': 'video/x-matroska',
-    'webm': 'video/webm',
-    'm4v': 'video/mp4',
+    mp4: "video/mp4",
+    mov: "video/quicktime",
+    avi: "video/x-msvideo",
+    mkv: "video/x-matroska",
+    webm: "video/webm",
+    m4v: "video/mp4",
   };
-  return map[ext] || 'application/octet-stream';
+  return map[ext] || "application/octet-stream";
 }
 
 /**
@@ -267,15 +287,24 @@ function mimeFromExtension(filePath: string): string {
  * Detects absolute paths (Unix: / or ~/, Windows: C:\ etc.) ending with common file extensions.
  * Handles both image and non-image files, consistent with channel push message behavior.
  */
-function extractRawFilePaths(text: string): Array<{ filePath: string; mimeType: string }> {
+function extractRawFilePaths(
+  text: string,
+): Array<{ filePath: string; mimeType: string }> {
   const refs: Array<{ filePath: string; mimeType: string }> = [];
   const seen = new Set<string>();
-  const exts = 'png|jpe?g|gif|webp|bmp|avif|svg|pdf|docx?|xlsx?|pptx?|txt|csv|md|rtf|epub|zip|tar|gz|rar|7z|mp3|wav|ogg|aac|flac|m4a|mp4|mov|avi|mkv|webm|m4v';
+  const exts =
+    "png|jpe?g|gif|webp|bmp|avif|svg|pdf|docx?|xlsx?|pptx?|txt|csv|md|rtf|epub|zip|tar|gz|rar|7z|mp3|wav|ogg|aac|flac|m4a|mp4|mov|avi|mkv|webm|m4v";
   // Unix absolute paths (/... or ~/...) — lookbehind rejects mid-token slashes
   // (e.g. "path/to/file.mp4", "https://example.com/file.mp4")
-  const unixRegex = new RegExp(`(?<![\\w./:])((?:\\/|~\\/)[^\\s\\n"'()\\[\\],<>]*?\\.(?:${exts}))`, 'gi');
+  const unixRegex = new RegExp(
+    `(?<![\\w./:])((?:\\/|~\\/)[^\\s\\n"'()\\[\\],<>]*?\\.(?:${exts}))`,
+    "gi",
+  );
   // Windows absolute paths (C:\... D:\...) — lookbehind rejects drive letter glued to a word
-  const winRegex = new RegExp(`(?<![\\w])([A-Za-z]:\\\\[^\\s\\n"'()\\[\\],<>]*?\\.(?:${exts}))`, 'gi');
+  const winRegex = new RegExp(
+    `(?<![\\w])([A-Za-z]:\\\\[^\\s\\n"'()\\[\\],<>]*?\\.(?:${exts}))`,
+    "gi",
+  );
   for (const regex of [unixRegex, winRegex]) {
     let match;
     while ((match = regex.exec(text)) !== null) {
@@ -298,22 +327,22 @@ function extractImagesAsAttachedFiles(content: unknown): AttachedFileMeta[] {
   const files: AttachedFileMeta[] = [];
 
   for (const block of content as ContentBlock[]) {
-    if (block.type === 'image') {
+    if (block.type === "image") {
       // Path 1: Anthropic source-wrapped format {source: {type, media_type, data}}
       if (block.source) {
         const src = block.source;
-        const mimeType = src.media_type || 'image/jpeg';
+        const mimeType = src.media_type || "image/jpeg";
 
-        if (src.type === 'base64' && src.data) {
+        if (src.type === "base64" && src.data) {
           files.push({
-            fileName: 'image',
+            fileName: "image",
             mimeType,
             fileSize: 0,
             preview: `data:${mimeType};base64,${src.data}`,
           });
-        } else if (src.type === 'url' && src.url) {
+        } else if (src.type === "url" && src.url) {
           files.push({
-            fileName: 'image',
+            fileName: "image",
             mimeType,
             fileSize: 0,
             preview: src.url,
@@ -322,9 +351,9 @@ function extractImagesAsAttachedFiles(content: unknown): AttachedFileMeta[] {
       }
       // Path 2: Flat format from Gateway tool results {data, mimeType}
       else if (block.data) {
-        const mimeType = block.mimeType || 'image/jpeg';
+        const mimeType = block.mimeType || "image/jpeg";
         files.push({
-          fileName: 'image',
+          fileName: "image",
           mimeType,
           fileSize: 0,
           preview: `data:${mimeType};base64,${block.data}`,
@@ -332,7 +361,10 @@ function extractImagesAsAttachedFiles(content: unknown): AttachedFileMeta[] {
       }
     }
     // Recurse into tool_result content blocks
-    if ((block.type === 'tool_result' || block.type === 'toolResult') && block.content) {
+    if (
+      (block.type === "tool_result" || block.type === "toolResult") &&
+      block.content
+    ) {
       files.push(...extractImagesAsAttachedFiles(block.content));
     }
   }
@@ -342,29 +374,46 @@ function extractImagesAsAttachedFiles(content: unknown): AttachedFileMeta[] {
 /**
  * Build an AttachedFileMeta entry for a file ref, using cache if available.
  */
-function makeAttachedFile(ref: { filePath: string; mimeType: string }): AttachedFileMeta {
+function makeAttachedFile(ref: {
+  filePath: string;
+  mimeType: string;
+}): AttachedFileMeta {
   const cached = _imageCache.get(ref.filePath);
   if (cached) return { ...cached, filePath: ref.filePath };
-  const fileName = ref.filePath.split(/[\\/]/).pop() || 'file';
-  return { fileName, mimeType: ref.mimeType, fileSize: 0, preview: null, filePath: ref.filePath };
+  const fileName = ref.filePath.split(/[\\/]/).pop() || "file";
+  return {
+    fileName,
+    mimeType: ref.mimeType,
+    fileSize: 0,
+    preview: null,
+    filePath: ref.filePath,
+  };
 }
 
 /**
  * Extract file path from a tool call's arguments by toolCallId.
  * Searches common argument names: file_path, filePath, path, file.
  */
-function getToolCallFilePath(msg: RawMessage, toolCallId: string): string | undefined {
+function getToolCallFilePath(
+  msg: RawMessage,
+  toolCallId: string,
+): string | undefined {
   if (!toolCallId) return undefined;
 
   // Anthropic/normalized format — toolCall blocks in content array
   const content = msg.content;
   if (Array.isArray(content)) {
     for (const block of content as ContentBlock[]) {
-      if ((block.type === 'tool_use' || block.type === 'toolCall') && block.id === toolCallId) {
-        const args = (block.input ?? block.arguments) as Record<string, unknown> | undefined;
+      if (
+        (block.type === "tool_use" || block.type === "toolCall") &&
+        block.id === toolCallId
+      ) {
+        const args = (block.input ?? block.arguments) as
+          | Record<string, unknown>
+          | undefined;
         if (args) {
           const fp = args.file_path ?? args.filePath ?? args.path ?? args.file;
-          if (typeof fp === 'string') return fp;
+          if (typeof fp === "string") return fp;
         }
       }
     }
@@ -379,11 +428,16 @@ function getToolCallFilePath(msg: RawMessage, toolCallId: string): string | unde
       const fn = (tc.function ?? tc) as Record<string, unknown>;
       let args: Record<string, unknown> | undefined;
       try {
-        args = typeof fn.arguments === 'string' ? JSON.parse(fn.arguments) : (fn.arguments ?? fn.input) as Record<string, unknown>;
-      } catch { /* ignore */ }
+        args =
+          typeof fn.arguments === "string"
+            ? JSON.parse(fn.arguments)
+            : ((fn.arguments ?? fn.input) as Record<string, unknown>);
+      } catch {
+        /* ignore */
+      }
       if (args) {
         const fp = args.file_path ?? args.filePath ?? args.path ?? args.file;
-        if (typeof fp === 'string') return fp;
+        if (typeof fp === "string") return fp;
       }
     }
   }
@@ -394,15 +448,23 @@ function getToolCallFilePath(msg: RawMessage, toolCallId: string): string | unde
 /**
  * Collect all tool call file paths from a message into a Map<toolCallId, filePath>.
  */
-function collectToolCallPaths(msg: RawMessage, paths: Map<string, string>): void {
+function collectToolCallPaths(
+  msg: RawMessage,
+  paths: Map<string, string>,
+): void {
   const content = msg.content;
   if (Array.isArray(content)) {
     for (const block of content as ContentBlock[]) {
-      if ((block.type === 'tool_use' || block.type === 'toolCall') && block.id) {
-        const args = (block.input ?? block.arguments) as Record<string, unknown> | undefined;
+      if (
+        (block.type === "tool_use" || block.type === "toolCall") &&
+        block.id
+      ) {
+        const args = (block.input ?? block.arguments) as
+          | Record<string, unknown>
+          | undefined;
         if (args) {
           const fp = args.file_path ?? args.filePath ?? args.path ?? args.file;
-          if (typeof fp === 'string') paths.set(block.id, fp);
+          if (typeof fp === "string") paths.set(block.id, fp);
         }
       }
     }
@@ -411,16 +473,21 @@ function collectToolCallPaths(msg: RawMessage, paths: Map<string, string>): void
   const toolCalls = msgAny.tool_calls ?? msgAny.toolCalls;
   if (Array.isArray(toolCalls)) {
     for (const tc of toolCalls as Array<Record<string, unknown>>) {
-      const id = typeof tc.id === 'string' ? tc.id : '';
+      const id = typeof tc.id === "string" ? tc.id : "";
       if (!id) continue;
       const fn = (tc.function ?? tc) as Record<string, unknown>;
       let args: Record<string, unknown> | undefined;
       try {
-        args = typeof fn.arguments === 'string' ? JSON.parse(fn.arguments) : (fn.arguments ?? fn.input) as Record<string, unknown>;
-      } catch { /* ignore */ }
+        args =
+          typeof fn.arguments === "string"
+            ? JSON.parse(fn.arguments)
+            : ((fn.arguments ?? fn.input) as Record<string, unknown>);
+      } catch {
+        /* ignore */
+      }
       if (args) {
         const fp = args.file_path ?? args.filePath ?? args.path ?? args.file;
-        if (typeof fp === 'string') paths.set(id, fp);
+        if (typeof fp === "string") paths.set(id, fp);
       }
     }
   }
@@ -441,13 +508,15 @@ function enrichWithToolResultFiles(messages: RawMessage[]): RawMessage[] {
 
   return messages.map((msg) => {
     // Track file paths from assistant tool call arguments for later matching
-    if (msg.role === 'assistant') {
+    if (msg.role === "assistant") {
       collectToolCallPaths(msg, toolCallPaths);
     }
 
     if (isToolResultRole(msg.role)) {
       // Resolve file path from the matching tool call
-      const matchedPath = msg.toolCallId ? toolCallPaths.get(msg.toolCallId) : undefined;
+      const matchedPath = msg.toolCallId
+        ? toolCallPaths.get(msg.toolCallId)
+        : undefined;
 
       // 1. Image/file content blocks in the structured content array
       const imageFiles = extractImagesAsAttachedFiles(msg.content);
@@ -455,7 +524,7 @@ function enrichWithToolResultFiles(messages: RawMessage[]): RawMessage[] {
         for (const f of imageFiles) {
           if (!f.filePath) {
             f.filePath = matchedPath;
-            f.fileName = matchedPath.split(/[\\/]/).pop() || 'image';
+            f.fileName = matchedPath.split(/[\\/]/).pop() || "image";
           }
         }
       }
@@ -465,7 +534,7 @@ function enrichWithToolResultFiles(messages: RawMessage[]): RawMessage[] {
       const text = getMessageText(msg.content);
       if (text) {
         const mediaRefs = extractMediaRefs(text);
-        const mediaRefPaths = new Set(mediaRefs.map(r => r.filePath));
+        const mediaRefPaths = new Set(mediaRefs.map((r) => r.filePath));
         for (const ref of mediaRefs) {
           pending.push(makeAttachedFile(ref));
         }
@@ -480,13 +549,15 @@ function enrichWithToolResultFiles(messages: RawMessage[]): RawMessage[] {
       return msg; // will be filtered later
     }
 
-    if (msg.role === 'assistant' && pending.length > 0) {
+    if (msg.role === "assistant" && pending.length > 0) {
       const toAttach = pending.splice(0);
       // Deduplicate against files already on the assistant message
       const existingPaths = new Set(
-        (msg._attachedFiles || []).map(f => f.filePath).filter(Boolean),
+        (msg._attachedFiles || []).map((f) => f.filePath).filter(Boolean),
       );
-      const newFiles = toAttach.filter(f => !f.filePath || !existingPaths.has(f.filePath));
+      const newFiles = toAttach.filter(
+        (f) => !f.filePath || !existingPaths.has(f.filePath),
+      );
       if (newFiles.length === 0) return msg;
       return {
         ...msg,
@@ -508,12 +579,13 @@ function enrichWithToolResultFiles(messages: RawMessage[]): RawMessage[] {
 function enrichWithCachedImages(messages: RawMessage[]): RawMessage[] {
   return messages.map((msg, idx) => {
     // Only process user and assistant messages; skip if already enriched
-    if ((msg.role !== 'user' && msg.role !== 'assistant') || msg._attachedFiles) return msg;
+    if ((msg.role !== "user" && msg.role !== "assistant") || msg._attachedFiles)
+      return msg;
     const text = getMessageText(msg.content);
 
     // Path 1: [media attached: path (mime) | path] — guaranteed format from attachment button
     const mediaRefs = extractMediaRefs(text);
-    const mediaRefPaths = new Set(mediaRefs.map(r => r.filePath));
+    const mediaRefPaths = new Set(mediaRefs.map((r) => r.filePath));
 
     // Path 2: Raw file paths.
     // For assistant messages: scan own text AND the nearest preceding user message text,
@@ -522,19 +594,24 @@ function enrichWithCachedImages(messages: RawMessage[]): RawMessage[] {
     // belong to the final answer message that comes after the tool results.
     // User messages never get raw-path previews so the image is not shown twice.
     let rawRefs: Array<{ filePath: string; mimeType: string }> = [];
-    if (msg.role === 'assistant' && !isToolOnlyMessage(msg)) {
+    if (msg.role === "assistant" && !isToolOnlyMessage(msg)) {
       // Own text
-      rawRefs = extractRawFilePaths(text).filter(r => !mediaRefPaths.has(r.filePath));
+      rawRefs = extractRawFilePaths(text).filter(
+        (r) => !mediaRefPaths.has(r.filePath),
+      );
 
       // Nearest preceding user message text (look back up to 5 messages)
-      const seenPaths = new Set(rawRefs.map(r => r.filePath));
+      const seenPaths = new Set(rawRefs.map((r) => r.filePath));
       for (let i = idx - 1; i >= Math.max(0, idx - 5); i--) {
         const prev = messages[i];
         if (!prev) break;
-        if (prev.role === 'user') {
+        if (prev.role === "user") {
           const prevText = getMessageText(prev.content);
           for (const ref of extractRawFilePaths(prevText)) {
-            if (!mediaRefPaths.has(ref.filePath) && !seenPaths.has(ref.filePath)) {
+            if (
+              !mediaRefPaths.has(ref.filePath) &&
+              !seenPaths.has(ref.filePath)
+            ) {
               seenPaths.add(ref.filePath);
               rawRefs.push(ref);
             }
@@ -547,11 +624,17 @@ function enrichWithCachedImages(messages: RawMessage[]): RawMessage[] {
     const allRefs = [...mediaRefs, ...rawRefs];
     if (allRefs.length === 0) return msg;
 
-    const files: AttachedFileMeta[] = allRefs.map(ref => {
+    const files: AttachedFileMeta[] = allRefs.map((ref) => {
       const cached = _imageCache.get(ref.filePath);
       if (cached) return { ...cached, filePath: ref.filePath };
-      const fileName = ref.filePath.split(/[\\/]/).pop() || 'file';
-      return { fileName, mimeType: ref.mimeType, fileSize: 0, preview: null, filePath: ref.filePath };
+      const fileName = ref.filePath.split(/[\\/]/).pop() || "file";
+      return {
+        fileName,
+        mimeType: ref.mimeType,
+        fileSize: 0,
+        preview: null,
+        filePath: ref.filePath,
+      };
     });
     return { ...msg, _attachedFiles: files };
   });
@@ -575,7 +658,7 @@ async function loadMissingPreviews(messages: RawMessage[]): Promise<boolean> {
       const fp = file.filePath;
       if (!fp || seenPaths.has(fp)) continue;
       // Images: need preview. Non-images: need file size (for FileCard display).
-      const needsLoad = file.mimeType.startsWith('image/')
+      const needsLoad = file.mimeType.startsWith("image/")
         ? !file.preview
         : file.fileSize === 0;
       if (needsLoad) {
@@ -585,14 +668,16 @@ async function loadMissingPreviews(messages: RawMessage[]): Promise<boolean> {
     }
 
     // Path 2: [media attached: ...] patterns (legacy — in case filePath wasn't stored)
-    if (msg.role === 'user') {
+    if (msg.role === "user") {
       const text = getMessageText(msg.content);
       const refs = extractMediaRefs(text);
       for (let i = 0; i < refs.length; i++) {
         const file = msg._attachedFiles[i];
         const ref = refs[i];
         if (!file || !ref || seenPaths.has(ref.filePath)) continue;
-        const needsLoad = ref.mimeType.startsWith('image/') ? !file.preview : file.fileSize === 0;
+        const needsLoad = ref.mimeType.startsWith("image/")
+          ? !file.preview
+          : file.fileSize === 0;
         if (needsLoad) {
           seenPaths.add(ref.filePath);
           needPreview.push(ref);
@@ -604,13 +689,12 @@ async function loadMissingPreviews(messages: RawMessage[]): Promise<boolean> {
   if (needPreview.length === 0) return false;
 
   try {
-    const thumbnails = await hostApiFetch<Record<string, { preview: string | null; fileSize: number }>>(
-      '/api/files/thumbnails',
-      {
-        method: 'POST',
-        body: JSON.stringify({ paths: needPreview }),
-      },
-    );
+    const thumbnails = await hostApiFetch<
+      Record<string, { preview: string | null; fileSize: number }>
+    >("/api/files/thumbnails", {
+      method: "POST",
+      body: JSON.stringify({ paths: needPreview }),
+    });
 
     let updated = false;
     for (const msg of messages) {
@@ -630,7 +714,7 @@ async function loadMissingPreviews(messages: RawMessage[]): Promise<boolean> {
       }
 
       // Legacy: update by index for [media attached: ...] refs
-      if (msg.role === 'user') {
+      if (msg.role === "user") {
         const text = getMessageText(msg.content);
         const refs = extractMediaRefs(text);
         for (let i = 0; i < refs.length; i++) {
@@ -650,61 +734,84 @@ async function loadMissingPreviews(messages: RawMessage[]): Promise<boolean> {
     if (updated) saveImageCache(_imageCache);
     return updated;
   } catch (err) {
-    console.warn('[loadMissingPreviews] Failed:', err);
+    console.warn("[loadMissingPreviews] Failed:", err);
     return false;
   }
 }
 
-function getCanonicalPrefixFromSessions(sessions: ChatSession[]): string | null {
-  const canonical = sessions.find((s) => s.key.startsWith('agent:'))?.key;
+function getCanonicalPrefixFromSessions(
+  sessions: ChatSession[],
+): string | null {
+  const canonical = sessions.find((s) => s.key.startsWith("agent:"))?.key;
   if (!canonical) return null;
-  const parts = canonical.split(':');
+  const parts = canonical.split(":");
   if (parts.length < 2) return null;
   return `${parts[0]}:${parts[1]}`;
 }
 
 function getAgentIdFromSessionKey(sessionKey: string): string {
-  if (!sessionKey.startsWith('agent:')) return 'main';
-  const parts = sessionKey.split(':');
-  return parts[1] || 'main';
+  if (!sessionKey.startsWith("agent:")) return "main";
+  const parts = sessionKey.split(":");
+  return parts[1] || "main";
 }
 
 function normalizeAgentId(value: string | undefined | null): string {
-  return (value ?? '').trim().toLowerCase() || 'main';
+  return (value ?? "").trim().toLowerCase() || "main";
 }
 
 function buildFallbackMainSessionKey(agentId: string): string {
   return `agent:${normalizeAgentId(agentId)}:main`;
 }
 
-function resolveMainSessionKeyForAgent(agentId: string | undefined | null): string | null {
+function resolveMainSessionKeyForAgent(
+  agentId: string | undefined | null,
+): string | null {
   if (!agentId) return null;
   const normalizedAgentId = normalizeAgentId(agentId);
-  const summary = useAgentsStore.getState().agents.find((agent) => agent.id === normalizedAgentId);
-  return summary?.mainSessionKey || buildFallbackMainSessionKey(normalizedAgentId);
+  const summary = useAgentsStore
+    .getState()
+    .agents.find((agent) => agent.id === normalizedAgentId);
+  return (
+    summary?.mainSessionKey || buildFallbackMainSessionKey(normalizedAgentId)
+  );
 }
 
-function ensureSessionEntry(sessions: ChatSession[], sessionKey: string): ChatSession[] {
+function ensureSessionEntry(
+  sessions: ChatSession[],
+  sessionKey: string,
+): ChatSession[] {
   if (sessions.some((session) => session.key === sessionKey)) {
     return sessions;
   }
   return [...sessions, { key: sessionKey, displayName: sessionKey }];
 }
 
-function clearSessionEntryFromMap<T extends Record<string, unknown>>(entries: T, sessionKey: string): T {
-  return Object.fromEntries(Object.entries(entries).filter(([key]) => key !== sessionKey)) as T;
+function clearSessionEntryFromMap<T extends Record<string, unknown>>(
+  entries: T,
+  sessionKey: string,
+): T {
+  return Object.fromEntries(
+    Object.entries(entries).filter(([key]) => key !== sessionKey),
+  ) as T;
 }
 
 function buildSessionSwitchPatch(
   state: Pick<
     ChatState,
-    'currentSessionKey' | 'messages' | 'sessions' | 'sessionLabels' | 'sessionLastActivity'
+    | "currentSessionKey"
+    | "messages"
+    | "sessions"
+    | "sessionLabels"
+    | "sessionLastActivity"
   >,
   nextSessionKey: string,
 ): Partial<ChatState> {
-  const leavingEmpty = !state.currentSessionKey.endsWith(':main') && state.messages.length === 0;
+  const leavingEmpty =
+    !state.currentSessionKey.endsWith(":main") && state.messages.length === 0;
   const nextSessions = leavingEmpty
-    ? state.sessions.filter((session) => session.key !== state.currentSessionKey)
+    ? state.sessions.filter(
+        (session) => session.key !== state.currentSessionKey,
+      )
     : state.sessions;
 
   return {
@@ -715,10 +822,13 @@ function buildSessionSwitchPatch(
       ? clearSessionEntryFromMap(state.sessionLabels, state.currentSessionKey)
       : state.sessionLabels,
     sessionLastActivity: leavingEmpty
-      ? clearSessionEntryFromMap(state.sessionLastActivity, state.currentSessionKey)
+      ? clearSessionEntryFromMap(
+          state.sessionLastActivity,
+          state.currentSessionKey,
+        )
       : state.sessionLastActivity,
     messages: [],
-    streamingText: '',
+    streamingText: "",
     streamingMessage: null,
     streamingTools: [],
     activeRunId: null,
@@ -730,8 +840,8 @@ function buildSessionSwitchPatch(
 }
 
 function getCanonicalPrefixFromSessionKey(sessionKey: string): string | null {
-  if (!sessionKey.startsWith('agent:')) return null;
-  const parts = sessionKey.split(':');
+  if (!sessionKey.startsWith("agent:")) return null;
+  const parts = sessionKey.split(":");
   if (parts.length < 2) return null;
   return `${parts[0]}:${parts[1]}`;
 }
@@ -752,7 +862,7 @@ function isToolOnlyMessage(message: RawMessage | undefined): boolean {
     if (hasOpenAITools) {
       // Has tool calls but content might be empty/string — treat as tool-only
       // if there's no meaningful text content
-      const textContent = typeof content === 'string' ? content.trim() : '';
+      const textContent = typeof content === "string" ? content.trim() : "";
       return textContent.length === 0;
     }
     return false;
@@ -763,18 +873,23 @@ function isToolOnlyMessage(message: RawMessage | undefined): boolean {
   let hasNonToolContent = false;
 
   for (const block of content as ContentBlock[]) {
-    if (block.type === 'tool_use' || block.type === 'tool_result' || block.type === 'toolCall' || block.type === 'toolResult') {
+    if (
+      block.type === "tool_use" ||
+      block.type === "tool_result" ||
+      block.type === "toolCall" ||
+      block.type === "toolResult"
+    ) {
       hasTool = true;
       continue;
     }
-    if (block.type === 'text' && block.text && block.text.trim()) {
+    if (block.type === "text" && block.text && block.text.trim()) {
       hasText = true;
       continue;
     }
     // Only actual image output disqualifies a tool-only message.
     // Thinking blocks are internal reasoning that can accompany tool_use — they
     // should NOT prevent the message from being treated as an intermediate tool step.
-    if (block.type === 'image') {
+    if (block.type === "image") {
       hasNonToolContent = true;
     }
   }
@@ -785,49 +900,56 @@ function isToolOnlyMessage(message: RawMessage | undefined): boolean {
 function isToolResultRole(role: unknown): boolean {
   if (!role) return false;
   const normalized = String(role).toLowerCase();
-  return normalized === 'toolresult' || normalized === 'tool_result';
+  return normalized === "toolresult" || normalized === "tool_result";
 }
 
 function extractTextFromContent(content: unknown): string {
-  if (typeof content === 'string') return content;
-  if (!Array.isArray(content)) return '';
+  if (typeof content === "string") return content;
+  if (!Array.isArray(content)) return "";
   const parts: string[] = [];
   for (const block of content as ContentBlock[]) {
-    if (block.type === 'text' && block.text) {
+    if (block.type === "text" && block.text) {
       parts.push(block.text);
     }
   }
-  return parts.join('\n');
+  return parts.join("\n");
 }
 
 function summarizeToolOutput(text: string): string | undefined {
   const trimmed = text.trim();
   if (!trimmed) return undefined;
-  const lines = trimmed.split(/\r?\n/).map((line) => line.trim()).filter(Boolean);
+  const lines = trimmed
+    .split(/\r?\n/)
+    .map((line) => line.trim())
+    .filter(Boolean);
   if (lines.length === 0) return undefined;
   const summaryLines = lines.slice(0, 2);
-  let summary = summaryLines.join(' / ');
+  let summary = summaryLines.join(" / ");
   if (summary.length > 160) {
     summary = `${summary.slice(0, 157)}...`;
   }
   return summary;
 }
 
-function normalizeToolStatus(rawStatus: unknown, fallback: 'running' | 'completed'): ToolStatus['status'] {
-  const status = typeof rawStatus === 'string' ? rawStatus.toLowerCase() : '';
-  if (status === 'error' || status === 'failed') return 'error';
-  if (status === 'completed' || status === 'success' || status === 'done') return 'completed';
+function normalizeToolStatus(
+  rawStatus: unknown,
+  fallback: "running" | "completed",
+): ToolStatus["status"] {
+  const status = typeof rawStatus === "string" ? rawStatus.toLowerCase() : "";
+  if (status === "error" || status === "failed") return "error";
+  if (status === "completed" || status === "success" || status === "done")
+    return "completed";
   return fallback;
 }
 
 function parseDurationMs(value: unknown): number | undefined {
-  if (typeof value === 'number' && Number.isFinite(value)) return value;
-  const parsed = typeof value === 'string' ? Number(value) : NaN;
+  if (typeof value === "number" && Number.isFinite(value)) return value;
+  const parsed = typeof value === "string" ? Number(value) : NaN;
   return Number.isFinite(parsed) ? parsed : undefined;
 }
 
 function extractToolUseUpdates(message: unknown): ToolStatus[] {
-  if (!message || typeof message !== 'object') return [];
+  if (!message || typeof message !== "object") return [];
   const msg = message as Record<string, unknown>;
   const updates: ToolStatus[] = [];
 
@@ -835,12 +957,16 @@ function extractToolUseUpdates(message: unknown): ToolStatus[] {
   const content = msg.content;
   if (Array.isArray(content)) {
     for (const block of content as ContentBlock[]) {
-      if ((block.type !== 'tool_use' && block.type !== 'toolCall') || !block.name) continue;
+      if (
+        (block.type !== "tool_use" && block.type !== "toolCall") ||
+        !block.name
+      )
+        continue;
       updates.push({
         id: block.id || block.name,
         toolCallId: block.id,
         name: block.name,
-        status: 'running',
+        status: "running",
         updatedAt: Date.now(),
       });
     }
@@ -852,14 +978,14 @@ function extractToolUseUpdates(message: unknown): ToolStatus[] {
     if (Array.isArray(toolCalls)) {
       for (const tc of toolCalls as Array<Record<string, unknown>>) {
         const fn = (tc.function ?? tc) as Record<string, unknown>;
-        const name = typeof fn.name === 'string' ? fn.name : '';
+        const name = typeof fn.name === "string" ? fn.name : "";
         if (!name) continue;
-        const id = typeof tc.id === 'string' ? tc.id : name;
+        const id = typeof tc.id === "string" ? tc.id : name;
         updates.push({
           id,
-          toolCallId: typeof tc.id === 'string' ? tc.id : undefined,
+          toolCallId: typeof tc.id === "string" ? tc.id : undefined,
           name,
-          status: 'running',
+          status: "running",
           updatedAt: Date.now(),
         });
       }
@@ -869,22 +995,30 @@ function extractToolUseUpdates(message: unknown): ToolStatus[] {
   return updates;
 }
 
-function extractToolResultBlocks(message: unknown, eventState: string): ToolStatus[] {
-  if (!message || typeof message !== 'object') return [];
+function extractToolResultBlocks(
+  message: unknown,
+  eventState: string,
+): ToolStatus[] {
+  if (!message || typeof message !== "object") return [];
   const msg = message as Record<string, unknown>;
   const content = msg.content;
   if (!Array.isArray(content)) return [];
 
   const updates: ToolStatus[] = [];
   for (const block of content as ContentBlock[]) {
-    if (block.type !== 'tool_result' && block.type !== 'toolResult') continue;
-    const outputText = extractTextFromContent(block.content ?? block.text ?? '');
+    if (block.type !== "tool_result" && block.type !== "toolResult") continue;
+    const outputText = extractTextFromContent(
+      block.content ?? block.text ?? "",
+    );
     const summary = summarizeToolOutput(outputText);
     updates.push({
-      id: block.id || block.name || 'tool',
+      id: block.id || block.name || "tool",
       toolCallId: block.id,
-      name: block.name || block.id || 'tool',
-      status: normalizeToolStatus(undefined, eventState === 'delta' ? 'running' : 'completed'),
+      name: block.name || block.id || "tool",
+      status: normalizeToolStatus(
+        undefined,
+        eventState === "delta" ? "running" : "completed",
+      ),
       summary,
       updatedAt: Date.now(),
     });
@@ -893,26 +1027,45 @@ function extractToolResultBlocks(message: unknown, eventState: string): ToolStat
   return updates;
 }
 
-function extractToolResultUpdate(message: unknown, eventState: string): ToolStatus | null {
-  if (!message || typeof message !== 'object') return null;
+function extractToolResultUpdate(
+  message: unknown,
+  eventState: string,
+): ToolStatus | null {
+  if (!message || typeof message !== "object") return null;
   const msg = message as Record<string, unknown>;
-  const role = typeof msg.role === 'string' ? msg.role.toLowerCase() : '';
+  const role = typeof msg.role === "string" ? msg.role.toLowerCase() : "";
   if (!isToolResultRole(role)) return null;
 
-  const toolName = typeof msg.toolName === 'string' ? msg.toolName : (typeof msg.name === 'string' ? msg.name : '');
-  const toolCallId = typeof msg.toolCallId === 'string' ? msg.toolCallId : undefined;
-  const details = (msg.details && typeof msg.details === 'object') ? msg.details as Record<string, unknown> : undefined;
-  const rawStatus = (msg.status ?? details?.status);
-  const fallback = eventState === 'delta' ? 'running' : 'completed';
+  const toolName =
+    typeof msg.toolName === "string"
+      ? msg.toolName
+      : typeof msg.name === "string"
+        ? msg.name
+        : "";
+  const toolCallId =
+    typeof msg.toolCallId === "string" ? msg.toolCallId : undefined;
+  const details =
+    msg.details && typeof msg.details === "object"
+      ? (msg.details as Record<string, unknown>)
+      : undefined;
+  const rawStatus = msg.status ?? details?.status;
+  const fallback = eventState === "delta" ? "running" : "completed";
   const status = normalizeToolStatus(rawStatus, fallback);
-  const durationMs = parseDurationMs(details?.durationMs ?? details?.duration ?? (msg as Record<string, unknown>).durationMs);
+  const durationMs = parseDurationMs(
+    details?.durationMs ??
+      details?.duration ??
+      (msg as Record<string, unknown>).durationMs,
+  );
 
-  const outputText = (details && typeof details.aggregated === 'string')
-    ? details.aggregated
-    : extractTextFromContent(msg.content);
-  const summary = summarizeToolOutput(outputText) ?? summarizeToolOutput(String(details?.error ?? msg.error ?? ''));
+  const outputText =
+    details && typeof details.aggregated === "string"
+      ? details.aggregated
+      : extractTextFromContent(msg.content);
+  const summary =
+    summarizeToolOutput(outputText) ??
+    summarizeToolOutput(String(details?.error ?? msg.error ?? ""));
 
-  const name = toolName || toolCallId || 'tool';
+  const name = toolName || toolCallId || "tool";
   const id = toolCallId || name;
 
   return {
@@ -926,18 +1079,30 @@ function extractToolResultUpdate(message: unknown, eventState: string): ToolStat
   };
 }
 
-function mergeToolStatus(existing: ToolStatus['status'], incoming: ToolStatus['status']): ToolStatus['status'] {
-  const order: Record<ToolStatus['status'], number> = { running: 0, completed: 1, error: 2 };
+function mergeToolStatus(
+  existing: ToolStatus["status"],
+  incoming: ToolStatus["status"],
+): ToolStatus["status"] {
+  const order: Record<ToolStatus["status"], number> = {
+    running: 0,
+    completed: 1,
+    error: 2,
+  };
   return order[incoming] >= order[existing] ? incoming : existing;
 }
 
-function upsertToolStatuses(current: ToolStatus[], updates: ToolStatus[]): ToolStatus[] {
+function upsertToolStatuses(
+  current: ToolStatus[],
+  updates: ToolStatus[],
+): ToolStatus[] {
   if (updates.length === 0) return current;
   const next = [...current];
   for (const update of updates) {
     const key = update.toolCallId || update.id || update.name;
     if (!key) continue;
-    const index = next.findIndex((tool) => (tool.toolCallId || tool.id || tool.name) === key);
+    const index = next.findIndex(
+      (tool) => (tool.toolCallId || tool.id || tool.name) === key,
+    );
     if (index === -1) {
       next.push(update);
       continue;
@@ -956,7 +1121,10 @@ function upsertToolStatuses(current: ToolStatus[], updates: ToolStatus[]): ToolS
   return next;
 }
 
-function collectToolUpdates(message: unknown, eventState: string): ToolStatus[] {
+function collectToolUpdates(
+  message: unknown,
+  eventState: string,
+): ToolStatus[] {
   const updates: ToolStatus[] = [];
   const toolResultUpdate = extractToolResultUpdate(message, eventState);
   if (toolResultUpdate) updates.push(toolResultUpdate);
@@ -967,19 +1135,21 @@ function collectToolUpdates(message: unknown, eventState: string): ToolStatus[] 
 
 function hasNonToolAssistantContent(message: RawMessage | undefined): boolean {
   if (!message) return false;
-  if (typeof message.content === 'string' && message.content.trim()) return true;
+  if (typeof message.content === "string" && message.content.trim())
+    return true;
 
   const content = message.content;
   if (Array.isArray(content)) {
     for (const block of content as ContentBlock[]) {
-      if (block.type === 'text' && block.text && block.text.trim()) return true;
-      if (block.type === 'thinking' && block.thinking && block.thinking.trim()) return true;
-      if (block.type === 'image') return true;
+      if (block.type === "text" && block.text && block.text.trim()) return true;
+      if (block.type === "thinking" && block.thinking && block.thinking.trim())
+        return true;
+      if (block.type === "image") return true;
     }
   }
 
   const msg = message as unknown as Record<string, unknown>;
-  if (typeof msg.text === 'string' && msg.text.trim()) return true;
+  if (typeof msg.text === "string" && msg.text.trim()) return true;
 
   return false;
 }
@@ -993,7 +1163,7 @@ export const useChatStore = create<ChatState>((set, get) => ({
 
   sending: false,
   activeRunId: null,
-  streamingText: '',
+  streamingText: "",
   streamingMessage: null,
   streamingTools: [],
   pendingFinal: false,
@@ -1002,7 +1172,7 @@ export const useChatStore = create<ChatState>((set, get) => ({
 
   sessions: [],
   currentSessionKey: DEFAULT_SESSION_KEY,
-  currentAgentId: 'main',
+  currentAgentId: "main",
   sessionLabels: {},
   sessionLastActivity: {},
 
@@ -1013,23 +1183,29 @@ export const useChatStore = create<ChatState>((set, get) => ({
 
   loadSessions: async () => {
     try {
-      const data = await useGatewayStore.getState().rpc<Record<string, unknown>>('sessions.list', {});
+      const data = await useGatewayStore
+        .getState()
+        .rpc<Record<string, unknown>>("sessions.list", {});
       if (data) {
         const rawSessions = Array.isArray(data.sessions) ? data.sessions : [];
-        const sessions: ChatSession[] = rawSessions.map((s: Record<string, unknown>) => ({
-          key: String(s.key || ''),
-          label: s.label ? String(s.label) : undefined,
-          displayName: s.displayName ? String(s.displayName) : undefined,
-          thinkingLevel: s.thinkingLevel ? String(s.thinkingLevel) : undefined,
-          model: s.model ? String(s.model) : undefined,
-        })).filter((s: ChatSession) => s.key);
+        const sessions: ChatSession[] = rawSessions
+          .map((s: Record<string, unknown>) => ({
+            key: String(s.key || ""),
+            label: s.label ? String(s.label) : undefined,
+            displayName: s.displayName ? String(s.displayName) : undefined,
+            thinkingLevel: s.thinkingLevel
+              ? String(s.thinkingLevel)
+              : undefined,
+            model: s.model ? String(s.model) : undefined,
+          }))
+          .filter((s: ChatSession) => s.key);
 
         const canonicalBySuffix = new Map<string, string>();
         for (const session of sessions) {
-          if (!session.key.startsWith('agent:')) continue;
-          const parts = session.key.split(':');
+          if (!session.key.startsWith("agent:")) continue;
+          const parts = session.key.split(":");
           if (parts.length < 3) continue;
-          const suffix = parts.slice(2).join(':');
+          const suffix = parts.slice(2).join(":");
           if (suffix && !canonicalBySuffix.has(suffix)) {
             canonicalBySuffix.set(suffix, session.key);
           }
@@ -1038,7 +1214,8 @@ export const useChatStore = create<ChatState>((set, get) => ({
         // Deduplicate: if both short and canonical existed, keep canonical only
         const seen = new Set<string>();
         const dedupedSessions = sessions.filter((s) => {
-          if (!s.key.startsWith('agent:') && canonicalBySuffix.has(s.key)) return false;
+          if (!s.key.startsWith("agent:") && canonicalBySuffix.has(s.key))
+            return false;
           if (seen.has(s.key)) return false;
           seen.add(s.key);
           return true;
@@ -1046,27 +1223,34 @@ export const useChatStore = create<ChatState>((set, get) => ({
 
         const { currentSessionKey, sessions: localSessions } = get();
         let nextSessionKey = currentSessionKey || DEFAULT_SESSION_KEY;
-        if (!nextSessionKey.startsWith('agent:')) {
+        if (!nextSessionKey.startsWith("agent:")) {
           const canonicalMatch = canonicalBySuffix.get(nextSessionKey);
           if (canonicalMatch) {
             nextSessionKey = canonicalMatch;
           }
         }
-        if (!dedupedSessions.find((s) => s.key === nextSessionKey) && dedupedSessions.length > 0) {
+        if (
+          !dedupedSessions.find((s) => s.key === nextSessionKey) &&
+          dedupedSessions.length > 0
+        ) {
           // Preserve only locally-created pending sessions. On initial boot the
           // default ghost key (`agent:main:main`) should yield to real history.
-          const hasLocalPendingSession = localSessions.some((session) => session.key === nextSessionKey);
+          const hasLocalPendingSession = localSessions.some(
+            (session) => session.key === nextSessionKey,
+          );
           if (!hasLocalPendingSession) {
             nextSessionKey = dedupedSessions[0].key;
           }
         }
 
-        const sessionsWithCurrent = !dedupedSessions.find((s) => s.key === nextSessionKey) && nextSessionKey
-          ? [
-            ...dedupedSessions,
-            { key: nextSessionKey, displayName: nextSessionKey },
-          ]
-          : dedupedSessions;
+        const sessionsWithCurrent =
+          !dedupedSessions.find((s) => s.key === nextSessionKey) &&
+          nextSessionKey
+            ? [
+                ...dedupedSessions,
+                { key: nextSessionKey, displayName: nextSessionKey },
+              ]
+            : dedupedSessions;
 
         set({
           sessions: sessionsWithCurrent,
@@ -1080,39 +1264,55 @@ export const useChatStore = create<ChatState>((set, get) => ({
 
         // Background: fetch first user message for every non-main session to populate labels upfront.
         // Uses a small limit so it's cheap; runs in parallel and doesn't block anything.
-        const sessionsToLabel = sessionsWithCurrent.filter((s) => !s.key.endsWith(':main'));
+        const sessionsToLabel = sessionsWithCurrent.filter(
+          (s) => !s.key.endsWith(":main"),
+        );
         if (sessionsToLabel.length > 0) {
           void Promise.all(
             sessionsToLabel.map(async (session) => {
               try {
-                const r = await useGatewayStore.getState().rpc<Record<string, unknown>>(
-                  'chat.history',
-                  { sessionKey: session.key, limit: 1000 },
-                );
-                const msgs = Array.isArray(r.messages) ? r.messages as RawMessage[] : [];
-                const firstUser = msgs.find((m) => m.role === 'user');
+                const r = await useGatewayStore
+                  .getState()
+                  .rpc<
+                    Record<string, unknown>
+                  >("chat.history", { sessionKey: session.key, limit: 1000 });
+                const msgs = Array.isArray(r.messages)
+                  ? (r.messages as RawMessage[])
+                  : [];
+                const firstUser = msgs.find((m) => m.role === "user");
                 const lastMsg = msgs[msgs.length - 1];
                 set((s) => {
                   const next: Partial<typeof s> = {};
                   if (firstUser) {
                     const labelText = getMessageText(firstUser.content).trim();
                     if (labelText) {
-                      const truncated = labelText.length > 50 ? `${labelText.slice(0, 50)}…` : labelText;
-                      next.sessionLabels = { ...s.sessionLabels, [session.key]: truncated };
+                      const truncated =
+                        labelText.length > 50
+                          ? `${labelText.slice(0, 50)}…`
+                          : labelText;
+                      next.sessionLabels = {
+                        ...s.sessionLabels,
+                        [session.key]: truncated,
+                      };
                     }
                   }
                   if (lastMsg?.timestamp) {
-                    next.sessionLastActivity = { ...s.sessionLastActivity, [session.key]: toMs(lastMsg.timestamp) };
+                    next.sessionLastActivity = {
+                      ...s.sessionLastActivity,
+                      [session.key]: toMs(lastMsg.timestamp),
+                    };
                   }
                   return next;
                 });
-              } catch { /* ignore per-session errors */ }
+              } catch {
+                /* ignore per-session errors */
+              }
             }),
           );
         }
       }
     } catch (err) {
-      console.warn('Failed to load sessions:', err);
+      console.warn("Failed to load sessions:", err);
     }
   },
 
@@ -1140,12 +1340,15 @@ export const useChatStore = create<ChatState>((set, get) => ({
       const result = await hostApiFetch<{
         success: boolean;
         error?: string;
-      }>('/api/sessions/delete', {
-        method: 'POST',
+      }>("/api/sessions/delete", {
+        method: "POST",
         body: JSON.stringify({ sessionKey: key }),
       });
       if (!result.success) {
-        console.warn(`[deleteSession] IPC reported failure for ${key}:`, result.error);
+        console.warn(
+          `[deleteSession] IPC reported failure for ${key}:`,
+          result.error,
+        );
       }
     } catch (err) {
       console.warn(`[deleteSession] IPC call failed for ${key}:`, err);
@@ -1159,10 +1362,14 @@ export const useChatStore = create<ChatState>((set, get) => ({
       const next = remaining[0];
       set((s) => ({
         sessions: remaining,
-        sessionLabels: Object.fromEntries(Object.entries(s.sessionLabels).filter(([k]) => k !== key)),
-        sessionLastActivity: Object.fromEntries(Object.entries(s.sessionLastActivity).filter(([k]) => k !== key)),
+        sessionLabels: Object.fromEntries(
+          Object.entries(s.sessionLabels).filter(([k]) => k !== key),
+        ),
+        sessionLastActivity: Object.fromEntries(
+          Object.entries(s.sessionLastActivity).filter(([k]) => k !== key),
+        ),
         messages: [],
-        streamingText: '',
+        streamingText: "",
         streamingMessage: null,
         streamingTools: [],
         activeRunId: null,
@@ -1171,7 +1378,9 @@ export const useChatStore = create<ChatState>((set, get) => ({
         lastUserMessageAt: null,
         pendingToolImages: [],
         currentSessionKey: next?.key ?? DEFAULT_SESSION_KEY,
-        currentAgentId: getAgentIdFromSessionKey(next?.key ?? DEFAULT_SESSION_KEY),
+        currentAgentId: getAgentIdFromSessionKey(
+          next?.key ?? DEFAULT_SESSION_KEY,
+        ),
       }));
       if (next) {
         get().loadHistory();
@@ -1179,8 +1388,12 @@ export const useChatStore = create<ChatState>((set, get) => ({
     } else {
       set((s) => ({
         sessions: remaining,
-        sessionLabels: Object.fromEntries(Object.entries(s.sessionLabels).filter(([k]) => k !== key)),
-        sessionLastActivity: Object.fromEntries(Object.entries(s.sessionLastActivity).filter(([k]) => k !== key)),
+        sessionLabels: Object.fromEntries(
+          Object.entries(s.sessionLabels).filter(([k]) => k !== key),
+        ),
+        sessionLastActivity: Object.fromEntries(
+          Object.entries(s.sessionLastActivity).filter(([k]) => k !== key),
+        ),
       }));
     }
   },
@@ -1193,27 +1406,39 @@ export const useChatStore = create<ChatState>((set, get) => ({
     // sessions.reset archives (renames) the session JSONL file, making old
     // conversation history inaccessible when the user switches back to it.
     const { currentSessionKey, messages, sessions } = get();
-    const leavingEmpty = !currentSessionKey.endsWith(':main') && messages.length === 0;
-    const prefix = getCanonicalPrefixFromSessionKey(currentSessionKey)
-      ?? getCanonicalPrefixFromSessions(sessions)
-      ?? DEFAULT_CANONICAL_PREFIX;
+    const leavingEmpty =
+      !currentSessionKey.endsWith(":main") && messages.length === 0;
+    const prefix =
+      getCanonicalPrefixFromSessionKey(currentSessionKey) ??
+      getCanonicalPrefixFromSessions(sessions) ??
+      DEFAULT_CANONICAL_PREFIX;
     const newKey = `${prefix}:session-${Date.now()}`;
     const newSessionEntry: ChatSession = { key: newKey, displayName: newKey };
     set((s) => ({
       currentSessionKey: newKey,
       currentAgentId: getAgentIdFromSessionKey(newKey),
       sessions: [
-        ...(leavingEmpty ? s.sessions.filter((sess) => sess.key !== currentSessionKey) : s.sessions),
+        ...(leavingEmpty
+          ? s.sessions.filter((sess) => sess.key !== currentSessionKey)
+          : s.sessions),
         newSessionEntry,
       ],
       sessionLabels: leavingEmpty
-        ? Object.fromEntries(Object.entries(s.sessionLabels).filter(([k]) => k !== currentSessionKey))
+        ? Object.fromEntries(
+            Object.entries(s.sessionLabels).filter(
+              ([k]) => k !== currentSessionKey,
+            ),
+          )
         : s.sessionLabels,
       sessionLastActivity: leavingEmpty
-        ? Object.fromEntries(Object.entries(s.sessionLastActivity).filter(([k]) => k !== currentSessionKey))
+        ? Object.fromEntries(
+            Object.entries(s.sessionLastActivity).filter(
+              ([k]) => k !== currentSessionKey,
+            ),
+          )
         : s.sessionLastActivity,
       messages: [],
-      streamingText: '',
+      streamingText: "",
       streamingMessage: null,
       streamingTools: [],
       activeRunId: null,
@@ -1232,15 +1457,20 @@ export const useChatStore = create<ChatState>((set, get) => ({
     // This mirrors the "leavingEmpty" logic in switchSession so that creating
     // a new session and immediately navigating away doesn't leave a ghost entry
     // in the sidebar.
-    const isEmptyNonMain = !currentSessionKey.endsWith(':main') && messages.length === 0;
+    const isEmptyNonMain =
+      !currentSessionKey.endsWith(":main") && messages.length === 0;
     if (!isEmptyNonMain) return;
     set((s) => ({
       sessions: s.sessions.filter((sess) => sess.key !== currentSessionKey),
       sessionLabels: Object.fromEntries(
-        Object.entries(s.sessionLabels).filter(([k]) => k !== currentSessionKey),
+        Object.entries(s.sessionLabels).filter(
+          ([k]) => k !== currentSessionKey,
+        ),
       ),
       sessionLastActivity: Object.fromEntries(
-        Object.entries(s.sessionLastActivity).filter(([k]) => k !== currentSessionKey),
+        Object.entries(s.sessionLastActivity).filter(
+          ([k]) => k !== currentSessionKey,
+        ),
       ),
     }));
   },
@@ -1252,19 +1482,26 @@ export const useChatStore = create<ChatState>((set, get) => ({
     if (!quiet) set({ loading: true, error: null });
 
     try {
-      const data = await useGatewayStore.getState().rpc<Record<string, unknown>>(
-        'chat.history',
-        { sessionKey: currentSessionKey, limit: 200 },
-      );
+      const data = await useGatewayStore
+        .getState()
+        .rpc<
+          Record<string, unknown>
+        >("chat.history", { sessionKey: currentSessionKey, limit: 200 });
       if (data) {
-        const rawMessages = Array.isArray(data.messages) ? data.messages as RawMessage[] : [];
+        const rawMessages = Array.isArray(data.messages)
+          ? (data.messages as RawMessage[])
+          : [];
 
         // Before filtering: attach images/files from tool_result messages to the next assistant message
         const messagesWithToolImages = enrichWithToolResultFiles(rawMessages);
-        const filteredMessages = messagesWithToolImages.filter((msg) => !isToolResultRole(msg.role));
+        const filteredMessages = messagesWithToolImages.filter(
+          (msg) => !isToolResultRole(msg.role),
+        );
         // Restore file attachments for user/assistant messages (from cache + text patterns)
         const enrichedMessages = enrichWithCachedImages(filteredMessages);
-        const thinkingLevel = data.thinkingLevel ? String(data.thinkingLevel) : null;
+        const thinkingLevel = data.thinkingLevel
+          ? String(data.thinkingLevel)
+          : null;
 
         // Preserve the optimistic user message during an active send.
         // The Gateway may not include the user's message in chat.history
@@ -1274,13 +1511,21 @@ export const useChatStore = create<ChatState>((set, get) => ({
         if (get().sending && userMsgAt) {
           const userMsMs = toMs(userMsgAt);
           const hasRecentUser = enrichedMessages.some(
-            (m) => m.role === 'user' && m.timestamp && Math.abs(toMs(m.timestamp) - userMsMs) < 5000,
+            (m) =>
+              m.role === "user" &&
+              m.timestamp &&
+              Math.abs(toMs(m.timestamp) - userMsMs) < 5000,
           );
           if (!hasRecentUser) {
             const currentMsgs = get().messages;
-            const optimistic = [...currentMsgs].reverse().find(
-              (m) => m.role === 'user' && m.timestamp && Math.abs(toMs(m.timestamp) - userMsMs) < 5000,
-            );
+            const optimistic = [...currentMsgs]
+              .reverse()
+              .find(
+                (m) =>
+                  m.role === "user" &&
+                  m.timestamp &&
+                  Math.abs(toMs(m.timestamp) - userMsMs) < 5000,
+              );
             if (optimistic) {
               finalMessages = [...enrichedMessages, optimistic];
             }
@@ -1292,15 +1537,21 @@ export const useChatStore = create<ChatState>((set, get) => ({
         // Extract first user message text as a session label for display in the toolbar.
         // Skip main sessions (key ends with ":main") — they rely on the Gateway-provided
         // displayName (e.g. the configured agent name "UfrenClaw") instead.
-        const isMainSession = currentSessionKey.endsWith(':main');
+        const isMainSession = currentSessionKey.endsWith(":main");
         if (!isMainSession) {
-          const firstUserMsg = finalMessages.find((m) => m.role === 'user');
+          const firstUserMsg = finalMessages.find((m) => m.role === "user");
           if (firstUserMsg) {
             const labelText = getMessageText(firstUserMsg.content).trim();
             if (labelText) {
-              const truncated = labelText.length > 50 ? `${labelText.slice(0, 50)}…` : labelText;
+              const truncated =
+                labelText.length > 50
+                  ? `${labelText.slice(0, 50)}…`
+                  : labelText;
               set((s) => ({
-                sessionLabels: { ...s.sessionLabels, [currentSessionKey]: truncated },
+                sessionLabels: {
+                  ...s.sessionLabels,
+                  [currentSessionKey]: truncated,
+                },
               }));
             }
           }
@@ -1311,7 +1562,10 @@ export const useChatStore = create<ChatState>((set, get) => ({
         if (lastMsg?.timestamp) {
           const lastAt = toMs(lastMsg.timestamp);
           set((s) => ({
-            sessionLastActivity: { ...s.sessionLastActivity, [currentSessionKey]: lastAt },
+            sessionLastActivity: {
+              ...s.sessionLastActivity,
+              [currentSessionKey]: lastAt,
+            },
           }));
         }
 
@@ -1322,15 +1576,22 @@ export const useChatStore = create<ChatState>((set, get) => ({
             // loadMissingPreviews mutates AttachedFileMeta in place, so we
             // must produce fresh message + file references for each affected msg.
             set({
-              messages: finalMessages.map(msg =>
+              messages: finalMessages.map((msg) =>
                 msg._attachedFiles
-                  ? { ...msg, _attachedFiles: msg._attachedFiles.map(f => ({ ...f })) }
-                  : msg
+                  ? {
+                      ...msg,
+                      _attachedFiles: msg._attachedFiles.map((f) => ({ ...f })),
+                    }
+                  : msg,
               ),
             });
           }
         });
-        const { pendingFinal, lastUserMessageAt, sending: isSendingNow } = get();
+        const {
+          pendingFinal,
+          lastUserMessageAt,
+          sending: isSendingNow,
+        } = get();
 
         // If we're sending but haven't received streaming events, check
         // whether the loaded history reveals intermediate tool-call activity.
@@ -1342,10 +1603,12 @@ export const useChatStore = create<ChatState>((set, get) => ({
         };
 
         if (isSendingNow && !pendingFinal) {
-          const hasRecentAssistantActivity = [...filteredMessages].reverse().some((msg) => {
-            if (msg.role !== 'assistant') return false;
-            return isAfterUserMsg(msg);
-          });
+          const hasRecentAssistantActivity = [...filteredMessages]
+            .reverse()
+            .some((msg) => {
+              if (msg.role !== "assistant") return false;
+              return isAfterUserMsg(msg);
+            });
           if (hasRecentAssistantActivity) {
             set({ pendingFinal: true });
           }
@@ -1353,11 +1616,13 @@ export const useChatStore = create<ChatState>((set, get) => ({
 
         // If pendingFinal, check whether the AI produced a final text response.
         if (pendingFinal || get().pendingFinal) {
-          const recentAssistant = [...filteredMessages].reverse().find((msg) => {
-            if (msg.role !== 'assistant') return false;
-            if (!hasNonToolAssistantContent(msg)) return false;
-            return isAfterUserMsg(msg);
-          });
+          const recentAssistant = [...filteredMessages]
+            .reverse()
+            .find((msg) => {
+              if (msg.role !== "assistant") return false;
+              if (!hasNonToolAssistantContent(msg)) return false;
+              return isAfterUserMsg(msg);
+            });
           if (recentAssistant) {
             clearHistoryPoll();
             set({ sending: false, activeRunId: null, pendingFinal: false });
@@ -1367,7 +1632,7 @@ export const useChatStore = create<ChatState>((set, get) => ({
         set({ messages: [], loading: false });
       }
     } catch (err) {
-      console.warn('Failed to load chat history:', err);
+      console.warn("Failed to load chat history:", err);
       set({ messages: [], loading: false });
     }
   },
@@ -1376,13 +1641,20 @@ export const useChatStore = create<ChatState>((set, get) => ({
 
   sendMessage: async (
     text: string,
-    attachments?: Array<{ fileName: string; mimeType: string; fileSize: number; stagedPath: string; preview: string | null }>,
+    attachments?: Array<{
+      fileName: string;
+      mimeType: string;
+      fileSize: number;
+      stagedPath: string;
+      preview: string | null;
+    }>,
     targetAgentId?: string | null,
   ) => {
     const trimmed = text.trim();
     if (!trimmed && (!attachments || attachments.length === 0)) return;
 
-    const targetSessionKey = resolveMainSessionKeyForAgent(targetAgentId) ?? get().currentSessionKey;
+    const targetSessionKey =
+      resolveMainSessionKeyForAgent(targetAgentId) ?? get().currentSessionKey;
 
     if (targetSessionKey !== get().currentSessionKey) {
       set((s) => buildSessionSwitchPatch(s, targetSessionKey));
@@ -1394,11 +1666,11 @@ export const useChatStore = create<ChatState>((set, get) => ({
     // Add user message optimistically (with local file metadata for UI display)
     const nowMs = Date.now();
     const userMsg: RawMessage = {
-      role: 'user',
-      content: trimmed || (attachments?.length ? '(file attached)' : ''),
+      role: "user",
+      content: trimmed || (attachments?.length ? "(file attached)" : ""),
       timestamp: nowMs / 1000,
       id: crypto.randomUUID(),
-      _attachedFiles: attachments?.map(a => ({
+      _attachedFiles: attachments?.map((a) => ({
         fileName: a.fileName,
         mimeType: a.mimeType,
         fileSize: a.fileSize,
@@ -1410,7 +1682,7 @@ export const useChatStore = create<ChatState>((set, get) => ({
       messages: [...s.messages, userMsg],
       sending: true,
       error: null,
-      streamingText: '',
+      streamingText: "",
       streamingMessage: null,
       streamingTools: [],
       pendingFinal: false,
@@ -1419,14 +1691,29 @@ export const useChatStore = create<ChatState>((set, get) => ({
 
     // Update session label with first user message text as soon as it's sent
     const { sessionLabels, messages } = get();
-    const isFirstMessage = !messages.slice(0, -1).some((m) => m.role === 'user');
-    if (!currentSessionKey.endsWith(':main') && isFirstMessage && !sessionLabels[currentSessionKey] && trimmed) {
-      const truncated = trimmed.length > 50 ? `${trimmed.slice(0, 50)}…` : trimmed;
-      set((s) => ({ sessionLabels: { ...s.sessionLabels, [currentSessionKey]: truncated } }));
+    const isFirstMessage = !messages
+      .slice(0, -1)
+      .some((m) => m.role === "user");
+    if (
+      !currentSessionKey.endsWith(":main") &&
+      isFirstMessage &&
+      !sessionLabels[currentSessionKey] &&
+      trimmed
+    ) {
+      const truncated =
+        trimmed.length > 50 ? `${trimmed.slice(0, 50)}…` : trimmed;
+      set((s) => ({
+        sessionLabels: { ...s.sessionLabels, [currentSessionKey]: truncated },
+      }));
     }
 
     // Mark this session as most recently active
-    set((s) => ({ sessionLastActivity: { ...s.sessionLastActivity, [currentSessionKey]: nowMs } }));
+    set((s) => ({
+      sessionLastActivity: {
+        ...s.sessionLastActivity,
+        [currentSessionKey]: nowMs,
+      },
+    }));
 
     // Start the history poll and safety timeout IMMEDIATELY (before the
     // RPC await) because the gateway's chat.send RPC may block until the
@@ -1439,7 +1726,10 @@ export const useChatStore = create<ChatState>((set, get) => ({
     const POLL_INTERVAL = 4_000;
     const pollHistory = () => {
       const state = get();
-      if (!state.sending) { clearHistoryPoll(); return; }
+      if (!state.sending) {
+        clearHistoryPoll();
+        return;
+      }
       if (state.streamingMessage) {
         _historyPollTimer = setTimeout(pollHistory, POLL_INTERVAL);
         return;
@@ -1464,7 +1754,8 @@ export const useChatStore = create<ChatState>((set, get) => ({
       }
       clearHistoryPoll();
       set({
-        error: 'No response received from the model. The provider may be unavailable or the API key may have insufficient quota. Please check your provider settings.',
+        error:
+          "No response received from the model. The provider may be unavailable or the API key may have insufficient quota. Please check your provider settings.",
         sending: false,
         activeRunId: null,
         lastUserMessageAt: null,
@@ -1476,7 +1767,10 @@ export const useChatStore = create<ChatState>((set, get) => ({
       const idempotencyKey = crypto.randomUUID();
       const hasMedia = attachments && attachments.length > 0;
       if (hasMedia) {
-        console.log('[sendMessage] Media paths:', attachments!.map(a => a.stagedPath));
+        console.log(
+          "[sendMessage] Media paths:",
+          attachments!.map((a) => a.stagedPath),
+        );
       }
 
       // Cache image attachments BEFORE the IPC call to avoid race condition:
@@ -1494,48 +1788,60 @@ export const useChatStore = create<ChatState>((set, get) => ({
         saveImageCache(_imageCache);
       }
 
-      let result: { success: boolean; result?: { runId?: string }; error?: string };
+      let result: {
+        success: boolean;
+        result?: { runId?: string };
+        error?: string;
+      };
 
       // Longer timeout for chat sends to tolerate high-latency networks (avoids connect error)
       const CHAT_SEND_TIMEOUT_MS = 120_000;
 
       if (hasMedia) {
-        result = await hostApiFetch<{ success: boolean; result?: { runId?: string }; error?: string }>(
-          '/api/chat/send-with-media',
-          {
-            method: 'POST',
-            body: JSON.stringify({
-              sessionKey: currentSessionKey,
-              message: trimmed || 'Process the attached file(s).',
-              deliver: false,
-              idempotencyKey,
-              media: attachments.map((a) => ({
-                filePath: a.stagedPath,
-                mimeType: a.mimeType,
-                fileName: a.fileName,
-              })),
-            }),
-          },
-        );
-      } else {
-        const rpcResult = await useGatewayStore.getState().rpc<{ runId?: string }>(
-          'chat.send',
-          {
+        result = await hostApiFetch<{
+          success: boolean;
+          result?: { runId?: string };
+          error?: string;
+        }>("/api/chat/send-with-media", {
+          method: "POST",
+          body: JSON.stringify({
             sessionKey: currentSessionKey,
-            message: trimmed,
+            message: trimmed || "Process the attached file(s).",
             deliver: false,
             idempotencyKey,
-          },
-          CHAT_SEND_TIMEOUT_MS,
-        );
+            media: attachments.map((a) => ({
+              filePath: a.stagedPath,
+              mimeType: a.mimeType,
+              fileName: a.fileName,
+            })),
+          }),
+        });
+      } else {
+        const rpcResult = await useGatewayStore
+          .getState()
+          .rpc<{ runId?: string }>(
+            "chat.send",
+            {
+              sessionKey: currentSessionKey,
+              message: trimmed,
+              deliver: false,
+              idempotencyKey,
+            },
+            CHAT_SEND_TIMEOUT_MS,
+          );
         result = { success: true, result: rpcResult };
       }
 
-      console.log(`[sendMessage] RPC result: success=${result.success}, runId=${result.result?.runId || 'none'}`);
+      console.log(
+        `[sendMessage] RPC result: success=${result.success}, runId=${result.result?.runId || "none"}`,
+      );
 
       if (!result.success) {
         clearHistoryPoll();
-        set({ error: result.error || 'Failed to send message', sending: false });
+        set({
+          error: result.error || "Failed to send message",
+          sending: false,
+        });
       } else if (result.result?.runId) {
         set({ activeRunId: result.result.runId });
       }
@@ -1551,14 +1857,20 @@ export const useChatStore = create<ChatState>((set, get) => ({
     clearHistoryPoll();
     clearErrorRecoveryTimer();
     const { currentSessionKey } = get();
-    set({ sending: false, streamingText: '', streamingMessage: null, pendingFinal: false, lastUserMessageAt: null, pendingToolImages: [] });
+    set({
+      sending: false,
+      streamingText: "",
+      streamingMessage: null,
+      pendingFinal: false,
+      lastUserMessageAt: null,
+      pendingToolImages: [],
+    });
     set({ streamingTools: [] });
 
     try {
-      await useGatewayStore.getState().rpc(
-        'chat.abort',
-        { sessionKey: currentSessionKey },
-      );
+      await useGatewayStore
+        .getState()
+        .rpc("chat.abort", { sessionKey: currentSessionKey });
     } catch (err) {
       set({ error: String(err) });
     }
@@ -1567,13 +1879,15 @@ export const useChatStore = create<ChatState>((set, get) => ({
   // ── Handle incoming chat events from Gateway ──
 
   handleChatEvent: (event: Record<string, unknown>) => {
-    const runId = String(event.runId || '');
-    const eventState = String(event.state || '');
-    const eventSessionKey = event.sessionKey != null ? String(event.sessionKey) : null;
+    const runId = String(event.runId || "");
+    const eventState = String(event.state || "");
+    const eventSessionKey =
+      event.sessionKey != null ? String(event.sessionKey) : null;
     const { activeRunId, currentSessionKey } = get();
 
     // Only process events for the current session (when sessionKey is present)
-    if (eventSessionKey != null && eventSessionKey !== currentSessionKey) return;
+    if (eventSessionKey != null && eventSessionKey !== currentSessionKey)
+      return;
 
     // Only process events for the active run (or if no active run set)
     if (activeRunId && runId && runId !== activeRunId) return;
@@ -1582,13 +1896,13 @@ export const useChatStore = create<ChatState>((set, get) => ({
 
     // Defensive: if state is missing but we have a message, try to infer state.
     let resolvedState = eventState;
-    if (!resolvedState && event.message && typeof event.message === 'object') {
+    if (!resolvedState && event.message && typeof event.message === "object") {
       const msg = event.message as Record<string, unknown>;
       const stopReason = msg.stopReason ?? msg.stop_reason;
       if (stopReason) {
-        resolvedState = 'final';
+        resolvedState = "final";
       } else if (msg.role || msg.content) {
-        resolvedState = 'delta';
+        resolvedState = "delta";
       }
     }
 
@@ -1596,8 +1910,11 @@ export const useChatStore = create<ChatState>((set, get) => ({
     // The gateway sends "agent" events with { phase, startedAt } that carry
     // no message — these must NOT kill the poll, since the poll is our only
     // way to track progress when the gateway doesn't stream intermediate turns.
-    const hasUsefulData = resolvedState === 'delta' || resolvedState === 'final'
-      || resolvedState === 'error' || resolvedState === 'aborted';
+    const hasUsefulData =
+      resolvedState === "delta" ||
+      resolvedState === "final" ||
+      resolvedState === "error" ||
+      resolvedState === "aborted";
     if (hasUsefulData) {
       clearHistoryPoll();
       // Adopt run started from another client (e.g. console at 127.0.0.1:18789):
@@ -1609,7 +1926,7 @@ export const useChatStore = create<ChatState>((set, get) => ({
     }
 
     switch (resolvedState) {
-      case 'started': {
+      case "started": {
         // Run just started (e.g. from console); show loading immediately.
         const { sending: currentSending } = get();
         if (!currentSending && runId) {
@@ -1617,7 +1934,7 @@ export const useChatStore = create<ChatState>((set, get) => ({
         }
         break;
       }
-      case 'delta': {
+      case "delta": {
         // If we're receiving new deltas, the Gateway has recovered from any
         // prior error — cancel the error finalization timer and clear the
         // stale error banner so the user sees the live stream again.
@@ -1628,17 +1945,20 @@ export const useChatStore = create<ChatState>((set, get) => ({
         const updates = collectToolUpdates(event.message, resolvedState);
         set((s) => ({
           streamingMessage: (() => {
-            if (event.message && typeof event.message === 'object') {
+            if (event.message && typeof event.message === "object") {
               const msgRole = (event.message as RawMessage).role;
               if (isToolResultRole(msgRole)) return s.streamingMessage;
             }
             return event.message ?? s.streamingMessage;
           })(),
-          streamingTools: updates.length > 0 ? upsertToolStatuses(s.streamingTools, updates) : s.streamingTools,
+          streamingTools:
+            updates.length > 0
+              ? upsertToolStatuses(s.streamingTools, updates)
+              : s.streamingTools,
         }));
         break;
       }
-      case 'final': {
+      case "final": {
         clearErrorRecoveryTimer();
         if (get().error) set({ error: null });
         // Message complete - add to history and clear streaming
@@ -1647,10 +1967,12 @@ export const useChatStore = create<ChatState>((set, get) => ({
           const updates = collectToolUpdates(finalMsg, resolvedState);
           if (isToolResultRole(finalMsg.role)) {
             // Resolve file path from the streaming assistant message's matching tool call
-            const currentStreamForPath = get().streamingMessage as RawMessage | null;
-            const matchedPath = (currentStreamForPath && finalMsg.toolCallId)
-              ? getToolCallFilePath(currentStreamForPath, finalMsg.toolCallId)
-              : undefined;
+            const currentStreamForPath = get()
+              .streamingMessage as RawMessage | null;
+            const matchedPath =
+              currentStreamForPath && finalMsg.toolCallId
+                ? getToolCallFilePath(currentStreamForPath, finalMsg.toolCallId)
+                : undefined;
 
             // Mirror enrichWithToolResultFiles: collect images + file refs for next assistant msg
             const toolFiles: AttachedFileMeta[] = [
@@ -1660,17 +1982,19 @@ export const useChatStore = create<ChatState>((set, get) => ({
               for (const f of toolFiles) {
                 if (!f.filePath) {
                   f.filePath = matchedPath;
-                  f.fileName = matchedPath.split(/[\\/]/).pop() || 'image';
+                  f.fileName = matchedPath.split(/[\\/]/).pop() || "image";
                 }
               }
             }
             const text = getMessageText(finalMsg.content);
             if (text) {
               const mediaRefs = extractMediaRefs(text);
-              const mediaRefPaths = new Set(mediaRefs.map(r => r.filePath));
-              for (const ref of mediaRefs) toolFiles.push(makeAttachedFile(ref));
+              const mediaRefPaths = new Set(mediaRefs.map((r) => r.filePath));
+              for (const ref of mediaRefs)
+                toolFiles.push(makeAttachedFile(ref));
               for (const ref of extractRawFilePaths(text)) {
-                if (!mediaRefPaths.has(ref.filePath)) toolFiles.push(makeAttachedFile(ref));
+                if (!mediaRefPaths.has(ref.filePath))
+                  toolFiles.push(makeAttachedFile(ref));
               }
             }
             set((s) => {
@@ -1683,87 +2007,114 @@ export const useChatStore = create<ChatState>((set, get) => ({
               const snapshotMsgs: RawMessage[] = [];
               if (currentStream) {
                 const streamRole = currentStream.role;
-                if (streamRole === 'assistant' || streamRole === undefined) {
+                if (streamRole === "assistant" || streamRole === undefined) {
                   // Use message's own id if available, otherwise derive a stable one from runId
-                  const snapId = currentStream.id
-                    || `${runId || 'run'}-turn-${s.messages.length}`;
-                  if (!s.messages.some(m => m.id === snapId)) {
+                  const snapId =
+                    currentStream.id ||
+                    `${runId || "run"}-turn-${s.messages.length}`;
+                  if (!s.messages.some((m) => m.id === snapId)) {
                     snapshotMsgs.push({
                       ...(currentStream as RawMessage),
-                      role: 'assistant',
+                      role: "assistant",
                       id: snapId,
                     });
                   }
                 }
               }
               return {
-                messages: snapshotMsgs.length > 0 ? [...s.messages, ...snapshotMsgs] : s.messages,
-                streamingText: '',
+                messages:
+                  snapshotMsgs.length > 0
+                    ? [...s.messages, ...snapshotMsgs]
+                    : s.messages,
+                streamingText: "",
                 streamingMessage: null,
                 pendingFinal: true,
-                pendingToolImages: toolFiles.length > 0
-                  ? [...s.pendingToolImages, ...toolFiles]
-                  : s.pendingToolImages,
-                streamingTools: updates.length > 0 ? upsertToolStatuses(s.streamingTools, updates) : s.streamingTools,
+                pendingToolImages:
+                  toolFiles.length > 0
+                    ? [...s.pendingToolImages, ...toolFiles]
+                    : s.pendingToolImages,
+                streamingTools:
+                  updates.length > 0
+                    ? upsertToolStatuses(s.streamingTools, updates)
+                    : s.streamingTools,
               };
             });
             break;
           }
           const toolOnly = isToolOnlyMessage(finalMsg);
           const hasOutput = hasNonToolAssistantContent(finalMsg);
-          const msgId = finalMsg.id || (toolOnly ? `run-${runId}-tool-${Date.now()}` : `run-${runId}`);
+          const msgId =
+            finalMsg.id ||
+            (toolOnly ? `run-${runId}-tool-${Date.now()}` : `run-${runId}`);
           set((s) => {
-            const nextTools = updates.length > 0 ? upsertToolStatuses(s.streamingTools, updates) : s.streamingTools;
+            const nextTools =
+              updates.length > 0
+                ? upsertToolStatuses(s.streamingTools, updates)
+                : s.streamingTools;
             const streamingTools = hasOutput ? [] : nextTools;
 
             // Attach any images collected from preceding tool results
             const pendingImgs = s.pendingToolImages;
-            const msgWithImages: RawMessage = pendingImgs.length > 0
-              ? {
-                ...finalMsg,
-                role: (finalMsg.role || 'assistant') as RawMessage['role'],
-                id: msgId,
-                _attachedFiles: [...(finalMsg._attachedFiles || []), ...pendingImgs],
-              }
-              : { ...finalMsg, role: (finalMsg.role || 'assistant') as RawMessage['role'], id: msgId };
-            const clearPendingImages = { pendingToolImages: [] as AttachedFileMeta[] };
+            const msgWithImages: RawMessage =
+              pendingImgs.length > 0
+                ? {
+                    ...finalMsg,
+                    role: (finalMsg.role || "assistant") as RawMessage["role"],
+                    id: msgId,
+                    _attachedFiles: [
+                      ...(finalMsg._attachedFiles || []),
+                      ...pendingImgs,
+                    ],
+                  }
+                : {
+                    ...finalMsg,
+                    role: (finalMsg.role || "assistant") as RawMessage["role"],
+                    id: msgId,
+                  };
+            const clearPendingImages = {
+              pendingToolImages: [] as AttachedFileMeta[],
+            };
 
             // Check if message already exists (prevent duplicates)
-            const alreadyExists = s.messages.some(m => m.id === msgId);
+            const alreadyExists = s.messages.some((m) => m.id === msgId);
             if (alreadyExists) {
-              return toolOnly ? {
-                streamingText: '',
-                streamingMessage: null,
-                pendingFinal: true,
-                streamingTools,
-                ...clearPendingImages,
-              } : {
-                streamingText: '',
-                streamingMessage: null,
-                sending: hasOutput ? false : s.sending,
-                activeRunId: hasOutput ? null : s.activeRunId,
-                pendingFinal: hasOutput ? false : true,
-                streamingTools,
-                ...clearPendingImages,
-              };
+              return toolOnly
+                ? {
+                    streamingText: "",
+                    streamingMessage: null,
+                    pendingFinal: true,
+                    streamingTools,
+                    ...clearPendingImages,
+                  }
+                : {
+                    streamingText: "",
+                    streamingMessage: null,
+                    sending: hasOutput ? false : s.sending,
+                    activeRunId: hasOutput ? null : s.activeRunId,
+                    pendingFinal: hasOutput ? false : true,
+                    streamingTools,
+                    ...clearPendingImages,
+                  };
             }
-            return toolOnly ? {
-              messages: [...s.messages, msgWithImages],
-              streamingText: '',
-              streamingMessage: null,
-              pendingFinal: true,
-              streamingTools,
-              ...clearPendingImages,
-            } : {
-              messages: [...s.messages, msgWithImages],
-              streamingText: '',
-              streamingMessage: null,
-              sending: hasOutput ? false : s.sending,
-              activeRunId: hasOutput ? null : s.activeRunId,
-              pendingFinal: hasOutput ? false : true,
-              streamingTools,
-              ...clearPendingImages,
-            };
+            return toolOnly
+              ? {
+                  messages: [...s.messages, msgWithImages],
+                  streamingText: "",
+                  streamingMessage: null,
+                  pendingFinal: true,
+                  streamingTools,
+                  ...clearPendingImages,
+                }
+              : {
+                  messages: [...s.messages, msgWithImages],
+                  streamingText: "",
+                  streamingMessage: null,
+                  sending: hasOutput ? false : s.sending,
+                  activeRunId: hasOutput ? null : s.activeRunId,
+                  pendingFinal: hasOutput ? false : true,
+                  streamingTools,
+                  ...clearPendingImages,
+                };
           });
           // After the final response, quietly reload history to surface all intermediate
           // tool-use turns (thinking + tool blocks) from the Gateway's authoritative record.
@@ -1773,33 +2124,44 @@ export const useChatStore = create<ChatState>((set, get) => ({
           }
         } else {
           // No message in final event - reload history to get complete data
-          set({ streamingText: '', streamingMessage: null, pendingFinal: true });
+          set({
+            streamingText: "",
+            streamingMessage: null,
+            pendingFinal: true,
+          });
           get().loadHistory();
         }
         break;
       }
-      case 'error': {
-        const errorMsg = String(event.errorMessage || 'An error occurred');
+      case "error": {
+        const errorMsg = String(event.errorMessage || "An error occurred");
         const wasSending = get().sending;
 
         // Snapshot the current streaming message into messages[] so partial
         // content ("Let me get that written down...") is preserved in the UI
         // rather than being silently discarded.
         const currentStream = get().streamingMessage as RawMessage | null;
-        if (currentStream && (currentStream.role === 'assistant' || currentStream.role === undefined)) {
-          const snapId = (currentStream as RawMessage).id
-            || `error-snap-${Date.now()}`;
-          const alreadyExists = get().messages.some(m => m.id === snapId);
+        if (
+          currentStream &&
+          (currentStream.role === "assistant" ||
+            currentStream.role === undefined)
+        ) {
+          const snapId =
+            (currentStream as RawMessage).id || `error-snap-${Date.now()}`;
+          const alreadyExists = get().messages.some((m) => m.id === snapId);
           if (!alreadyExists) {
             set((s) => ({
-              messages: [...s.messages, { ...currentStream, role: 'assistant' as const, id: snapId }],
+              messages: [
+                ...s.messages,
+                { ...currentStream, role: "assistant" as const, id: snapId },
+              ],
             }));
           }
         }
 
         set({
           error: errorMsg,
-          streamingText: '',
+          streamingText: "",
           streamingMessage: null,
           streamingTools: [],
           pendingFinal: false,
@@ -1835,13 +2197,13 @@ export const useChatStore = create<ChatState>((set, get) => ({
         }
         break;
       }
-      case 'aborted': {
+      case "aborted": {
         clearHistoryPoll();
         clearErrorRecoveryTimer();
         set({
           sending: false,
           activeRunId: null,
-          streamingText: '',
+          streamingText: "",
           streamingMessage: null,
           streamingTools: [],
           pendingFinal: false,
@@ -1855,12 +2217,18 @@ export const useChatStore = create<ChatState>((set, get) => ({
         // with a message, attempt to process it as streaming data. This handles
         // edge cases where the Gateway sends events without a state field.
         const { sending } = get();
-        if (sending && event.message && typeof event.message === 'object') {
-          console.warn(`[handleChatEvent] Unknown event state "${resolvedState}", treating message as streaming delta. Event keys:`, Object.keys(event));
-          const updates = collectToolUpdates(event.message, 'delta');
+        if (sending && event.message && typeof event.message === "object") {
+          console.warn(
+            `[handleChatEvent] Unknown event state "${resolvedState}", treating message as streaming delta. Event keys:`,
+            Object.keys(event),
+          );
+          const updates = collectToolUpdates(event.message, "delta");
           set((s) => ({
             streamingMessage: event.message ?? s.streamingMessage,
-            streamingTools: updates.length > 0 ? upsertToolStatuses(s.streamingTools, updates) : s.streamingTools,
+            streamingTools:
+              updates.length > 0
+                ? upsertToolStatuses(s.streamingTools, updates)
+                : s.streamingTools,
           }));
         }
         break;
