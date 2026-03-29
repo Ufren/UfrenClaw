@@ -1,5 +1,5 @@
-import { useEffect, useMemo, useState } from "react";
-import { motion } from "framer-motion";
+import { useCallback, useEffect, useMemo, useState } from "react";
+import { AnimatePresence, motion, useReducedMotion } from "framer-motion";
 import {
   AlertCircle,
   Bot,
@@ -42,6 +42,13 @@ import type { AgentSummary } from "@/types/agent";
 import { useTranslation } from "react-i18next";
 import { toast } from "sonner";
 import { cn } from "@/lib/utils";
+import {
+  createStaggeredList,
+  getHoverLift,
+  getTapScale,
+  motionTransition,
+  motionVariants,
+} from "@/lib/motion";
 import telegramIcon from "@/assets/channels/telegram.svg";
 import discordIcon from "@/assets/channels/discord.svg";
 import whatsappIcon from "@/assets/channels/whatsapp.svg";
@@ -52,6 +59,7 @@ import qqIcon from "@/assets/channels/qq.svg";
 
 export function Agents() {
   const { t } = useTranslation("agents");
+  const prefersReducedMotion = useReducedMotion() ?? false;
   const gatewayStatus = useGatewayStore((state) => state.status);
   const { agents, loading, error, fetchAgents, createAgent, deleteAgent } =
     useAgentsStore();
@@ -108,21 +116,25 @@ export function Agents() {
         description={t("subtitle")}
         actions={
           <>
-            <Button
-              variant="outline"
-              onClick={handleRefresh}
-              className="h-9 rounded-full border-border/70 bg-background/70 px-4 text-[13px] font-medium text-foreground/80 shadow-none hover:bg-accent/80 hover:text-foreground"
-            >
-              <RefreshCw className="mr-2 h-3.5 w-3.5" />
-              {t("refresh")}
-            </Button>
-            <Button
-              onClick={() => setShowAddDialog(true)}
-              className="h-9 rounded-full px-4 text-[13px] font-medium shadow-none"
-            >
-              <Plus className="mr-2 h-3.5 w-3.5" />
-              {t("addAgent")}
-            </Button>
+            <motion.div whileTap={getTapScale(prefersReducedMotion)}>
+              <Button
+                variant="outline"
+                onClick={handleRefresh}
+                className="h-9 rounded-full border-border/70 bg-background/70 px-4 text-[13px] font-medium text-foreground/80 shadow-none hover:bg-accent/80 hover:text-foreground"
+              >
+                <RefreshCw className="mr-2 h-3.5 w-3.5" />
+                {t("refresh")}
+              </Button>
+            </motion.div>
+            <motion.div whileTap={getTapScale(prefersReducedMotion)}>
+              <Button
+                onClick={() => setShowAddDialog(true)}
+                className="h-9 rounded-full px-4 text-[13px] font-medium shadow-none"
+              >
+                <Plus className="mr-2 h-3.5 w-3.5" />
+                {t("addAgent")}
+              </Button>
+            </motion.div>
           </>
         }
         aside={
@@ -141,35 +153,68 @@ export function Agents() {
                     : t("subtitle")
                 }
               />
-              <div className="grid gap-3 sm:grid-cols-2 xl:grid-cols-1">
-                <div className="rounded-2xl border border-border/70 bg-background/60 p-4">
+              <motion.div
+                className="grid gap-3 sm:grid-cols-2 xl:grid-cols-1"
+                initial="hidden"
+                animate="show"
+                variants={createStaggeredList(prefersReducedMotion ? 0 : 0.05)}
+              >
+                <motion.div
+                  className="rounded-2xl border border-border/70 bg-background/60 p-4"
+                  variants={motionVariants.softScale}
+                  whileHover={getHoverLift(prefersReducedMotion, {
+                    y: -3,
+                    scale: 1.01,
+                  })}
+                >
                   <div className="text-[11px] font-semibold uppercase tracking-[0.18em] text-muted-foreground/70">
                     {t("overview.agents")}
                   </div>
                   <div className="pt-2 text-2xl font-semibold text-foreground">
                     {agents.length}
                   </div>
-                </div>
-                <div className="rounded-2xl border border-border/70 bg-background/60 p-4">
+                </motion.div>
+                <motion.div
+                  className="rounded-2xl border border-border/70 bg-background/60 p-4"
+                  variants={motionVariants.softScale}
+                  whileHover={getHoverLift(prefersReducedMotion, {
+                    y: -3,
+                    scale: 1.01,
+                  })}
+                >
                   <div className="text-[11px] font-semibold uppercase tracking-[0.18em] text-muted-foreground/70">
                     {t("overview.channels")}
                   </div>
                   <div className="pt-2 text-2xl font-semibold text-foreground">
                     {connectedChannels}/{channels.length}
                   </div>
-                </div>
-              </div>
+                </motion.div>
+              </motion.div>
               {activeAgent ? (
                 <div className="space-y-3">
-                  <div className="rounded-2xl border border-border/70 bg-background/60 p-4">
+                  <motion.div
+                    className="rounded-2xl border border-border/70 bg-background/60 p-4"
+                    whileHover={getHoverLift(prefersReducedMotion, {
+                      y: -3,
+                      scale: 1.006,
+                    })}
+                    transition={motionTransition.gentle}
+                  >
                     <div className="text-[11px] font-semibold uppercase tracking-[0.18em] text-muted-foreground/70">
                       {t("overview.agentId")}
                     </div>
                     <div className="pt-2 font-mono text-[13px] text-foreground">
                       {activeAgent.id}
                     </div>
-                  </div>
-                  <div className="rounded-2xl border border-border/70 bg-background/60 p-4">
+                  </motion.div>
+                  <motion.div
+                    className="rounded-2xl border border-border/70 bg-background/60 p-4"
+                    whileHover={getHoverLift(prefersReducedMotion, {
+                      y: -3,
+                      scale: 1.006,
+                    })}
+                    transition={motionTransition.gentle}
+                  >
                     <div className="text-[11px] font-semibold uppercase tracking-[0.18em] text-muted-foreground/70">
                       {t("overview.channels")}
                     </div>
@@ -191,15 +236,17 @@ export function Agents() {
                         </span>
                       )}
                     </div>
-                  </div>
-                  <Button
-                    variant="outline"
-                    className="h-10 w-full rounded-full border-border/70 bg-background/70 text-[13px] font-medium shadow-none hover:bg-accent/80"
-                    onClick={() => setSettingsAgentId(activeAgent.id)}
-                  >
-                    <Settings2 className="mr-2 h-4 w-4" />
-                    {t("settings")}
-                  </Button>
+                  </motion.div>
+                  <motion.div whileTap={getTapScale(prefersReducedMotion)}>
+                    <Button
+                      variant="outline"
+                      className="h-10 w-full rounded-full border-border/70 bg-background/70 text-[13px] font-medium shadow-none hover:bg-accent/80"
+                      onClick={() => setSettingsAgentId(activeAgent.id)}
+                    >
+                      <Settings2 className="mr-2 h-4 w-4" />
+                      {t("settings")}
+                    </Button>
+                  </motion.div>
                 </div>
               ) : null}
             </WorkspacePanel>
@@ -208,21 +255,31 @@ export function Agents() {
       >
         <div className="flex h-full min-h-0 flex-col gap-4">
           {gatewayStatus.state !== "running" && (
-            <div className="flex items-center gap-3 rounded-[22px] border border-yellow-500/40 bg-yellow-500/10 px-4 py-3">
+            <motion.div
+              className="flex items-center gap-3 rounded-[22px] border border-yellow-500/40 bg-yellow-500/10 px-4 py-3"
+              initial={{ opacity: 0, y: 8 }}
+              animate={{ opacity: 1, y: 0 }}
+              transition={motionTransition.gentle}
+            >
               <AlertCircle className="h-5 w-5 text-yellow-600 dark:text-yellow-400" />
               <span className="text-sm font-medium text-yellow-700 dark:text-yellow-400">
                 {t("gatewayWarning")}
               </span>
-            </div>
+            </motion.div>
           )}
 
           {error && (
-            <div className="flex items-center gap-3 rounded-[22px] border border-destructive/50 bg-destructive/10 px-4 py-3">
+            <motion.div
+              className="flex items-center gap-3 rounded-[22px] border border-destructive/50 bg-destructive/10 px-4 py-3"
+              initial={{ opacity: 0, y: 8 }}
+              animate={{ opacity: 1, y: 0 }}
+              transition={motionTransition.gentle}
+            >
               <AlertCircle className="h-5 w-5 text-destructive" />
               <span className="text-sm font-medium text-destructive">
                 {error}
               </span>
-            </div>
+            </motion.div>
           )}
 
           <WorkspacePanel className="flex min-h-0 flex-1 flex-col gap-4">
@@ -232,60 +289,77 @@ export function Agents() {
             />
             <motion.div
               className="min-h-0 flex-1 space-y-3 overflow-y-auto pr-1"
-              variants={{
-                hidden: { opacity: 0 },
-                show: {
-                  opacity: 1,
-                  transition: { staggerChildren: 0.12 },
-                },
-              }}
+              variants={createStaggeredList(prefersReducedMotion ? 0 : 0.07)}
               initial="hidden"
               animate="show"
             >
-              {agents.map((agent) => (
+              {agents.length > 0 ? (
+                agents.map((agent) => (
+                  <motion.div key={agent.id} variants={motionVariants.fadeUp}>
+                    <AgentCard
+                      agent={agent}
+                      active={activeAgentId === agent.id}
+                      onSelect={() => setActiveAgentId(agent.id)}
+                      onOpenSettings={() => setSettingsAgentId(agent.id)}
+                      onDelete={() => setAgentToDelete(agent)}
+                    />
+                  </motion.div>
+                ))
+              ) : (
                 <motion.div
-                  key={agent.id}
-                  variants={{
-                    hidden: { opacity: 0, y: 15 },
-                    show: {
-                      opacity: 1,
-                      y: 0,
-                      transition: { duration: 0.5, ease: [0.25, 0.1, 0.25, 1] },
-                    },
-                  }}
+                  variants={motionVariants.fadeUp}
+                  className="flex min-h-[280px] flex-col items-center justify-center rounded-[28px] border border-dashed border-border/70 bg-background/40 px-6 py-10 text-center"
                 >
-                  <AgentCard
-                    agent={agent}
-                    active={activeAgentId === agent.id}
-                    onSelect={() => setActiveAgentId(agent.id)}
-                    onOpenSettings={() => setSettingsAgentId(agent.id)}
-                    onDelete={() => setAgentToDelete(agent)}
-                  />
+                  <div className="flex h-14 w-14 items-center justify-center rounded-full bg-primary/10 text-primary">
+                    <Bot className="h-7 w-7" />
+                  </div>
+                  <div className="mt-4 text-lg font-semibold text-foreground">
+                    {t("overview.libraryTitle")}
+                  </div>
+                  <p className="mt-2 max-w-md text-sm leading-6 text-muted-foreground">
+                    {t("subtitle")}
+                  </p>
+                  <motion.div
+                    className="mt-5"
+                    whileTap={getTapScale(prefersReducedMotion)}
+                  >
+                    <Button
+                      onClick={() => setShowAddDialog(true)}
+                      className="h-10 rounded-full px-5 text-[13px] font-medium shadow-none"
+                    >
+                      <Plus className="mr-2 h-4 w-4" />
+                      {t("addAgent")}
+                    </Button>
+                  </motion.div>
                 </motion.div>
-              ))}
+              )}
             </motion.div>
           </WorkspacePanel>
         </div>
       </WorkspacePage>
 
-      {showAddDialog && (
-        <AddAgentDialog
-          onClose={() => setShowAddDialog(false)}
-          onCreate={async (name) => {
-            await createAgent(name);
-            setShowAddDialog(false);
-            toast.success(t("toast.agentCreated"));
-          }}
-        />
-      )}
+      <AnimatePresence>
+        {showAddDialog && (
+          <AddAgentDialog
+            onClose={() => setShowAddDialog(false)}
+            onCreate={async (name) => {
+              await createAgent(name);
+              setShowAddDialog(false);
+              toast.success(t("toast.agentCreated"));
+            }}
+          />
+        )}
+      </AnimatePresence>
 
-      {settingsAgent && (
-        <AgentSettingsModal
-          agent={settingsAgent}
-          channels={channels}
-          onClose={() => setSettingsAgentId(null)}
-        />
-      )}
+      <AnimatePresence>
+        {settingsAgent && (
+          <AgentSettingsModal
+            agent={settingsAgent}
+            channels={channels}
+            onClose={() => setSettingsAgentId(null)}
+          />
+        )}
+      </AnimatePresence>
 
       <ConfirmDialog
         open={!!agentToDelete}
@@ -327,6 +401,7 @@ function AgentCard({
   onDelete: () => void;
 }) {
   const { t } = useTranslation("agents");
+  const prefersReducedMotion = useReducedMotion() ?? false;
   const channelsText =
     agent.channelTypes.length > 0
       ? agent.channelTypes
@@ -339,11 +414,21 @@ function AgentCard({
 
   return (
     <motion.div
-      whileHover={{ y: -2 }}
-      transition={{ type: "spring", stiffness: 300, damping: 20 }}
+      whileHover={getHoverLift(prefersReducedMotion, { y: -3, scale: 1.006 })}
+      whileTap={getTapScale(prefersReducedMotion, 0.996)}
+      transition={motionTransition.gentle}
       onClick={onSelect}
+      onKeyDown={(event) => {
+        if (event.key === "Enter" || event.key === " ") {
+          event.preventDefault();
+          onSelect();
+        }
+      }}
+      role="button"
+      tabIndex={0}
+      aria-pressed={active}
       className={cn(
-        "group flex cursor-pointer items-start gap-4 rounded-[24px] border p-4 text-left transition-all",
+        "group flex cursor-pointer items-start gap-4 rounded-[24px] border p-4 text-left transition-all focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary/40 focus-visible:ring-offset-2",
         active
           ? "border-border bg-foreground/[0.06] shadow-sm dark:bg-white/[0.08]"
           : "border-border/60 bg-background/55 hover:bg-accent/60",
@@ -354,8 +439,12 @@ function AgentCard({
     >
       <motion.div
         className="h-[46px] w-[46px] shrink-0 flex items-center justify-center text-primary bg-primary/10 rounded-full shadow-sm"
-        whileHover={{ rotate: [0, -5, 5, 0] }}
-        transition={{ duration: 0.5, ease: [0.25, 0.1, 0.25, 1] }}
+        whileHover={
+          prefersReducedMotion
+            ? undefined
+            : { rotate: [0, -5, 5, 0], scale: 1.04 }
+        }
+        transition={motionTransition.snappy}
       >
         <Bot className="h-[22px] w-[22px]" />
       </motion.div>
@@ -380,7 +469,7 @@ function AgentCard({
               <Button
                 variant="ghost"
                 size="icon"
-                className="h-7 w-7 text-muted-foreground opacity-0 transition-all hover:bg-destructive/10 hover:text-destructive group-hover:opacity-100"
+                className="h-7 w-7 text-muted-foreground opacity-70 transition-all hover:bg-destructive/10 hover:text-destructive group-hover:opacity-100 focus-visible:opacity-100"
                 onClick={(event) => {
                   event.stopPropagation();
                   onDelete();
@@ -395,7 +484,8 @@ function AgentCard({
               size="icon"
               className={cn(
                 "h-7 w-7 text-muted-foreground transition-all hover:bg-black/5 hover:text-foreground dark:hover:bg-white/10",
-                !agent.isDefault && "opacity-0 group-hover:opacity-100",
+                !agent.isDefault &&
+                  "opacity-70 group-hover:opacity-100 focus-visible:opacity-100",
               )}
               onClick={(event) => {
                 event.stopPropagation();
@@ -496,10 +586,11 @@ function AddAgentDialog({
   onCreate: (name: string) => Promise<void>;
 }) {
   const { t } = useTranslation("agents");
+  const prefersReducedMotion = useReducedMotion() ?? false;
   const [name, setName] = useState("");
   const [saving, setSaving] = useState(false);
 
-  const handleSubmit = async () => {
+  const handleSubmit = useCallback(async () => {
     if (!name.trim()) return;
     setSaving(true);
     try {
@@ -510,58 +601,93 @@ function AddAgentDialog({
       return;
     }
     setSaving(false);
-  };
+  }, [name, onCreate, t]);
+
+  useEffect(() => {
+    const handleKeyDown = (event: KeyboardEvent) => {
+      if (event.key === "Escape") {
+        onClose();
+      }
+      if (event.key === "Enter" && !event.shiftKey) {
+        event.preventDefault();
+        void handleSubmit();
+      }
+    };
+
+    window.addEventListener("keydown", handleKeyDown);
+    return () => window.removeEventListener("keydown", handleKeyDown);
+  }, [handleSubmit, onClose]);
 
   return (
-    <div className="fixed inset-0 z-50 bg-black/50 flex items-center justify-center p-4">
-      <Card className="w-full max-w-md rounded-3xl border-0 shadow-2xl bg-card overflow-hidden">
-        <CardHeader className="pb-2">
-          <CardTitle className="text-2xl font-serif font-normal tracking-tight">
-            {t("createDialog.title")}
-          </CardTitle>
-          <CardDescription className="text-[15px] mt-1 text-foreground/70">
-            {t("createDialog.description")}
-          </CardDescription>
-        </CardHeader>
-        <CardContent className="space-y-6 pt-4 p-6">
-          <div className="space-y-2.5">
-            <Label htmlFor="agent-name" className={labelClasses}>
-              {t("createDialog.nameLabel")}
-            </Label>
-            <Input
-              id="agent-name"
-              value={name}
-              onChange={(event) => setName(event.target.value)}
-              placeholder={t("createDialog.namePlaceholder")}
-              className={inputClasses}
-            />
-          </div>
-          <div className="flex justify-end gap-2">
-            <Button
-              variant="outline"
-              onClick={onClose}
-              className="h-9 text-[13px] font-medium rounded-full px-4 border-black/10 dark:border-white/10 bg-transparent hover:bg-black/5 dark:hover:bg-white/5 shadow-none text-foreground/80 hover:text-foreground"
-            >
-              {t("common:actions.cancel")}
-            </Button>
-            <Button
-              onClick={() => void handleSubmit()}
-              disabled={saving || !name.trim()}
-              className="h-9 text-[13px] font-medium rounded-full px-4 shadow-none"
-            >
-              {saving ? (
-                <>
-                  <RefreshCw className="h-4 w-4 mr-2 animate-spin" />
-                  {t("creating")}
-                </>
-              ) : (
-                t("common:actions.save")
-              )}
-            </Button>
-          </div>
-        </CardContent>
-      </Card>
-    </div>
+    <motion.div
+      className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 p-4"
+      initial="hidden"
+      animate="show"
+      exit="exit"
+      variants={motionVariants.overlay}
+      onClick={onClose}
+    >
+      <motion.div
+        variants={motionVariants.softScale}
+        initial="hidden"
+        animate="show"
+        exit="exit"
+        transition={motionTransition.modal}
+        onClick={(event) => event.stopPropagation()}
+      >
+        <Card className="w-full max-w-md overflow-hidden rounded-3xl border border-border/70 bg-card/95 shadow-2xl backdrop-blur-xl">
+          <CardHeader className="pb-2">
+            <CardTitle className="text-2xl font-serif font-normal tracking-tight">
+              {t("createDialog.title")}
+            </CardTitle>
+            <CardDescription className="text-[15px] mt-1 text-foreground/70">
+              {t("createDialog.description")}
+            </CardDescription>
+          </CardHeader>
+          <CardContent className="space-y-6 pt-4 p-6">
+            <div className="space-y-2.5">
+              <Label htmlFor="agent-name" className={labelClasses}>
+                {t("createDialog.nameLabel")}
+              </Label>
+              <Input
+                id="agent-name"
+                value={name}
+                onChange={(event) => setName(event.target.value)}
+                placeholder={t("createDialog.namePlaceholder")}
+                className={inputClasses}
+              />
+            </div>
+            <div className="flex justify-end gap-2">
+              <motion.div whileTap={getTapScale(prefersReducedMotion)}>
+                <Button
+                  variant="outline"
+                  onClick={onClose}
+                  className="h-9 text-[13px] font-medium rounded-full px-4 border-black/10 dark:border-white/10 bg-transparent hover:bg-black/5 dark:hover:bg-white/5 shadow-none text-foreground/80 hover:text-foreground"
+                >
+                  {t("common:actions.cancel")}
+                </Button>
+              </motion.div>
+              <motion.div whileTap={getTapScale(prefersReducedMotion)}>
+                <Button
+                  onClick={() => void handleSubmit()}
+                  disabled={saving || !name.trim()}
+                  className="h-9 text-[13px] font-medium rounded-full px-4 shadow-none"
+                >
+                  {saving ? (
+                    <>
+                      <RefreshCw className="h-4 w-4 mr-2 animate-spin" />
+                      {t("creating")}
+                    </>
+                  ) : (
+                    t("common:actions.save")
+                  )}
+                </Button>
+              </motion.div>
+            </div>
+          </CardContent>
+        </Card>
+      </motion.div>
+    </motion.div>
   );
 }
 
@@ -580,6 +706,7 @@ function AgentSettingsModal({
   onClose: () => void;
 }) {
   const { t } = useTranslation("agents");
+  const prefersReducedMotion = useReducedMotion() ?? false;
   const { updateAgent, assignChannel, removeChannel } = useAgentsStore();
   const { fetchChannels } = useChannelsStore();
   const [name, setName] = useState(agent.name);
@@ -589,17 +716,7 @@ function AgentSettingsModal({
     null,
   );
 
-  useEffect(() => {
-    setName(agent.name);
-  }, [agent.name]);
-
-  const runtimeChannelsByType = useMemo(
-    () =>
-      Object.fromEntries(channels.map((channel) => [channel.type, channel])),
-    [channels],
-  );
-
-  const handleSaveName = async () => {
+  const handleSaveName = useCallback(async () => {
     if (!name.trim() || name.trim() === agent.name) return;
     setSavingName(true);
     try {
@@ -610,7 +727,37 @@ function AgentSettingsModal({
     } finally {
       setSavingName(false);
     }
-  };
+  }, [agent.id, agent.name, name, t, updateAgent]);
+
+  useEffect(() => {
+    const handleKeyDown = (event: KeyboardEvent) => {
+      if (event.key === "Escape" && !showChannelModal && !channelToRemove) {
+        onClose();
+      }
+      if (
+        event.key === "Enter" &&
+        !event.shiftKey &&
+        document.activeElement instanceof HTMLElement &&
+        document.activeElement.id === "agent-settings-name"
+      ) {
+        event.preventDefault();
+        void handleSaveName();
+      }
+    };
+
+    window.addEventListener("keydown", handleKeyDown);
+    return () => window.removeEventListener("keydown", handleKeyDown);
+  }, [channelToRemove, handleSaveName, onClose, showChannelModal]);
+
+  useEffect(() => {
+    setName(agent.name);
+  }, [agent.name]);
+
+  const runtimeChannelsByType = useMemo(
+    () =>
+      Object.fromEntries(channels.map((channel) => [channel.type, channel])),
+    [channels],
+  );
 
   const handleChannelSaved = async (channelType: ChannelType) => {
     try {
@@ -641,146 +788,181 @@ function AgentSettingsModal({
   });
 
   return (
-    <div className="fixed inset-0 z-50 bg-black/50 flex items-center justify-center p-4">
-      <Card className="w-full max-w-2xl max-h-[90vh] flex flex-col rounded-3xl border-0 shadow-2xl bg-card dark:bg-card overflow-hidden">
-        <CardHeader className="flex flex-row items-start justify-between pb-2 shrink-0">
-          <div>
-            <CardTitle className="text-2xl font-serif font-normal tracking-tight">
-              {t("settingsDialog.title", { name: agent.name })}
-            </CardTitle>
-            <CardDescription className="text-[15px] mt-1 text-foreground/70">
-              {t("settingsDialog.description")}
-            </CardDescription>
-          </div>
-          <Button
-            variant="ghost"
-            size="icon"
-            onClick={onClose}
-            className="rounded-full h-8 w-8 -mr-2 -mt-2 text-muted-foreground hover:text-foreground hover:bg-black/5 dark:hover:bg-white/5"
-          >
-            <X className="h-4 w-4" />
-          </Button>
-        </CardHeader>
-        <CardContent className="space-y-6 pt-4 overflow-y-auto flex-1 p-6">
-          <div className="space-y-4">
-            <div className="space-y-2.5">
-              <Label htmlFor="agent-settings-name" className={labelClasses}>
-                {t("settingsDialog.nameLabel")}
-              </Label>
-              <div className="flex gap-2">
-                <Input
-                  id="agent-settings-name"
-                  value={name}
-                  onChange={(event) => setName(event.target.value)}
-                  readOnly={agent.isDefault}
-                  className={inputClasses}
-                />
-                {!agent.isDefault && (
-                  <Button
-                    variant="outline"
-                    onClick={() => void handleSaveName()}
-                    disabled={
-                      savingName || !name.trim() || name.trim() === agent.name
-                    }
-                    className="h-[44px] text-[13px] font-medium rounded-xl px-4 border-black/10 dark:border-white/10 bg-black/5 dark:bg-muted hover:bg-black/5 dark:hover:bg-white/5 shadow-none text-foreground/80 hover:text-foreground"
-                  >
-                    {savingName ? (
-                      <RefreshCw className="h-4 w-4 animate-spin" />
-                    ) : (
-                      t("common:actions.save")
-                    )}
-                  </Button>
-                )}
-              </div>
+    <motion.div
+      className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 p-4"
+      initial="hidden"
+      animate="show"
+      exit="exit"
+      variants={motionVariants.overlay}
+      onClick={() => {
+        if (!showChannelModal && !channelToRemove) {
+          onClose();
+        }
+      }}
+    >
+      <motion.div
+        variants={motionVariants.softScale}
+        initial="hidden"
+        animate="show"
+        exit="exit"
+        transition={motionTransition.modal}
+        onClick={(event) => event.stopPropagation()}
+      >
+        <Card className="flex max-h-[90vh] w-full max-w-2xl flex-col overflow-hidden rounded-3xl border border-border/70 bg-card/95 shadow-2xl backdrop-blur-xl dark:bg-card/95">
+          <CardHeader className="flex flex-row items-start justify-between pb-2 shrink-0">
+            <div>
+              <CardTitle className="text-2xl font-serif font-normal tracking-tight">
+                {t("settingsDialog.title", { name: agent.name })}
+              </CardTitle>
+              <CardDescription className="text-[15px] mt-1 text-foreground/70">
+                {t("settingsDialog.description")}
+              </CardDescription>
             </div>
-
-            <div className="grid gap-4 md:grid-cols-2">
-              <div className="space-y-1 rounded-2xl bg-black/5 dark:bg-white/5 border border-transparent p-4">
-                <p className="text-[11px] uppercase tracking-[0.08em] text-muted-foreground/80 font-medium">
-                  {t("settingsDialog.agentIdLabel")}
-                </p>
-                <p className="font-mono text-[13px] text-foreground">
-                  {agent.id}
-                </p>
-              </div>
-              <div className="space-y-1 rounded-2xl bg-black/5 dark:bg-white/5 border border-transparent p-4">
-                <p className="text-[11px] uppercase tracking-[0.08em] text-muted-foreground/80 font-medium">
-                  {t("settingsDialog.modelLabel")}
-                </p>
-                <p className="text-[13.5px] text-foreground">
-                  {agent.modelDisplay}
-                  {agent.inheritedModel ? ` (${t("inherited")})` : ""}
-                </p>
-              </div>
-            </div>
-          </div>
-
-          <div className="space-y-4">
-            <div className="flex items-start justify-between gap-4">
-              <div>
-                <h3 className="text-xl font-serif text-foreground font-normal tracking-tight">
-                  {t("settingsDialog.channelsTitle")}
-                </h3>
-                <p className="text-[14px] text-foreground/70 mt-1">
-                  {t("settingsDialog.channelsDescription")}
-                </p>
-              </div>
-              <Button
-                onClick={() => setShowChannelModal(true)}
-                className="h-9 text-[13px] font-medium rounded-full px-4 shadow-none"
-              >
-                <Plus className="h-3.5 w-3.5 mr-2" />
-                {t("settingsDialog.addChannel")}
-              </Button>
-            </div>
-
-            {assignedChannels.length === 0 ? (
-              <div className="rounded-2xl border border-dashed border-black/10 dark:border-white/10 bg-black/5 dark:bg-white/5 p-4 text-[13.5px] text-muted-foreground">
-                {t("settingsDialog.noChannels")}
-              </div>
-            ) : (
-              <div className="space-y-3">
-                {assignedChannels.map((channel) => (
-                  <div
-                    key={channel.channelType}
-                    className="flex items-center justify-between rounded-2xl bg-black/5 dark:bg-white/5 border border-transparent p-4"
-                  >
-                    <div className="flex items-center gap-3 min-w-0">
-                      <div className="h-[40px] w-[40px] shrink-0 flex items-center justify-center text-foreground bg-black/5 dark:bg-white/5 border border-black/5 dark:border-white/10 rounded-full shadow-sm">
-                        <ChannelLogo type={channel.channelType} />
-                      </div>
-                      <div className="min-w-0">
-                        <p className="text-[15px] font-semibold text-foreground">
-                          {channel.name}
-                        </p>
-                        <p className="text-[13.5px] text-muted-foreground">
-                          {CHANNEL_NAMES[channel.channelType]}
-                        </p>
-                        {channel.error && (
-                          <p className="text-xs text-destructive mt-1">
-                            {channel.error}
-                          </p>
-                        )}
-                      </div>
-                    </div>
-                    <div className="flex items-center gap-2 shrink-0">
-                      <StatusBadge status={channel.status} />
+            <Button
+              variant="ghost"
+              size="icon"
+              onClick={onClose}
+              className="rounded-full h-8 w-8 -mr-2 -mt-2 text-muted-foreground hover:text-foreground hover:bg-black/5 dark:hover:bg-white/5"
+            >
+              <X className="h-4 w-4" />
+            </Button>
+          </CardHeader>
+          <CardContent className="space-y-6 pt-4 overflow-y-auto flex-1 p-6">
+            <div className="space-y-4">
+              <div className="space-y-2.5">
+                <Label htmlFor="agent-settings-name" className={labelClasses}>
+                  {t("settingsDialog.nameLabel")}
+                </Label>
+                <div className="flex gap-2">
+                  <Input
+                    id="agent-settings-name"
+                    value={name}
+                    onChange={(event) => setName(event.target.value)}
+                    readOnly={agent.isDefault}
+                    className={inputClasses}
+                  />
+                  {!agent.isDefault && (
+                    <motion.div whileTap={getTapScale(prefersReducedMotion)}>
                       <Button
-                        variant="ghost"
-                        size="icon"
-                        className="h-7 w-7 text-muted-foreground hover:text-destructive hover:bg-destructive/10"
-                        onClick={() => setChannelToRemove(channel.channelType)}
+                        variant="outline"
+                        onClick={() => void handleSaveName()}
+                        disabled={
+                          savingName ||
+                          !name.trim() ||
+                          name.trim() === agent.name
+                        }
+                        className="h-[44px] text-[13px] font-medium rounded-xl px-4 border-black/10 dark:border-white/10 bg-black/5 dark:bg-muted hover:bg-black/5 dark:hover:bg-white/5 shadow-none text-foreground/80 hover:text-foreground"
                       >
-                        <Trash2 className="h-4 w-4" />
+                        {savingName ? (
+                          <RefreshCw className="h-4 w-4 animate-spin" />
+                        ) : (
+                          t("common:actions.save")
+                        )}
                       </Button>
-                    </div>
-                  </div>
-                ))}
+                    </motion.div>
+                  )}
+                </div>
               </div>
-            )}
-          </div>
-        </CardContent>
-      </Card>
+
+              <div className="grid gap-4 md:grid-cols-2">
+                <div className="space-y-1 rounded-2xl bg-black/5 dark:bg-white/5 border border-transparent p-4">
+                  <p className="text-[11px] uppercase tracking-[0.08em] text-muted-foreground/80 font-medium">
+                    {t("settingsDialog.agentIdLabel")}
+                  </p>
+                  <p className="font-mono text-[13px] text-foreground">
+                    {agent.id}
+                  </p>
+                </div>
+                <div className="space-y-1 rounded-2xl bg-black/5 dark:bg-white/5 border border-transparent p-4">
+                  <p className="text-[11px] uppercase tracking-[0.08em] text-muted-foreground/80 font-medium">
+                    {t("settingsDialog.modelLabel")}
+                  </p>
+                  <p className="text-[13.5px] text-foreground">
+                    {agent.modelDisplay}
+                    {agent.inheritedModel ? ` (${t("inherited")})` : ""}
+                  </p>
+                </div>
+              </div>
+            </div>
+
+            <div className="space-y-4">
+              <div className="flex items-start justify-between gap-4">
+                <div>
+                  <h3 className="text-xl font-serif text-foreground font-normal tracking-tight">
+                    {t("settingsDialog.channelsTitle")}
+                  </h3>
+                  <p className="text-[14px] text-foreground/70 mt-1">
+                    {t("settingsDialog.channelsDescription")}
+                  </p>
+                </div>
+                <motion.div whileTap={getTapScale(prefersReducedMotion)}>
+                  <Button
+                    onClick={() => setShowChannelModal(true)}
+                    className="h-9 text-[13px] font-medium rounded-full px-4 shadow-none"
+                  >
+                    <Plus className="h-3.5 w-3.5 mr-2" />
+                    {t("settingsDialog.addChannel")}
+                  </Button>
+                </motion.div>
+              </div>
+
+              {assignedChannels.length === 0 ? (
+                <div className="rounded-2xl border border-dashed border-black/10 dark:border-white/10 bg-black/5 dark:bg-white/5 p-4 text-[13.5px] text-muted-foreground">
+                  {t("settingsDialog.noChannels")}
+                </div>
+              ) : (
+                <div className="space-y-3">
+                  {assignedChannels.map((channel) => (
+                    <motion.div
+                      key={channel.channelType}
+                      className="flex items-center justify-between rounded-2xl bg-black/5 dark:bg-white/5 border border-transparent p-4"
+                      initial={{ opacity: 0, y: 10 }}
+                      animate={{ opacity: 1, y: 0 }}
+                      transition={motionTransition.gentle}
+                      whileHover={getHoverLift(prefersReducedMotion, {
+                        y: -2,
+                        scale: 1.004,
+                      })}
+                    >
+                      <div className="flex items-center gap-3 min-w-0">
+                        <div className="h-[40px] w-[40px] shrink-0 flex items-center justify-center text-foreground bg-black/5 dark:bg-white/5 border border-black/5 dark:border-white/10 rounded-full shadow-sm">
+                          <ChannelLogo type={channel.channelType} />
+                        </div>
+                        <div className="min-w-0">
+                          <p className="text-[15px] font-semibold text-foreground">
+                            {channel.name}
+                          </p>
+                          <p className="text-[13.5px] text-muted-foreground">
+                            {CHANNEL_NAMES[channel.channelType]}
+                          </p>
+                          {channel.error && (
+                            <p className="text-xs text-destructive mt-1">
+                              {channel.error}
+                            </p>
+                          )}
+                        </div>
+                      </div>
+                      <div className="flex items-center gap-2 shrink-0">
+                        <StatusBadge status={channel.status} />
+                        <Button
+                          variant="ghost"
+                          size="icon"
+                          className="h-7 w-7 text-muted-foreground hover:text-destructive hover:bg-destructive/10"
+                          onClick={() =>
+                            setChannelToRemove(channel.channelType)
+                          }
+                        >
+                          <Trash2 className="h-4 w-4" />
+                        </Button>
+                      </div>
+                    </motion.div>
+                  ))}
+                </div>
+              )}
+            </div>
+          </CardContent>
+        </Card>
+      </motion.div>
 
       {showChannelModal && (
         <ChannelConfigModal
@@ -829,7 +1011,7 @@ function AgentSettingsModal({
         }}
         onCancel={() => setChannelToRemove(null)}
       />
-    </div>
+    </motion.div>
   );
 }
 

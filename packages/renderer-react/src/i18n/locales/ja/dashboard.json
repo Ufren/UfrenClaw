@@ -11,7 +11,20 @@
     "gatewayNotRunning": "ゲートウェイが停止中",
     "models": {
         "title": "モデル",
-        "subtitle": "AI プロバイダーを管理し、トークン使用量を監視します"
+        "subtitle": "AI プロバイダーを管理し、トークン使用量を監視します",
+        "overviewTitle": "モデル概要",
+        "overviewDescription": "アカウントの準備状況、既定ルーティング、最近の使用傾向をすばやく把握できます。",
+        "usageHealthTitle": "使用状況の見どころ",
+        "usageHealthDescription": "期間と集計軸を切り替えながら、直近の利用傾向や変化を捉えられます。",
+        "configuredAccounts": "設定済みアカウント",
+        "readyAccounts": "準備完了アカウント",
+        "defaultAccount": "既定アカウント",
+        "noDefaultAccount": "未設定",
+        "recentRecords": "最近の記録",
+        "usageFocus": "利用の中心",
+        "latestActivity": "最新のアクティビティ",
+        "averageTokens": "平均トークン",
+        "emptyHint": "まだデータがありません"
     },
     "quickActions": {
         "title": "クイックアクション",

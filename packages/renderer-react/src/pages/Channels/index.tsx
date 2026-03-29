@@ -1,10 +1,6 @@
-/**
- * Channels Page
- * Manage messaging channel connections with configuration UI
- */
-import { useState, useEffect, useCallback } from "react";
-import { motion } from "framer-motion";
-import { RefreshCw, Trash2, AlertCircle } from "lucide-react";
+import { useState, useEffect, useCallback, useMemo } from "react";
+import { motion, useReducedMotion } from "framer-motion";
+import { AlertCircle, Plus, RefreshCw, Sparkles, Trash2 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { ConfirmDialog } from "@/components/ui/confirm-dialog";
@@ -15,6 +11,18 @@ import { hostApiFetch } from "@/lib/host-api";
 import { subscribeHostEvent } from "@/lib/host-events";
 import { ChannelConfigModal } from "@/components/channels/ChannelConfigModal";
 import { cn } from "@/lib/utils";
+import {
+  WorkspacePage,
+  WorkspacePanel,
+  WorkspacePanelHeader,
+} from "@/components/layout/WorkspacePage";
+import {
+  createStaggeredList,
+  getHoverLift,
+  getTapScale,
+  motionTransition,
+  motionVariants,
+} from "@/lib/motion";
 import {
   CHANNEL_ICONS,
   CHANNEL_NAMES,
@@ -34,7 +42,8 @@ import wecomIcon from "@/assets/channels/wecom.svg";
 import qqIcon from "@/assets/channels/qq.svg";
 
 export function Channels() {
-  const { t } = useTranslation("channels");
+  const { t } = useTranslation(["channels", "common"]);
+  const prefersReducedMotion = useReducedMotion() ?? false;
   const { channels, loading, error, fetchChannels, deleteChannel } =
     useChannelsStore();
   const gatewayStatus = useGatewayStore((state) => state.status);
@@ -84,11 +93,16 @@ export function Channels() {
     };
   }, [fetchChannels, fetchConfiguredTypes]);
 
-  const displayedChannelTypes = getPrimaryChannels();
+  const displayedChannelTypes = useMemo(() => getPrimaryChannels(), []);
 
   const handleRefresh = () => {
     void Promise.all([fetchChannels(), fetchConfiguredTypes()]);
   };
+
+  const openChannelDialog = useCallback((type: ChannelType | null = null) => {
+    setSelectedChannelType(type);
+    setShowAddDialog(true);
+  }, []);
 
   if (loading) {
     return (
@@ -112,157 +126,264 @@ export function Channels() {
       status: "disconnected",
     }));
   const availableChannels = [...safeChannels, ...configuredPlaceholderChannels];
+  const connectedCount = safeChannels.filter(
+    (channel) => channel.status === "connected",
+  ).length;
+  const attentionCount = availableChannels.filter(
+    (channel) =>
+      channel.status === "error" || channel.status === "disconnected",
+  ).length;
+  const discoverableChannels = displayedChannelTypes.filter(
+    (type) => !availableChannels.some((channel) => channel.type === type),
+  );
+  const stats = [
+    {
+      label: t("stats.total"),
+      value: displayedChannelTypes.length,
+      hint: t("supportedChannels"),
+    },
+    {
+      label: t("configured"),
+      value: availableChannels.length,
+      hint: t("configuredDesc"),
+    },
+    {
+      label: t("stats.connected"),
+      value: connectedCount,
+      hint: t("overviewDesc"),
+    },
+    {
+      label: t("overviewAttention"),
+      value: attentionCount,
+      hint: attentionCount > 0 ? t("tipsDisconnected") : t("tipsHealthy"),
+    },
+  ];
+  const aside = (
+    <div className="space-y-4">
+      <WorkspacePanel className="space-y-4">
+        <WorkspacePanelHeader
+          title={t("overviewTitle")}
+          description={t("overviewDesc")}
+        />
+        <div className="grid gap-3">
+          <ChannelInsightRow
+            label={t("common:sidebar.channels")}
+            value={String(availableChannels.length)}
+          />
+          <ChannelInsightRow
+            label={t("stats.connected")}
+            value={String(connectedCount)}
+            tone={connectedCount > 0 ? "positive" : "muted"}
+          />
+          <ChannelInsightRow
+            label={t("availableChannels")}
+            value={String(discoverableChannels.length)}
+          />
+          <ChannelInsightRow
+            label={t("overviewAttention")}
+            value={String(attentionCount)}
+            tone={attentionCount > 0 ? "warning" : "positive"}
+          />
+        </div>
+      </WorkspacePanel>
+      <WorkspacePanel className="space-y-4">
+        <WorkspacePanelHeader
+          title={t("tipsTitle")}
+          description={
+            gatewayStatus.state === "running"
+              ? t("tipsHealthy")
+              : t("tipsGatewayDown")
+          }
+        />
+        <div className="space-y-3">
+          <div className="rounded-2xl border border-border/70 bg-background/55 p-4 text-[13px] leading-6 text-muted-foreground">
+            {gatewayStatus.state !== "running"
+              ? t("tipsGatewayDown")
+              : availableChannels.length === 0
+                ? t("tipsFirstChannel")
+                : attentionCount > 0
+                  ? t("tipsDisconnected")
+                  : t("tipsHealthy")}
+          </div>
+          <motion.div whileTap={getTapScale(prefersReducedMotion)}>
+            <Button
+              onClick={() => openChannelDialog(null)}
+              className="h-10 w-full rounded-full px-4 text-[13px] shadow-none"
+            >
+              <Plus className="mr-2 h-4 w-4" />
+              {t("addChannel")}
+            </Button>
+          </motion.div>
+        </div>
+      </WorkspacePanel>
+    </div>
+  );
 
   return (
-    <motion.div
-      initial={{ opacity: 0, y: 10 }}
-      animate={{ opacity: 1, y: 0 }}
-      transition={{ duration: 0.5, ease: [0.25, 0.1, 0.25, 1] }}
-      className="flex flex-col -m-6 dark:bg-background h-[calc(100vh-2.5rem)] overflow-hidden"
-    >
-      <div className="w-full max-w-5xl mx-auto flex flex-col h-full p-10 pt-16">
+    <>
+      <WorkspacePage
+        eyebrow={t("common:sidebar.channels")}
+        title={t("title")}
+        description={t("subtitle")}
+        actions={
+          <>
+            <motion.div whileTap={getTapScale(prefersReducedMotion)}>
+              <Button
+                variant="outline"
+                onClick={handleRefresh}
+                disabled={gatewayStatus.state !== "running"}
+                className="h-10 rounded-full border-border/70 bg-background/70 px-4 text-[13px] shadow-none hover:bg-accent/80"
+              >
+                <RefreshCw className="mr-2 h-4 w-4" />
+                {t("refresh")}
+              </Button>
+            </motion.div>
+            <motion.div whileTap={getTapScale(prefersReducedMotion)}>
+              <Button
+                onClick={() => openChannelDialog(null)}
+                className="h-10 rounded-full px-4 text-[13px] shadow-none"
+              >
+                <Plus className="mr-2 h-4 w-4" />
+                {t("addChannel")}
+              </Button>
+            </motion.div>
+          </>
+        }
+        aside={aside}
+        className="-m-6 h-[calc(100vh-2.5rem)]"
+        contentClassName="space-y-6"
+      >
         <motion.div
-          initial={{ opacity: 0, y: -10 }}
-          animate={{ opacity: 1, y: 0 }}
-          transition={{
-            duration: 0.5,
-            delay: 0.08,
-            ease: [0.25, 0.1, 0.25, 1],
-          }}
-          className="flex flex-col md:flex-row md:items-start justify-between mb-12 shrink-0 gap-4"
+          initial="hidden"
+          animate="show"
+          variants={createStaggeredList(prefersReducedMotion ? 0 : 0.05)}
+          className="grid gap-4 md:grid-cols-2 xl:grid-cols-4"
         >
-          <div>
-            <h1
-              className="text-5xl md:text-6xl font-serif text-foreground mb-3 font-normal tracking-tight"
-              style={{
-                fontFamily: 'Georgia, Cambria, "Times New Roman", Times, serif',
-              }}
-            >
-              {t("title")}
-            </h1>
-            <p className="text-[17px] text-foreground/70 font-medium">
-              {t("subtitle")}
-            </p>
-          </div>
-
-          <div className="flex items-center gap-3 md:mt-2">
-            <Button
-              variant="outline"
-              onClick={handleRefresh}
-              disabled={gatewayStatus.state !== "running"}
-              className="h-9 text-[13px] font-medium rounded-full px-4 border-black/10 dark:border-white/10 bg-transparent hover:bg-black/5 dark:hover:bg-white/5 shadow-none text-foreground/80 hover:text-foreground transition-colors"
-            >
-              <RefreshCw
-                className={cn("h-3.5 w-3.5 mr-2", loading && "animate-spin")}
+          {stats.map((stat) => (
+            <motion.div key={stat.label} variants={motionVariants.softScale}>
+              <ChannelStatCard
+                label={stat.label}
+                value={String(stat.value)}
+                hint={stat.hint}
+                prefersReducedMotion={prefersReducedMotion}
               />
-              {t("refresh")}
-            </Button>
-          </div>
+            </motion.div>
+          ))}
         </motion.div>
 
-        <div className="flex-1 overflow-y-auto pr-2 pb-10 min-h-0 -mr-2">
-          {gatewayStatus.state !== "running" && (
-            <div className="mb-8 p-4 rounded-xl border border-yellow-500/50 bg-yellow-500/10 flex items-center gap-3">
-              <AlertCircle className="h-5 w-5 text-yellow-600 dark:text-yellow-400" />
-              <span className="text-yellow-700 dark:text-yellow-400 text-sm font-medium">
-                {t("gatewayWarning")}
-              </span>
-            </div>
-          )}
-
-          {error && (
-            <div className="mb-8 p-4 rounded-xl border border-destructive/50 bg-destructive/10 flex items-center gap-3">
-              <AlertCircle className="h-5 w-5 text-destructive" />
-              <span className="text-destructive text-sm font-medium">
-                {error}
-              </span>
-            </div>
-          )}
-
-          {availableChannels.length > 0 && (
-            <div className="mb-12">
-              <h2
-                className="text-3xl font-serif text-foreground mb-6 font-normal tracking-tight"
-                style={{
-                  fontFamily:
-                    'Georgia, Cambria, "Times New Roman", Times, serif',
-                }}
-              >
-                {t("availableChannels")}
-              </h2>
-              <div className="grid grid-cols-1 md:grid-cols-2 gap-x-6 gap-y-4">
-                {availableChannels.map((channel) => (
-                  <ChannelCard
-                    key={channel.id}
-                    channel={channel}
-                    onClick={() => {
-                      setSelectedChannelType(channel.type);
-                      setShowAddDialog(true);
-                    }}
-                    onDelete={() => setChannelToDelete({ id: channel.id })}
-                  />
-                ))}
-              </div>
-            </div>
-          )}
-
-          <div className="mb-8">
-            <h2
-              className="text-3xl font-serif text-foreground mb-6 font-normal tracking-tight"
-              style={{
-                fontFamily: 'Georgia, Cambria, "Times New Roman", Times, serif',
-              }}
-            >
-              {t("supportedChannels")}
-            </h2>
-
-            <div className="grid grid-cols-1 md:grid-cols-2 gap-x-6 gap-y-4">
-              {displayedChannelTypes.map((type) => {
-                const meta = CHANNEL_META[type];
-                const isAvailable = availableChannels.some(
-                  (channel) => channel.type === type,
-                );
-                if (isAvailable) return null;
-
-                return (
-                  <button
-                    key={type}
-                    onClick={() => {
-                      setSelectedChannelType(type);
-                      setShowAddDialog(true);
-                    }}
-                    className={cn(
-                      "group flex items-start gap-4 p-4 rounded-2xl transition-all text-left border relative overflow-hidden bg-transparent border-transparent hover:bg-black/5 dark:hover:bg-white/5",
-                    )}
-                  >
-                    <div className="h-[46px] w-[46px] shrink-0 flex items-center justify-center text-foreground bg-black/5 dark:bg-white/5 border border-black/5 dark:border-white/10 rounded-full shadow-sm mb-3">
-                      <ChannelLogo type={type} />
-                    </div>
-                    <div className="flex flex-col flex-1 min-w-0 py-0.5 mt-1">
-                      <div className="flex items-center gap-2 mb-1">
-                        <h3 className="text-[16px] font-semibold text-foreground truncate">
-                          {meta.name}
-                        </h3>
-                        {meta.isPlugin && (
-                          <Badge
-                            variant="secondary"
-                            className="font-mono text-[10px] font-medium px-2 py-0.5 rounded-full bg-black/[0.04] dark:bg-white/[0.08] border-0 shadow-none text-foreground/70"
-                          >
-                            {t("pluginBadge")}
-                          </Badge>
-                        )}
-                      </div>
-                      <p className="text-[13.5px] text-muted-foreground line-clamp-2 leading-[1.5]">
-                        {t(meta.description.replace("channels:", ""))}
-                      </p>
-                    </div>
-                  </button>
-                );
-              })}
-            </div>
+        {gatewayStatus.state !== "running" ? (
+          <div className="flex items-center gap-3 rounded-[24px] border border-yellow-500/40 bg-yellow-500/10 px-4 py-3">
+            <AlertCircle className="h-5 w-5 text-yellow-600 dark:text-yellow-400" />
+            <span className="text-sm font-medium text-yellow-700 dark:text-yellow-400">
+              {t("gatewayWarning")}
+            </span>
           </div>
-        </div>
-      </div>
+        ) : null}
+
+        {error ? (
+          <div className="flex items-center gap-3 rounded-[24px] border border-destructive/40 bg-destructive/10 px-4 py-3">
+            <AlertCircle className="h-5 w-5 text-destructive" />
+            <span className="text-sm font-medium text-destructive">
+              {error}
+            </span>
+          </div>
+        ) : null}
+
+        <WorkspacePanel className="space-y-4">
+          <WorkspacePanelHeader
+            title={t("configured")}
+            description={t("configuredDesc")}
+            action={
+              <Badge
+                variant="secondary"
+                className="rounded-full border-0 bg-primary/10 px-3 py-1 text-[11px] text-primary"
+              >
+                {availableChannels.length}
+              </Badge>
+            }
+          />
+          {availableChannels.length > 0 ? (
+            <motion.div
+              initial="hidden"
+              animate="show"
+              variants={createStaggeredList(prefersReducedMotion ? 0 : 0.04)}
+              className="grid gap-4 md:grid-cols-2"
+            >
+              {availableChannels.map((channel) => (
+                <motion.div key={channel.id} variants={motionVariants.fadeUp}>
+                  <ChannelCard
+                    channel={channel}
+                    onClick={() => openChannelDialog(channel.type)}
+                    onDelete={() => setChannelToDelete({ id: channel.id })}
+                    prefersReducedMotion={prefersReducedMotion}
+                  />
+                </motion.div>
+              ))}
+            </motion.div>
+          ) : (
+            <div className="flex min-h-[240px] flex-col items-center justify-center rounded-[28px] border border-dashed border-border/70 bg-background/40 px-6 py-10 text-center">
+              <div className="flex h-14 w-14 items-center justify-center rounded-full bg-primary/10 text-primary">
+                <Sparkles className="h-6 w-6" />
+              </div>
+              <div className="mt-4 text-lg font-semibold text-foreground">
+                {t("emptyConfiguredTitle")}
+              </div>
+              <p className="mt-2 max-w-md text-sm leading-6 text-muted-foreground">
+                {t("emptyConfiguredDesc")}
+              </p>
+              <motion.div
+                className="mt-5"
+                whileTap={getTapScale(prefersReducedMotion)}
+              >
+                <Button
+                  onClick={() => openChannelDialog(null)}
+                  className="h-10 rounded-full px-5 text-[13px] shadow-none"
+                >
+                  <Plus className="mr-2 h-4 w-4" />
+                  {t("addChannel")}
+                </Button>
+              </motion.div>
+            </div>
+          )}
+        </WorkspacePanel>
+
+        <WorkspacePanel className="space-y-4">
+          <WorkspacePanelHeader
+            title={t("available")}
+            description={t("availableDesc")}
+            action={
+              <Badge
+                variant="secondary"
+                className="rounded-full border-0 bg-background/70 px-3 py-1 text-[11px] text-muted-foreground"
+              >
+                {discoverableChannels.length}
+              </Badge>
+            }
+          />
+          {discoverableChannels.length > 0 ? (
+            <motion.div
+              initial="hidden"
+              animate="show"
+              variants={createStaggeredList(prefersReducedMotion ? 0 : 0.04)}
+              className="grid gap-4 md:grid-cols-2"
+            >
+              {discoverableChannels.map((type) => (
+                <motion.div key={type} variants={motionVariants.fadeUp}>
+                  <SupportedChannelCard
+                    type={type}
+                    onClick={() => openChannelDialog(type)}
+                    prefersReducedMotion={prefersReducedMotion}
+                  />
+                </motion.div>
+              ))}
+            </motion.div>
+          ) : (
+            <div className="rounded-[24px] border border-border/70 bg-background/45 px-4 py-5 text-sm text-muted-foreground">
+              {t("tipsHealthy")}
+            </div>
+          )}
+        </WorkspacePanel>
+      </WorkspacePage>
 
       {showAddDialog && (
         <ChannelConfigModal
@@ -282,10 +403,10 @@ export function Channels() {
 
       <ConfirmDialog
         open={!!channelToDelete}
-        title={t("common.confirm", "Confirm")}
+        title={t("common:actions.confirm")}
         message={t("deleteConfirm")}
-        confirmLabel={t("common.delete", "Delete")}
-        cancelLabel={t("common.cancel", "Cancel")}
+        confirmLabel={t("common:actions.delete")}
+        cancelLabel={t("common:actions.cancel")}
         variant="destructive"
         onConfirm={async () => {
           if (channelToDelete) {
@@ -299,7 +420,7 @@ export function Channels() {
         }}
         onCancel={() => setChannelToDelete(null)}
       />
-    </motion.div>
+    </>
   );
 }
 
@@ -366,23 +487,55 @@ interface ChannelCardProps {
   channel: Channel;
   onClick: () => void;
   onDelete: () => void;
+  prefersReducedMotion: boolean;
 }
 
-function ChannelCard({ channel, onClick, onDelete }: ChannelCardProps) {
-  const { t } = useTranslation("channels");
+function ChannelCard({
+  channel,
+  onClick,
+  onDelete,
+  prefersReducedMotion,
+}: ChannelCardProps) {
+  const { t } = useTranslation(["channels", "common"]);
   const meta = CHANNEL_META[channel.type];
+  const statusTone =
+    channel.status === "connected"
+      ? "bg-emerald-500/12 text-emerald-700 dark:text-emerald-300"
+      : channel.status === "connecting"
+        ? "bg-yellow-500/12 text-yellow-700 dark:text-yellow-300"
+        : channel.status === "error"
+          ? "bg-destructive/12 text-destructive"
+          : "bg-muted text-muted-foreground";
+  const statusLabel =
+    channel.status === "connected"
+      ? t("common:status.connected")
+      : channel.status === "connecting"
+        ? t("common:status.connecting")
+        : channel.status === "error"
+          ? t("common:status.error")
+          : t("common:status.disconnected");
 
   return (
-    <div
+    <motion.div
       onClick={onClick}
-      className="group flex items-start gap-4 p-4 rounded-2xl transition-all text-left border relative overflow-hidden bg-transparent border-transparent hover:bg-black/5 dark:hover:bg-white/5 cursor-pointer"
+      onKeyDown={(event) => {
+        if (event.key === "Enter" || event.key === " ") {
+          event.preventDefault();
+          onClick();
+        }
+      }}
+      whileHover={getHoverLift(prefersReducedMotion, { y: -3, scale: 1.006 })}
+      transition={motionTransition.gentle}
+      role="button"
+      tabIndex={0}
+      className="group flex items-start gap-4 rounded-[24px] border border-border/70 bg-background/50 p-4 text-left transition-all hover:bg-accent/40 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary/40 focus-visible:ring-offset-2"
     >
-      <div className="h-[46px] w-[46px] shrink-0 flex items-center justify-center text-foreground bg-black/5 dark:bg-white/5 border border-black/5 dark:border-white/10 rounded-full shadow-sm mb-3">
+      <div className="mt-0.5 flex h-[46px] w-[46px] shrink-0 items-center justify-center rounded-full border border-black/5 bg-black/5 text-foreground shadow-sm dark:border-white/10 dark:bg-white/5">
         <ChannelLogo type={channel.type} />
       </div>
-      <div className="flex flex-col flex-1 min-w-0 py-0.5 mt-1">
-        <div className="flex items-center justify-between gap-2 mb-1">
-          <div className="flex items-center gap-2 min-w-0">
+      <div className="mt-1 flex min-w-0 flex-1 flex-col py-0.5">
+        <div className="mb-1 flex items-center justify-between gap-2">
+          <div className="flex min-w-0 items-center gap-2">
             <h3 className="text-[16px] font-semibold text-foreground truncate">
               {channel.name}
             </h3>
@@ -394,29 +547,17 @@ function ChannelCard({ channel, onClick, onDelete }: ChannelCardProps) {
                 {t("pluginBadge", "Plugin")}
               </Badge>
             )}
-            <div
-              className={cn(
-                "w-2 h-2 rounded-full shrink-0",
-                channel.status === "connected"
-                  ? "bg-green-500"
-                  : channel.status === "connecting"
-                    ? "bg-yellow-500 animate-pulse"
-                    : channel.status === "error"
-                      ? "bg-destructive"
-                      : "bg-muted-foreground",
-              )}
-              title={channel.status}
-            />
           </div>
 
           <Button
             variant="ghost"
             size="icon"
-            className="opacity-0 group-hover:opacity-100 h-7 w-7 text-muted-foreground hover:text-destructive hover:bg-destructive/10 transition-all shrink-0 -mr-2"
+            className="h-8 w-8 shrink-0 rounded-full text-muted-foreground opacity-80 transition-all hover:bg-destructive/10 hover:text-destructive sm:opacity-0 sm:group-hover:opacity-100"
             onClick={(event) => {
               event.stopPropagation();
               onDelete();
             }}
+            aria-label={t("common:actions.delete")}
           >
             <Trash2 className="h-4 w-4" />
           </Button>
@@ -433,7 +574,139 @@ function ChannelCard({ channel, onClick, onDelete }: ChannelCardProps) {
               : CHANNEL_NAMES[channel.type]}
           </p>
         )}
+        <div className="mt-4 flex items-center justify-between gap-3">
+          <Badge
+            variant="secondary"
+            className={cn(
+              "rounded-full border-0 px-2.5 py-1 text-[11px]",
+              statusTone,
+            )}
+          >
+            {statusLabel}
+          </Badge>
+          <span className="text-[12px] font-medium text-primary">
+            {t("common:actions.edit")}
+          </span>
+        </div>
       </div>
+    </motion.div>
+  );
+}
+
+function SupportedChannelCard({
+  type,
+  onClick,
+  prefersReducedMotion,
+}: {
+  type: ChannelType;
+  onClick: () => void;
+  prefersReducedMotion: boolean;
+}) {
+  const { t } = useTranslation("channels");
+  const meta = CHANNEL_META[type];
+
+  return (
+    <motion.button
+      type="button"
+      onClick={onClick}
+      whileHover={getHoverLift(prefersReducedMotion, { y: -3, scale: 1.006 })}
+      transition={motionTransition.gentle}
+      className="group flex w-full items-start gap-4 rounded-[24px] border border-border/70 bg-background/45 p-4 text-left hover:bg-accent/40 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary/40 focus-visible:ring-offset-2"
+    >
+      <div className="mt-0.5 flex h-[46px] w-[46px] shrink-0 items-center justify-center rounded-full border border-black/5 bg-black/5 text-foreground shadow-sm dark:border-white/10 dark:bg-white/5">
+        <ChannelLogo type={type} />
+      </div>
+      <div className="mt-1 flex min-w-0 flex-1 flex-col">
+        <div className="mb-1 flex items-center gap-2">
+          <h3 className="truncate text-[16px] font-semibold text-foreground">
+            {meta.name}
+          </h3>
+          {meta.isPlugin ? (
+            <Badge
+              variant="secondary"
+              className="rounded-full border-0 bg-black/[0.04] px-2 py-0.5 font-mono text-[10px] font-medium text-foreground/70 shadow-none dark:bg-white/[0.08]"
+            >
+              {t("pluginBadge")}
+            </Badge>
+          ) : null}
+        </div>
+        <p className="line-clamp-2 text-[13.5px] leading-[1.5] text-muted-foreground">
+          {t(meta.description.replace("channels:", ""))}
+        </p>
+        <div className="mt-4 flex items-center justify-between gap-3">
+          <Badge
+            variant="secondary"
+            className="rounded-full border-0 bg-background/70 px-2.5 py-1 text-[11px] text-muted-foreground"
+          >
+            {t("availableChannels")}
+          </Badge>
+          <span className="text-[12px] font-medium text-primary">
+            {t("addChannel")}
+          </span>
+        </div>
+      </div>
+    </motion.button>
+  );
+}
+
+function ChannelStatCard({
+  label,
+  value,
+  hint,
+  prefersReducedMotion,
+}: {
+  label: string;
+  value: string;
+  hint: string;
+  prefersReducedMotion: boolean;
+}) {
+  return (
+    <motion.div
+      className="rounded-[26px] border border-border/70 bg-background/55 p-4"
+      whileHover={getHoverLift(prefersReducedMotion, { y: -3, scale: 1.01 })}
+      transition={motionTransition.gentle}
+    >
+      <div className="text-[12px] font-medium text-muted-foreground">
+        {label}
+      </div>
+      <div className="mt-2 text-[22px] font-semibold tracking-[-0.02em] text-foreground">
+        {value}
+      </div>
+      <div className="mt-3 text-[12px] leading-5 text-muted-foreground">
+        {hint}
+      </div>
+    </motion.div>
+  );
+}
+
+function ChannelInsightRow({
+  label,
+  value,
+  tone = "default",
+}: {
+  label: string;
+  value: string;
+  tone?: "default" | "positive" | "warning" | "muted";
+}) {
+  return (
+    <div className="flex items-center justify-between gap-3 rounded-2xl border border-border/70 bg-background/55 px-4 py-3">
+      <span className="text-[12px] font-medium text-muted-foreground">
+        {label}
+      </span>
+      <span
+        className={cn(
+          "text-[13px] font-semibold",
+          tone === "positive"
+            ? "text-emerald-600 dark:text-emerald-400"
+            : tone === "warning"
+              ? "text-yellow-700 dark:text-yellow-300"
+              : tone === "muted"
+                ? "text-muted-foreground"
+                : "text-foreground",
+        )}
+      >
+        {value}
+      </span>
     </div>
   );
 }

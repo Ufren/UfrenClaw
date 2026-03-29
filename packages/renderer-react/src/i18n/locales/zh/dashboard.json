@@ -11,7 +11,20 @@
     "gatewayNotRunning": "网关未运行",
     "models": {
         "title": "模型",
-        "subtitle": "管理您的 AI 提供商并监控 Token 用量"
+        "subtitle": "管理您的 AI 提供商并监控 Token 用量",
+        "overviewTitle": "模型概览",
+        "overviewDescription": "从账号准备度、默认提供商与近期消耗快速把握当前模型状态。",
+        "usageHealthTitle": "用量观察",
+        "usageHealthDescription": "结合时间窗口与分组方式，快速识别近期使用重点与波动。",
+        "configuredAccounts": "已配置账号",
+        "readyAccounts": "已就绪账号",
+        "defaultAccount": "默认账号",
+        "noDefaultAccount": "尚未设置",
+        "recentRecords": "近期记录",
+        "usageFocus": "使用焦点",
+        "latestActivity": "最近活动",
+        "averageTokens": "平均 token",
+        "emptyHint": "暂无数据"
     },
     "quickActions": {
         "title": "快捷操作",

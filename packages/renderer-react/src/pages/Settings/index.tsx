@@ -1,5 +1,5 @@
 import { useEffect, useMemo, useState } from "react";
-import { motion } from "framer-motion";
+import { motion, useReducedMotion } from "framer-motion";
 import { RefreshCw, ExternalLink, Copy, FileText } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Label } from "@/components/ui/label";
@@ -10,7 +10,6 @@ import { toast } from "sonner";
 import { useSettingsStore } from "@/stores/settings";
 import { useGatewayStore } from "@/stores/gateway";
 import { useUpdateStore } from "@/stores/update";
-import { UpdateSettings } from "@/components/settings/UpdateSettings";
 import {
   WorkspacePage,
   WorkspacePanel,
@@ -32,6 +31,13 @@ import {
 import { useTranslation } from "react-i18next";
 import { hostApiFetch } from "@/lib/host-api";
 import { cn } from "@/lib/utils";
+import {
+  createStaggeredList,
+  getHoverLift,
+  getTapScale,
+  motionTransition,
+  motionVariants,
+} from "@/lib/motion";
 type ControlUiInfo = {
   url: string;
   token: string;
@@ -49,12 +55,16 @@ function SettingRow({
   control: React.ReactNode;
   className?: string;
 }) {
+  const prefersReducedMotion = useReducedMotion() ?? false;
+
   return (
-    <div
+    <motion.div
       className={cn(
         "flex items-start justify-between gap-4 rounded-[20px] border border-border/60 bg-background/45 px-4 py-4",
         className,
       )}
+      whileHover={getHoverLift(prefersReducedMotion, { y: -2, scale: 1.004 })}
+      transition={motionTransition.gentle}
     >
       <div className="space-y-1">
         <Label className="text-[14px] font-medium text-foreground">
@@ -65,7 +75,7 @@ function SettingRow({
         </p>
       </div>
       <div className="shrink-0">{control}</div>
-    </div>
+    </motion.div>
   );
 }
 
@@ -84,8 +94,14 @@ function FieldStack({
   onChange: (value: string) => void;
   placeholder: string;
 }) {
+  const prefersReducedMotion = useReducedMotion() ?? false;
+
   return (
-    <div className="space-y-2">
+    <motion.div
+      className="space-y-2"
+      whileHover={getHoverLift(prefersReducedMotion, { y: -2, scale: 1.003 })}
+      transition={motionTransition.gentle}
+    >
       <Label htmlFor={id} className="text-[13px] text-foreground/80">
         {label}
       </Label>
@@ -99,12 +115,13 @@ function FieldStack({
       <p className="text-[11px] leading-5 text-muted-foreground">
         {description}
       </p>
-    </div>
+    </motion.div>
   );
 }
 
 export function Settings() {
   const { t } = useTranslation("settings");
+  const prefersReducedMotion = useReducedMotion() ?? false;
   const {
     launchAtStartup,
     setLaunchAtStartup,
@@ -122,10 +139,6 @@ export function Settings() {
     setProxyHttpsServer,
     setProxyAllServer,
     setProxyBypassRules,
-    autoCheckUpdate,
-    setAutoCheckUpdate,
-    autoDownloadUpdate,
-    setAutoDownloadUpdate,
     devModeUnlocked,
     setDevModeUnlocked,
     telemetryEnabled,
@@ -134,9 +147,6 @@ export function Settings() {
 
   const { status: gatewayStatus, restart: restartGateway } = useGatewayStore();
   const currentVersion = useUpdateStore((state) => state.currentVersion);
-  const updateSetAutoDownload = useUpdateStore(
-    (state) => state.setAutoDownload,
-  );
   const [controlUiInfo, setControlUiInfo] = useState<ControlUiInfo | null>(
     null,
   );
@@ -149,6 +159,7 @@ export function Settings() {
   const [proxyBypassRulesDraft, setProxyBypassRulesDraft] = useState("");
   const [proxyEnabledDraft, setProxyEnabledDraft] = useState(false);
   const [savingProxy, setSavingProxy] = useState(false);
+  const [refreshingControlUi, setRefreshingControlUi] = useState(false);
   const [wsDiagnosticEnabled, setWsDiagnosticEnabled] = useState(false);
   const [showTelemetryViewer, setShowTelemetryViewer] = useState(false);
   const [telemetryEntries, setTelemetryEntries] = useState<UiTelemetryEntry[]>(
@@ -159,17 +170,20 @@ export function Settings() {
   const showCliTools = true;
   const [showLogs, setShowLogs] = useState(false);
   const [logContent, setLogContent] = useState("");
+  const [loadingLogs, setLoadingLogs] = useState(false);
 
   const handleShowLogs = async () => {
+    setLoadingLogs(true);
+    setShowLogs(true);
     try {
       const logs = await hostApiFetch<{ content: string }>(
         "/api/logs?tailLines=100",
       );
       setLogContent(logs.content);
-      setShowLogs(true);
     } catch {
       setLogContent(t("overview.logsError"));
-      setShowLogs(true);
+    } finally {
+      setLoadingLogs(false);
     }
   };
 
@@ -187,6 +201,7 @@ export function Settings() {
   };
 
   const refreshControlUiInfo = async () => {
+    setRefreshingControlUi(true);
     try {
       const result = await hostApiFetch<{
         success: boolean;
@@ -208,6 +223,8 @@ export function Settings() {
       }
     } catch {
       // Ignore refresh errors
+    } finally {
+      setRefreshingControlUi(false);
     }
   };
 
@@ -218,6 +235,16 @@ export function Settings() {
       toast.success(t("developer.tokenCopied"));
     } catch (error) {
       toast.error(`Failed to copy token: ${String(error)}`);
+    }
+  };
+
+  const handleCopyLogs = async () => {
+    if (!logContent) return;
+    try {
+      await navigator.clipboard.writeText(logContent);
+      toast.success(t("common:actions.copy"));
+    } catch (error) {
+      toast.error(`${t("common:status.error")}: ${String(error)}`);
     }
   };
 
@@ -465,9 +492,21 @@ export function Settings() {
         ? t("common:status.error")
         : t("overview.statusIdle");
 
-  const handleAutoDownloadToggle = (enabled: boolean) => {
-    setAutoDownloadUpdate(enabled);
-    updateSetAutoDownload(enabled);
+  const isProxyDirty =
+    proxyEnabledDraft !== proxyEnabled ||
+    proxyServerDraft.trim() !== proxyServer ||
+    proxyHttpServerDraft.trim() !== proxyHttpServer ||
+    proxyHttpsServerDraft.trim() !== proxyHttpsServer ||
+    proxyAllServerDraft.trim() !== proxyAllServer ||
+    proxyBypassRulesDraft.trim() !== proxyBypassRules;
+
+  const handleResetProxyDrafts = () => {
+    setProxyEnabledDraft(proxyEnabled);
+    setProxyServerDraft(proxyServer);
+    setProxyHttpServerDraft(proxyHttpServer);
+    setProxyHttpsServerDraft(proxyHttpsServer);
+    setProxyAllServerDraft(proxyAllServer);
+    setProxyBypassRulesDraft(proxyBypassRules);
   };
 
   const aside = (
@@ -477,16 +516,35 @@ export function Settings() {
           title={t("about.title")}
           description={t("about.tagline")}
         />
-        <div className="grid gap-3 sm:grid-cols-2 xl:grid-cols-1">
-          <div className="rounded-2xl border border-border/70 bg-background/60 p-4">
+        <motion.div
+          className="grid gap-3 sm:grid-cols-2 xl:grid-cols-1"
+          initial="hidden"
+          animate="show"
+          variants={createStaggeredList(prefersReducedMotion ? 0 : 0.05)}
+        >
+          <motion.div
+            className="rounded-2xl border border-border/70 bg-background/60 p-4"
+            variants={motionVariants.softScale}
+            whileHover={getHoverLift(prefersReducedMotion, {
+              y: -3,
+              scale: 1.01,
+            })}
+          >
             <div className="text-[11px] font-semibold uppercase tracking-[0.18em] text-muted-foreground/70">
               {t("updates.currentVersion")}
             </div>
             <div className="pt-2 text-2xl font-semibold text-foreground">
               v{currentVersion}
             </div>
-          </div>
-          <div className="rounded-2xl border border-border/70 bg-background/60 p-4">
+          </motion.div>
+          <motion.div
+            className="rounded-2xl border border-border/70 bg-background/60 p-4"
+            variants={motionVariants.softScale}
+            whileHover={getHoverLift(prefersReducedMotion, {
+              y: -3,
+              scale: 1.01,
+            })}
+          >
             <div className="text-[11px] font-semibold uppercase tracking-[0.18em] text-muted-foreground/70">
               {t("gateway.status")}
             </div>
@@ -505,9 +563,16 @@ export function Settings() {
                 {gatewayStatusLabel}
               </Badge>
             </div>
-          </div>
-        </div>
-        <div className="space-y-3 rounded-2xl border border-border/70 bg-background/50 p-4">
+          </motion.div>
+        </motion.div>
+        <motion.div
+          className="space-y-3 rounded-2xl border border-border/70 bg-background/50 p-4"
+          whileHover={getHoverLift(prefersReducedMotion, {
+            y: -3,
+            scale: 1.006,
+          })}
+          transition={motionTransition.gentle}
+        >
           <div className="text-[13px] font-medium text-foreground">
             {t("developer.console")}
           </div>
@@ -515,31 +580,41 @@ export function Settings() {
             {controlUiInfo?.url || t("developer.consoleNote")}
           </div>
           <div className="flex flex-wrap gap-2">
-            <Button
-              variant="outline"
-              size="sm"
-              onClick={() => void refreshControlUiInfo()}
-              className="h-8 rounded-full border-border/70 bg-background/70 px-3 text-[12px] shadow-none hover:bg-accent/80"
-            >
-              <RefreshCw className="mr-1.5 h-3.5 w-3.5" />
-              {t("common:actions.load")}
-            </Button>
-            <Button
-              variant="outline"
-              size="sm"
-              disabled={!controlUiInfo?.url}
-              onClick={() =>
-                controlUiInfo?.url
-                  ? void invokeIpc("shell:openExternal", controlUiInfo.url)
-                  : undefined
-              }
-              className="h-8 rounded-full border-border/70 bg-background/70 px-3 text-[12px] shadow-none hover:bg-accent/80"
-            >
-              <ExternalLink className="mr-1.5 h-3.5 w-3.5" />
-              {t("developer.openConsole")}
-            </Button>
+            <motion.div whileTap={getTapScale(prefersReducedMotion)}>
+              <Button
+                variant="outline"
+                size="sm"
+                onClick={() => void refreshControlUiInfo()}
+                disabled={refreshingControlUi}
+                className="h-8 rounded-full border-border/70 bg-background/70 px-3 text-[12px] shadow-none hover:bg-accent/80"
+              >
+                <RefreshCw
+                  className={cn(
+                    "mr-1.5 h-3.5 w-3.5",
+                    refreshingControlUi && "animate-spin",
+                  )}
+                />
+                {t("common:actions.load")}
+              </Button>
+            </motion.div>
+            <motion.div whileTap={getTapScale(prefersReducedMotion)}>
+              <Button
+                variant="outline"
+                size="sm"
+                disabled={!controlUiInfo?.url}
+                onClick={() =>
+                  controlUiInfo?.url
+                    ? void invokeIpc("shell:openExternal", controlUiInfo.url)
+                    : undefined
+                }
+                className="h-8 rounded-full border-border/70 bg-background/70 px-3 text-[12px] shadow-none hover:bg-accent/80"
+              >
+                <ExternalLink className="mr-1.5 h-3.5 w-3.5" />
+                {t("developer.openConsole")}
+              </Button>
+            </motion.div>
           </div>
-        </div>
+        </motion.div>
       </WorkspacePanel>
 
       {devModeUnlocked ? (
@@ -554,16 +629,18 @@ export function Settings() {
             placeholder={t("developer.tokenUnavailable")}
             className="h-10 rounded-xl border-border/70 bg-background/70 font-mono text-[12px]"
           />
-          <Button
-            variant="outline"
-            size="sm"
-            disabled={!controlUiInfo?.token}
-            onClick={handleCopyGatewayToken}
-            className="h-8 rounded-full border-border/70 bg-background/70 px-3 text-[12px] shadow-none hover:bg-accent/80"
-          >
-            <Copy className="mr-1.5 h-3.5 w-3.5" />
-            {t("common:actions.copy")}
-          </Button>
+          <motion.div whileTap={getTapScale(prefersReducedMotion)}>
+            <Button
+              variant="outline"
+              size="sm"
+              disabled={!controlUiInfo?.token}
+              onClick={handleCopyGatewayToken}
+              className="h-8 rounded-full border-border/70 bg-background/70 px-3 text-[12px] shadow-none hover:bg-accent/80"
+            >
+              <Copy className="mr-1.5 h-3.5 w-3.5" />
+              {t("common:actions.copy")}
+            </Button>
+          </motion.div>
         </WorkspacePanel>
       ) : null}
     </div>
@@ -577,57 +654,85 @@ export function Settings() {
       aside={aside}
       actions={
         <div className="flex flex-wrap items-center gap-2">
-          <Button
-            variant="outline"
-            onClick={restartGateway}
-            className="h-9 rounded-full border-border/70 bg-background/70 px-4 text-[13px] font-medium text-foreground/80 shadow-none hover:bg-accent/80"
-          >
-            <RefreshCw className="mr-2 h-3.5 w-3.5" />
-            {t("common:actions.restart")}
-          </Button>
-          <Button
-            variant="outline"
-            onClick={() => void handleShowLogs()}
-            className="h-9 rounded-full border-border/70 bg-background/70 px-4 text-[13px] font-medium text-foreground/80 shadow-none hover:bg-accent/80"
-          >
-            <FileText className="mr-2 h-3.5 w-3.5" />
-            {t("gateway.logs")}
-          </Button>
+          <motion.div whileTap={getTapScale(prefersReducedMotion)}>
+            <Button
+              variant="outline"
+              onClick={restartGateway}
+              className="h-9 rounded-full border-border/70 bg-background/70 px-4 text-[13px] font-medium text-foreground/80 shadow-none hover:bg-accent/80"
+            >
+              <RefreshCw className="mr-2 h-3.5 w-3.5" />
+              {t("common:actions.restart")}
+            </Button>
+          </motion.div>
+          <motion.div whileTap={getTapScale(prefersReducedMotion)}>
+            <Button
+              variant="outline"
+              onClick={() => void handleShowLogs()}
+              className="h-9 rounded-full border-border/70 bg-background/70 px-4 text-[13px] font-medium text-foreground/80 shadow-none hover:bg-accent/80"
+            >
+              <FileText className="mr-2 h-3.5 w-3.5" />
+              {t("gateway.logs")}
+            </Button>
+          </motion.div>
         </div>
       }
     >
       <motion.div
-        initial={{ opacity: 0, y: 10 }}
-        animate={{ opacity: 1, y: 0 }}
-        transition={{ duration: 0.4, ease: [0.25, 0.1, 0.25, 1] }}
+        initial="hidden"
+        animate="show"
+        variants={createStaggeredList(prefersReducedMotion ? 0 : 0.05)}
         className="space-y-4"
       >
-        <div className="grid gap-4 md:grid-cols-3">
-          <div className="rounded-[22px] border border-border/70 bg-background/55 px-5 py-4">
+        <motion.div
+          className="grid gap-4 md:grid-cols-3"
+          variants={createStaggeredList(prefersReducedMotion ? 0 : 0.05)}
+        >
+          <motion.div
+            className="rounded-[22px] border border-border/70 bg-background/55 px-5 py-4"
+            variants={motionVariants.softScale}
+            whileHover={getHoverLift(prefersReducedMotion, {
+              y: -3,
+              scale: 1.01,
+            })}
+          >
             <div className="text-[11px] font-semibold uppercase tracking-[0.18em] text-muted-foreground/70">
               {t("overview.version")}
             </div>
             <div className="pt-2 text-2xl font-semibold text-foreground">
               v{currentVersion}
             </div>
-          </div>
-          <div className="rounded-[22px] border border-border/70 bg-background/55 px-5 py-4">
+          </motion.div>
+          <motion.div
+            className="rounded-[22px] border border-border/70 bg-background/55 px-5 py-4"
+            variants={motionVariants.softScale}
+            whileHover={getHoverLift(prefersReducedMotion, {
+              y: -3,
+              scale: 1.01,
+            })}
+          >
             <div className="text-[11px] font-semibold uppercase tracking-[0.18em] text-muted-foreground/70">
               {t("overview.status")}
             </div>
             <div className="pt-2 text-2xl font-semibold text-foreground">
               {gatewayStatusLabel}
             </div>
-          </div>
-          <div className="rounded-[22px] border border-border/70 bg-background/55 px-5 py-4">
+          </motion.div>
+          <motion.div
+            className="rounded-[22px] border border-border/70 bg-background/55 px-5 py-4"
+            variants={motionVariants.softScale}
+            whileHover={getHoverLift(prefersReducedMotion, {
+              y: -3,
+              scale: 1.01,
+            })}
+          >
             <div className="text-[11px] font-semibold uppercase tracking-[0.18em] text-muted-foreground/70">
               {t("overview.proxy")}
             </div>
             <div className="pt-2 text-2xl font-semibold text-foreground">
               {proxyEnabledDraft ? t("overview.on") : t("overview.off")}
             </div>
-          </div>
-        </div>
+          </motion.div>
+        </motion.div>
 
         <div className="grid gap-4 xl:grid-cols-2">
           <WorkspacePanel className="space-y-4">
@@ -652,26 +757,6 @@ export function Settings() {
                 <Switch
                   checked={gatewayAutoStart}
                   onCheckedChange={setGatewayAutoStart}
-                />
-              }
-            />
-            <SettingRow
-              title={t("updates.autoCheck")}
-              description={t("updates.autoCheckDesc")}
-              control={
-                <Switch
-                  checked={autoCheckUpdate}
-                  onCheckedChange={setAutoCheckUpdate}
-                />
-              }
-            />
-            <SettingRow
-              title={t("updates.autoDownload")}
-              description={t("updates.autoDownloadDesc")}
-              control={
-                <Switch
-                  checked={autoDownloadUpdate}
-                  onCheckedChange={handleAutoDownloadToggle}
                 />
               }
             />
@@ -739,6 +824,31 @@ export function Settings() {
                       variant="ghost"
                       size="sm"
                       className="h-8 rounded-full px-3 text-[12px] hover:bg-accent/70"
+                      onClick={() => void handleCopyLogs()}
+                      disabled={!logContent || loadingLogs}
+                    >
+                      <Copy className="mr-1.5 h-3 w-3" />
+                      {t("common:actions.copy")}
+                    </Button>
+                    <Button
+                      variant="ghost"
+                      size="sm"
+                      className="h-8 rounded-full px-3 text-[12px] hover:bg-accent/70"
+                      onClick={() => void handleShowLogs()}
+                      disabled={loadingLogs}
+                    >
+                      <RefreshCw
+                        className={cn(
+                          "mr-1.5 h-3 w-3",
+                          loadingLogs && "animate-spin",
+                        )}
+                      />
+                      {t("common:actions.refresh")}
+                    </Button>
+                    <Button
+                      variant="ghost"
+                      size="sm"
+                      className="h-8 rounded-full px-3 text-[12px] hover:bg-accent/70"
                       onClick={() => void handleOpenLogDir()}
                     >
                       <ExternalLink className="mr-1.5 h-3 w-3" />
@@ -755,7 +865,9 @@ export function Settings() {
                   </div>
                 </div>
                 <pre className="max-h-72 overflow-auto rounded-xl border border-border/60 bg-background/70 p-4 font-mono text-[12px] text-muted-foreground shadow-inner whitespace-pre-wrap">
-                  {logContent || t("chat:noLogs")}
+                  {loadingLogs
+                    ? t("common:status.loading")
+                    : logContent || t("chat:noLogs")}
                 </pre>
               </div>
             ) : null}
@@ -763,14 +875,6 @@ export function Settings() {
             <div className="rounded-[20px] border border-dashed border-border/70 bg-background/35 px-4 py-4 text-sm leading-6 text-muted-foreground">
               {t("gateway.proxyRestartNote")}
             </div>
-          </WorkspacePanel>
-
-          <WorkspacePanel className="space-y-4 xl:col-span-2">
-            <WorkspacePanelHeader
-              title={t("updates.title")}
-              description={t("updates.description")}
-            />
-            <UpdateSettings />
           </WorkspacePanel>
 
           {devModeUnlocked ? (
@@ -849,9 +953,17 @@ export function Settings() {
                       />
                       <div className="flex flex-wrap items-center gap-3">
                         <Button
+                          variant="ghost"
+                          onClick={handleResetProxyDrafts}
+                          disabled={!isProxyDirty || savingProxy}
+                          className="h-10 rounded-full px-4 text-[13px] text-muted-foreground shadow-none hover:bg-accent/70 hover:text-foreground"
+                        >
+                          {t("common:actions.reset")}
+                        </Button>
+                        <Button
                           variant="outline"
                           onClick={() => void handleSaveProxySettings()}
-                          disabled={savingProxy}
+                          disabled={savingProxy || !isProxyDirty}
                           className="h-10 rounded-full border-border/70 bg-background/70 px-5 text-[13px] shadow-none hover:bg-accent/80"
                         >
                           <RefreshCw
@@ -891,9 +1003,15 @@ export function Settings() {
                         type="button"
                         variant="outline"
                         onClick={() => void refreshControlUiInfo()}
+                        disabled={refreshingControlUi}
                         className="h-10 rounded-full border-border/70 bg-background/70 px-4 shadow-none hover:bg-accent/80"
                       >
-                        <RefreshCw className="mr-2 h-4 w-4" />
+                        <RefreshCw
+                          className={cn(
+                            "mr-2 h-4 w-4",
+                            refreshingControlUi && "animate-spin",
+                          )}
+                        />
                         {t("common:actions.load")}
                       </Button>
                       <Button

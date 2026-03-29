@@ -11,7 +11,20 @@
     "gatewayNotRunning": "Gateway not running",
     "models": {
         "title": "Models",
-        "subtitle": "Manage your AI providers and monitor token usage."
+        "subtitle": "Manage your AI providers and monitor token usage.",
+        "overviewTitle": "Model Overview",
+        "overviewDescription": "Quickly understand account readiness, default routing, and recent usage signals.",
+        "usageHealthTitle": "Usage Signals",
+        "usageHealthDescription": "Use time windows and grouping to spot recent focus areas and shifts.",
+        "configuredAccounts": "Configured Accounts",
+        "readyAccounts": "Ready Accounts",
+        "defaultAccount": "Default Account",
+        "noDefaultAccount": "Not set yet",
+        "recentRecords": "Recent Records",
+        "usageFocus": "Usage Focus",
+        "latestActivity": "Latest Activity",
+        "averageTokens": "Average tokens",
+        "emptyHint": "No data yet"
     },
     "quickActions": {
         "title": "Quick Actions",
