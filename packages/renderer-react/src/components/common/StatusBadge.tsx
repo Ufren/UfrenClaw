@@ -1,0 +1,64 @@
+/**
+ * Status Badge Component
+ * Displays connection/state status with color coding
+ */
+import { cn } from "@/lib/utils";
+import { Badge } from "@/components/ui/badge";
+import { useTranslation } from "react-i18next";
+
+export type Status =
+  | "connected"
+  | "disconnected"
+  | "connecting"
+  | "error"
+  | "running"
+  | "stopped"
+  | "starting"
+  | "reconnecting";
+
+interface StatusBadgeProps {
+  status: Status;
+  label?: string;
+  showDot?: boolean;
+}
+
+const statusConfig: Record<
+  Status,
+  { variant: "success" | "secondary" | "warning" | "destructive" }
+> = {
+  connected: { variant: "success" },
+  running: { variant: "success" },
+  disconnected: { variant: "secondary" },
+  stopped: { variant: "secondary" },
+  connecting: { variant: "warning" },
+  starting: { variant: "warning" },
+  reconnecting: { variant: "warning" },
+  error: { variant: "destructive" },
+};
+
+export function StatusBadge({
+  status,
+  label,
+  showDot = true,
+}: StatusBadgeProps) {
+  const { t } = useTranslation("common");
+  const config = statusConfig[status];
+  const displayLabel = label || t(`status.${status}`);
+
+  return (
+    <Badge variant={config.variant} className="gap-1.5">
+      {showDot && (
+        <span
+          className={cn(
+            "h-1.5 w-1.5 rounded-full",
+            config.variant === "success" && "bg-green-600",
+            config.variant === "secondary" && "bg-gray-400",
+            config.variant === "warning" && "bg-yellow-600 animate-pulse",
+            config.variant === "destructive" && "bg-red-600",
+          )}
+        />
+      )}
+      {displayLabel}
+    </Badge>
+  );
+}
