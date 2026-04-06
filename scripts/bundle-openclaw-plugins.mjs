@@ -43,6 +43,7 @@ const PLUGINS = [
   { npmName: '@wecom/wecom-openclaw-plugin', pluginId: 'wecom' },
   { npmName: '@sliverp/qqbot', pluginId: 'qqbot' },
   { npmName: '@larksuite/openclaw-lark', pluginId: 'openclaw-lark' },
+  { npmName: '@tencent-weixin/openclaw-weixin', pluginId: 'openclaw-weixin' },
 ];
 
 function getVirtualStoreNodeModules(realPkgPath) {

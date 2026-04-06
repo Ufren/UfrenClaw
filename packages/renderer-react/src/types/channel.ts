@@ -8,6 +8,7 @@
  */
 export type ChannelType =
   | "whatsapp"
+  | "wechat"
   | "dingtalk"
   | "telegram"
   | "discord"
@@ -85,6 +86,7 @@ export interface ChannelMeta {
  */
 export const CHANNEL_ICONS: Record<ChannelType, string> = {
   whatsapp: "📱",
+  wechat: "💬",
   dingtalk: "💬",
   telegram: "✈️",
   discord: "🎮",
@@ -105,6 +107,7 @@ export const CHANNEL_ICONS: Record<ChannelType, string> = {
  */
 export const CHANNEL_NAMES: Record<ChannelType, string> = {
   whatsapp: "WhatsApp",
+  wechat: "WeChat",
   dingtalk: "DingTalk",
   telegram: "Telegram",
   discord: "Discord",
@@ -326,6 +329,22 @@ export const CHANNEL_META: Record<ChannelType, ChannelMeta> = {
       "channels:meta.whatsapp.instructions.2",
       "channels:meta.whatsapp.instructions.3",
     ],
+  },
+  wechat: {
+    id: "wechat",
+    name: "WeChat",
+    icon: "💬",
+    description: "channels:meta.wechat.description",
+    connectionType: "qr",
+    docsUrl: "channels:meta.wechat.docsUrl",
+    configFields: [],
+    instructions: [
+      "channels:meta.wechat.instructions.0",
+      "channels:meta.wechat.instructions.1",
+      "channels:meta.wechat.instructions.2",
+      "channels:meta.wechat.instructions.3",
+    ],
+    isPlugin: true,
   },
   signal: {
     id: "signal",
@@ -570,11 +589,16 @@ export function getPrimaryChannels(): ChannelType[] {
     "telegram",
     "discord",
     "whatsapp",
+    "wechat",
     "dingtalk",
     "feishu",
     "wecom",
     "qqbot",
   ];
+}
+
+export function toUiChannelType(channelType: string): ChannelType | string {
+  return channelType === "openclaw-weixin" ? "wechat" : channelType;
 }
 
 /**

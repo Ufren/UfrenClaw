@@ -1,5 +1,5 @@
 const { cpSync, existsSync, readdirSync, rmSync, statSync, mkdirSync, realpathSync } = require('fs');
-const { join, dirname, basename } = require('path');
+const { join, dirname, basename, relative } = require('path');
 
 function normWin(p) {
   if (process.platform !== 'win32') return p;
@@ -148,6 +148,91 @@ function patchBrokenModules(nodeModulesDir) {
     }
   }
 
+  function patchAllLruCacheInstances(rootDir) {
+    let lruCount = 0;
+    const stack = [rootDir];
+
+    while (stack.length > 0) {
+      const dir = stack.pop();
+      let entries;
+      try {
+        entries = readdirSync(normWin(dir), { withFileTypes: true });
+      } catch {
+        continue;
+      }
+
+      for (const entry of entries) {
+        const fullPath = join(dir, entry.name);
+        let isDirectory = entry.isDirectory();
+        if (!isDirectory) {
+          try {
+            isDirectory = statSync(normWin(fullPath)).isDirectory();
+          } catch {
+            isDirectory = false;
+          }
+        }
+        if (!isDirectory) continue;
+
+        if (entry.name === 'lru-cache') {
+          const pkgPath = join(fullPath, 'package.json');
+          if (!existsSync(normWin(pkgPath))) {
+            stack.push(fullPath);
+            continue;
+          }
+
+          try {
+            const pkg = JSON.parse(readFileSync(normWin(pkgPath), 'utf8'));
+            if (pkg.type !== 'module') {
+              const mainFile = pkg.main || 'index.js';
+              const entryFile = join(fullPath, mainFile);
+              if (existsSync(normWin(entryFile))) {
+                const original = readFileSync(normWin(entryFile), 'utf8');
+                if (!original.includes('exports.LRUCache')) {
+                  const patched = [
+                    original,
+                    '',
+                    'if (typeof module.exports === "function" && !module.exports.LRUCache) {',
+                    '  module.exports.LRUCache = module.exports;',
+                    '}',
+                    '',
+                  ].join('\n');
+                  writeFileSync(normWin(entryFile), patched, 'utf8');
+                  lruCount++;
+                  console.log(`[after-pack] 🩹 Patched lru-cache CJS (v${pkg.version}) at ${relative(rootDir, fullPath)}`);
+                }
+              }
+            }
+
+            const moduleFile = typeof pkg.module === 'string' ? pkg.module : null;
+            if (moduleFile) {
+              const esmEntry = join(fullPath, moduleFile);
+              if (existsSync(normWin(esmEntry))) {
+                const esmOriginal = readFileSync(normWin(esmEntry), 'utf8');
+                if (
+                  esmOriginal.includes('export default LRUCache') &&
+                  !esmOriginal.includes('export { LRUCache')
+                ) {
+                  const esmPatched = [esmOriginal, '', 'export { LRUCache }', ''].join('\n');
+                  writeFileSync(normWin(esmEntry), esmPatched, 'utf8');
+                  lruCount++;
+                  console.log(`[after-pack] 🩹 Patched lru-cache ESM (v${pkg.version}) at ${relative(rootDir, fullPath)}`);
+                }
+              }
+            }
+          } catch (err) {
+            console.warn(`[after-pack] ⚠️  Failed to patch lru-cache at ${fullPath}:`, err.message);
+          }
+        } else {
+          stack.push(fullPath);
+        }
+      }
+    }
+
+    return lruCount;
+  }
+
+  count += patchAllLruCacheInstances(nodeModulesDir);
+
   if (count > 0) {
     console.log(`[after-pack] 🩹 Patched ${count} broken module(s) in ${nodeModulesDir}`);
   }
@@ -253,6 +338,22 @@ function bundlePlugin(nodeModulesRoot, npmName, destDir) {
   return true;
 }
 
+function copyDirectoryEntries(srcDir, destDir) {
+  if (existsSync(normWin(destDir))) {
+    rmSync(normWin(destDir), { recursive: true, force: true });
+  }
+  mkdirSync(normWin(destDir), { recursive: true });
+  let copied = 0;
+  for (const entry of readdirSync(normWin(srcDir), { withFileTypes: true })) {
+    const from = join(srcDir, entry.name);
+    const to = join(destDir, entry.name);
+    mkdirSync(normWin(dirname(to)), { recursive: true });
+    cpSync(normWin(from), normWin(to), { recursive: true, dereference: true });
+    copied++;
+  }
+  return copied;
+}
+
 exports.default = async function afterPack(context) {
   const appOutDir = context.appOutDir;
   const platform = context.electronPlatformName;
@@ -285,8 +386,8 @@ exports.default = async function afterPack(context) {
     .length;
 
   console.log(`[after-pack] Copying ${depCount} openclaw dependencies to ${dest} ...`);
-  cpSync(src, dest, { recursive: true });
-  console.log('[after-pack] ✅ openclaw node_modules copied.');
+  const copiedEntries = copyDirectoryEntries(src, dest);
+  console.log(`[after-pack] ✅ openclaw node_modules copied (${copiedEntries} top-level entries).`);
 
   patchBrokenModules(dest);
 
@@ -295,6 +396,7 @@ exports.default = async function afterPack(context) {
     { npmName: '@wecom/wecom-openclaw-plugin', pluginId: 'wecom' },
     { npmName: '@sliverp/qqbot', pluginId: 'qqbot' },
     { npmName: '@larksuite/openclaw-lark', pluginId: 'openclaw-lark' },
+    { npmName: '@tencent-weixin/openclaw-weixin', pluginId: 'openclaw-weixin' },
   ];
 
   mkdirSync(pluginsDestRoot, { recursive: true });
@@ -309,6 +411,51 @@ exports.default = async function afterPack(context) {
         cleanupKoffi(pluginNM, platform, arch);
         cleanupNativePlatformPackages(pluginNM, platform, arch);
       }
+    }
+  }
+
+  const buildExtDir = join(__dirname, '..', 'build', 'openclaw', 'dist', 'extensions');
+  const packExtDir = join(openclawRoot, 'dist', 'extensions');
+  if (existsSync(buildExtDir)) {
+    let extNMCount = 0;
+    let mergedPkgCount = 0;
+
+    for (const extEntry of readdirSync(buildExtDir, { withFileTypes: true })) {
+      if (!extEntry.isDirectory()) continue;
+      const srcNM = join(buildExtDir, extEntry.name, 'node_modules');
+      if (!existsSync(srcNM)) continue;
+
+      const destExtNM = join(packExtDir, extEntry.name, 'node_modules');
+      if (!existsSync(destExtNM)) {
+        cpSync(srcNM, destExtNM, { recursive: true });
+      }
+      extNMCount++;
+
+      for (const pkgEntry of readdirSync(srcNM, { withFileTypes: true })) {
+        if (!pkgEntry.isDirectory() || pkgEntry.name === '.bin') continue;
+        const srcPkg = join(srcNM, pkgEntry.name);
+        const destPkg = join(dest, pkgEntry.name);
+
+        if (pkgEntry.name.startsWith('@')) {
+          for (const scopeEntry of readdirSync(srcPkg, { withFileTypes: true })) {
+            if (!scopeEntry.isDirectory()) continue;
+            const srcScoped = join(srcPkg, scopeEntry.name);
+            const destScoped = join(destPkg, scopeEntry.name);
+            if (!existsSync(destScoped)) {
+              mkdirSync(dirname(destScoped), { recursive: true });
+              cpSync(srcScoped, destScoped, { recursive: true });
+              mergedPkgCount++;
+            }
+          }
+        } else if (!existsSync(destPkg)) {
+          cpSync(srcPkg, destPkg, { recursive: true });
+          mergedPkgCount++;
+        }
+      }
+    }
+
+    if (extNMCount > 0) {
+      console.log(`[after-pack] ✅ Copied node_modules for ${extNMCount} built-in extension(s), merged ${mergedPkgCount} packages into top-level.`);
     }
   }
 

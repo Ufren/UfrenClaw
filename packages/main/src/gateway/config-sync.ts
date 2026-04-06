@@ -106,6 +106,9 @@ async function ensureBundledChannelPluginsInstalled(): Promise<void> {
       "feishu-openclaw-plugin",
     ]);
   }
+  if (shouldEnsure("openclaw-weixin")) {
+    ensureBundledPluginInstalled("openclaw-weixin", ["openclaw-weixin"]);
+  }
 }
 
 function ensureBundledPluginInstalled(

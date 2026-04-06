@@ -32,6 +32,8 @@
     "toast": {
         "whatsappConnected": "WhatsApp が正常に接続されました",
         "whatsappFailed": "WhatsApp 接続に失敗しました: {{error}}",
+        "wechatConnected": "WeChat が正常に接続されました",
+        "wechatFailed": "WeChat 接続に失敗しました: {{error}}",
         "channelSaved": "チャンネル {{name}} が保存されました",
         "channelConnecting": "{{name}} に接続中...",
         "restartManual": "ゲートウェイを手動で再起動してください",
@@ -127,6 +129,16 @@
                 "設定 > リンクされたデバイス > デバイスをリンク に移動します",
                 "以下に表示されるQRコードをスキャンします",
                 "システムが自動的に電話番号を識別します"
+            ]
+        },
+        "wechat": {
+            "description": "公式デスクトップログインの QR フローで WeChat に接続します",
+            "docsUrl": "https://docs.openclaw.ai/channels/wechat",
+            "instructions": [
+                "スマートフォンで WeChat を開きます",
+                "右上メニューから スキャン を選択します",
+                "以下に表示される QR コードをスキャンします",
+                "スマートフォン上でログインを承認して接続を完了します"
             ]
         },
         "dingtalk": {

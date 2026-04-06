@@ -32,6 +32,8 @@
     "toast": {
         "whatsappConnected": "WhatsApp connected successfully",
         "whatsappFailed": "WhatsApp connection failed: {{error}}",
+        "wechatConnected": "WeChat connected successfully",
+        "wechatFailed": "WeChat connection failed: {{error}}",
         "channelSaved": "Channel {{name}} saved",
         "channelConnecting": "Connecting to {{name}}...",
         "restartManual": "Please restart the gateway manually",
@@ -129,6 +131,16 @@
                 "Go to Settings > Linked Devices > Link a Device",
                 "Scan the QR code shown below",
                 "The system will automatically identify your phone number"
+            ]
+        },
+        "wechat": {
+            "description": "Connect WeChat by scanning a QR code with the official desktop login flow",
+            "docsUrl": "https://docs.openclaw.ai/channels/wechat",
+            "instructions": [
+                "Open WeChat on your phone",
+                "Use Scan from the top-right menu",
+                "Scan the QR code shown below",
+                "Confirm login on your phone to finish the connection"
             ]
         },
         "dingtalk": {

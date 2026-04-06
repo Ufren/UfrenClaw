@@ -5,6 +5,7 @@ import {
   deleteAgentChannelAccounts,
   listConfiguredChannels,
   readOpenClawConfig,
+  toOpenClawChannelType,
   writeOpenClawConfig,
 } from "./channel-config";
 import { expandPath, getOpenClawConfigDir } from "./paths";
@@ -465,7 +466,7 @@ function listConfiguredAccountIdsForChannel(
   config: AgentConfigDocument,
   channelType: string,
 ): string[] {
-  const channelSection = config.channels?.[channelType];
+  const channelSection = config.channels?.[toOpenClawChannelType(channelType)];
   if (!channelSection || channelSection.enabled === false) {
     return [];
   }

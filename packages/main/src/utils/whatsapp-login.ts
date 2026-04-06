@@ -166,7 +166,7 @@ function encodePngRgba(buffer: Buffer, width: number, height: number) {
   ]);
 }
 
-async function renderQrPngBase64(
+export async function renderQrPngBase64(
   input: string,
   opts: { scale?: number; marginModules?: number } = {},
 ): Promise<string> {

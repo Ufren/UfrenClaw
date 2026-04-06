@@ -5,7 +5,11 @@
 import { create } from "zustand";
 import { hostApiFetch } from "@/lib/host-api";
 import { useGatewayStore } from "./gateway";
-import type { Channel, ChannelType } from "../types/channel";
+import {
+  toUiChannelType,
+  type Channel,
+  type ChannelType,
+} from "../types/channel";
 
 interface AddChannelParams {
   type: ChannelType;
@@ -67,6 +71,10 @@ export const useChannelsStore = create<ChannelsState>((set, get) => ({
         const channelOrder =
           data.channelOrder || Object.keys(data.channels || {});
         for (const channelId of channelOrder) {
+          const uiChannelType = toUiChannelType(channelId);
+          if (typeof uiChannelType !== "string") {
+            continue;
+          }
           const summary = (
             data.channels as Record<string, unknown> | undefined
           )?.[channelId] as Record<string, unknown> | undefined;
@@ -130,9 +138,9 @@ export const useChannelsStore = create<ChannelsState>((set, get) => ({
           }
 
           channels.push({
-            id: `${channelId}-${primaryAccount?.accountId || "default"}`,
-            type: channelId as ChannelType,
-            name: primaryAccount?.name || channelId,
+            id: `${uiChannelType}-${primaryAccount?.accountId || "default"}`,
+            type: uiChannelType as ChannelType,
+            name: primaryAccount?.name || uiChannelType,
             status,
             accountId: primaryAccount?.accountId,
             error:

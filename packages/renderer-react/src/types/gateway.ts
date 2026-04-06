@@ -44,6 +44,34 @@ export interface GatewayNotification {
   params?: unknown;
 }
 
+export type GatewayApprovalKind = "exec" | "plugin";
+
+export type GatewayApprovalDecision = "allow-once" | "allow-always" | "deny";
+
+export interface GatewayApprovalRequest {
+  id: string;
+  kind: GatewayApprovalKind;
+  request: Record<string, unknown>;
+  createdAtMs?: number;
+  expiresAtMs?: number;
+  title?: string | null;
+  description?: string | null;
+  severity?: string | null;
+  toolName?: string | null;
+  pluginId?: string | null;
+  commandText?: string | null;
+  commandPreview?: string | null;
+  commandArgv: string[];
+  cwd?: string | null;
+  host?: string | null;
+  nodeId?: string | null;
+  agentId?: string | null;
+  sessionKey?: string | null;
+  timeoutMs?: number | null;
+  resolving: boolean;
+  error: string | null;
+}
+
 /**
  * Provider configuration
  */

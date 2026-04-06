@@ -43,6 +43,7 @@ import { useTranslation } from "react-i18next";
 import telegramIcon from "@/assets/channels/telegram.svg";
 import discordIcon from "@/assets/channels/discord.svg";
 import whatsappIcon from "@/assets/channels/whatsapp.svg";
+import wechatIcon from "@/assets/channels/wechat.svg";
 import dingtalkIcon from "@/assets/channels/dingtalk.svg";
 import feishuIcon from "@/assets/channels/feishu.svg";
 import wecomIcon from "@/assets/channels/wecom.svg";
@@ -98,6 +99,12 @@ export function ChannelConfigModal({
   const meta: ChannelMeta | null = selectedType
     ? CHANNEL_META[selectedType]
     : null;
+  const resolvedAccountId = agentId
+    ? agentId === "main"
+      ? "default"
+      : agentId
+    : undefined;
+  const qrAccountId = resolvedAccountId ?? "default";
 
   useEffect(() => {
     setSelectedType(initialSelectedType);
@@ -114,6 +121,10 @@ export function ChannelConfigModal({
       hostApiFetch("/api/channels/whatsapp/cancel", { method: "POST" }).catch(
         () => {},
       );
+      hostApiFetch("/api/channels/wechat/cancel", {
+        method: "POST",
+        body: JSON.stringify({ accountId: qrAccountId }),
+      }).catch(() => {});
       return;
     }
 
@@ -224,18 +235,41 @@ export function ChannelConfigModal({
   );
 
   useEffect(() => {
-    if (selectedType !== "whatsapp") return;
+    if (selectedType !== "whatsapp" && selectedType !== "wechat") return;
+
+    const channelType = selectedType;
+    const qrEvent =
+      channelType === "wechat" ? "channel:wechat-qr" : "channel:whatsapp-qr";
+    const successEvent =
+      channelType === "wechat"
+        ? "channel:wechat-success"
+        : "channel:whatsapp-success";
+    const errorEvent =
+      channelType === "wechat"
+        ? "channel:wechat-error"
+        : "channel:whatsapp-error";
+    const connectedToastKey =
+      channelType === "wechat"
+        ? "toast.wechatConnected"
+        : "toast.whatsappConnected";
+    const failedToastKey =
+      channelType === "wechat" ? "toast.wechatFailed" : "toast.whatsappFailed";
 
     const onQr = (...args: unknown[]) => {
-      const data = args[0] as { qr: string; raw: string };
+      const data = args[0] as { qr?: string; raw?: string };
+      const qrValue = data.qr || data.raw || "";
       void data.raw;
-      setQrCode(`data:image/png;base64,${data.qr}`);
+      setQrCode(
+        qrValue.startsWith("data:image")
+          ? qrValue
+          : `data:image/png;base64,${qrValue}`,
+      );
     };
 
     const onSuccess = async (...args: unknown[]) => {
       const data = args[0] as { accountId?: string } | undefined;
       void data?.accountId;
-      toast.success(t("toast.whatsappConnected"));
+      toast.success(t(connectedToastKey));
       try {
         const saveResult = await hostApiFetch<{
           success?: boolean;
@@ -243,17 +277,18 @@ export function ChannelConfigModal({
         }>("/api/channels/config", {
           method: "POST",
           body: JSON.stringify({
-            channelType: "whatsapp",
+            channelType,
             config: { enabled: true },
+            accountId: qrAccountId,
           }),
         });
         if (!saveResult?.success) {
           throw new Error(
-            saveResult?.error || "Failed to save WhatsApp config",
+            saveResult?.error || `Failed to save ${channelType} config`,
           );
         }
 
-        await finishSave("whatsapp");
+        await finishSave(channelType);
         useGatewayStore.getState().restart().catch(console.error);
         onClose();
       } catch (error) {
@@ -264,30 +299,25 @@ export function ChannelConfigModal({
 
     const onError = (...args: unknown[]) => {
       const err = args[0] as string;
-      toast.error(t("toast.whatsappFailed", { error: err }));
+      toast.error(t(failedToastKey, { error: err }));
       setQrCode(null);
       setConnecting(false);
     };
 
-    const removeQrListener = subscribeHostEvent("channel:whatsapp-qr", onQr);
-    const removeSuccessListener = subscribeHostEvent(
-      "channel:whatsapp-success",
-      onSuccess,
-    );
-    const removeErrorListener = subscribeHostEvent(
-      "channel:whatsapp-error",
-      onError,
-    );
+    const removeQrListener = subscribeHostEvent(qrEvent, onQr);
+    const removeSuccessListener = subscribeHostEvent(successEvent, onSuccess);
+    const removeErrorListener = subscribeHostEvent(errorEvent, onError);
 
     return () => {
       removeQrListener();
       removeSuccessListener();
       removeErrorListener();
-      hostApiFetch("/api/channels/whatsapp/cancel", { method: "POST" }).catch(
-        () => {},
-      );
+      hostApiFetch(`/api/channels/${channelType}/cancel`, {
+        method: "POST",
+        body: JSON.stringify({ accountId: qrAccountId }),
+      }).catch(() => {});
     };
-  }, [selectedType, finishSave, onClose, t]);
+  }, [selectedType, finishSave, onClose, qrAccountId, t]);
 
   const handleValidate = async () => {
     if (!selectedType) return;
@@ -343,9 +373,9 @@ export function ChannelConfigModal({
 
     try {
       if (meta.connectionType === "qr") {
-        await hostApiFetch("/api/channels/whatsapp/start", {
+        await hostApiFetch(`/api/channels/${selectedType}/start`, {
           method: "POST",
-          body: JSON.stringify({ accountId: "default" }),
+          body: JSON.stringify({ accountId: qrAccountId }),
         });
         return;
       }
@@ -393,11 +423,6 @@ export function ChannelConfigModal({
       }
 
       const config: Record<string, unknown> = { ...configValues };
-      const resolvedAccountId = agentId
-        ? agentId === "main"
-          ? "default"
-          : agentId
-        : undefined;
       const saveResult = await hostApiFetch<{
         success?: boolean;
         error?: string;
@@ -798,6 +823,14 @@ function ChannelLogo({ type }: { type: ChannelType }) {
         <img
           src={whatsappIcon}
           alt="WhatsApp"
+          className="w-[22px] h-[22px] dark:invert"
+        />
+      );
+    case "wechat":
+      return (
+        <img
+          src={wechatIcon}
+          alt="WeChat"
           className="w-[22px] h-[22px] dark:invert"
         />
       );

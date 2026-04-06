@@ -6,7 +6,12 @@ import { create } from "zustand";
 import { hostApiFetch } from "@/lib/host-api";
 import { invokeIpc } from "@/lib/api-client";
 import { subscribeHostEvent } from "@/lib/host-events";
-import type { GatewayStatus } from "../types/gateway";
+import type {
+  GatewayApprovalDecision,
+  GatewayApprovalKind,
+  GatewayApprovalRequest,
+  GatewayStatus,
+} from "../types/gateway";
 
 let gatewayInitPromise: Promise<void> | null = null;
 let gatewayEventUnsubscribers: Array<() => void> | null = null;
@@ -22,14 +27,191 @@ interface GatewayState {
   health: GatewayHealth | null;
   isInitialized: boolean;
   lastError: string | null;
+  pendingApprovals: GatewayApprovalRequest[];
   init: () => Promise<void>;
   start: () => Promise<void>;
   stop: () => Promise<void>;
   restart: () => Promise<void>;
   checkHealth: () => Promise<GatewayHealth>;
   rpc: <T>(method: string, params?: unknown, timeoutMs?: number) => Promise<T>;
+  resolveApproval: (
+    approvalId: string,
+    decision: GatewayApprovalDecision,
+  ) => Promise<void>;
   setStatus: (status: GatewayStatus) => void;
   clearError: () => void;
+}
+
+function isRecord(value: unknown): value is Record<string, unknown> {
+  return typeof value === "object" && value !== null;
+}
+
+function toOptionalString(value: unknown): string | null {
+  if (typeof value !== "string") {
+    return null;
+  }
+  const normalized = value.trim();
+  return normalized.length > 0 ? normalized : null;
+}
+
+function toOptionalNumber(value: unknown): number | undefined {
+  return typeof value === "number" && Number.isFinite(value)
+    ? value
+    : undefined;
+}
+
+function toStringArray(value: unknown): string[] {
+  if (!Array.isArray(value)) {
+    return [];
+  }
+  return value
+    .map((item) => (typeof item === "string" ? item.trim() : ""))
+    .filter((item) => item.length > 0);
+}
+
+function upsertPendingApproval(
+  approvals: GatewayApprovalRequest[],
+  approval: GatewayApprovalRequest,
+): GatewayApprovalRequest[] {
+  return [
+    ...approvals.filter((item) => item.id !== approval.id),
+    approval,
+  ].sort((left, right) => (right.createdAtMs ?? 0) - (left.createdAtMs ?? 0));
+}
+
+function removePendingApproval(
+  approvals: GatewayApprovalRequest[],
+  approvalId: string,
+): GatewayApprovalRequest[] {
+  return approvals.filter((item) => item.id !== approvalId);
+}
+
+function isApprovalLookupError(error: unknown): boolean {
+  const message =
+    error instanceof Error
+      ? error.message
+      : typeof error === "string"
+        ? error
+        : "";
+  return /approval.*not found|APPROVAL_NOT_FOUND|expired/i.test(message);
+}
+
+function buildApprovalResolveMethods(
+  approval: GatewayApprovalRequest,
+): string[] {
+  const preferredKind: GatewayApprovalKind =
+    approval.id.startsWith("plugin:") || approval.kind === "plugin"
+      ? "plugin"
+      : "exec";
+  const fallbackKind: GatewayApprovalKind =
+    preferredKind === "plugin" ? "exec" : "plugin";
+
+  return [
+    `${preferredKind}.approval.resolve`,
+    `${fallbackKind}.approval.resolve`,
+  ];
+}
+
+function normalizeApprovalRequest(
+  kind: GatewayApprovalKind,
+  payload: Record<string, unknown>,
+): GatewayApprovalRequest | null {
+  const id = toOptionalString(payload.id);
+  if (!id) {
+    return null;
+  }
+
+  const request = isRecord(payload.request) ? payload.request : {};
+  const systemRunPlan = isRecord(request.systemRunPlan)
+    ? request.systemRunPlan
+    : null;
+  const commandArgv =
+    toStringArray(request.commandArgv).length > 0
+      ? toStringArray(request.commandArgv)
+      : toStringArray(systemRunPlan?.commandArgv ?? systemRunPlan?.argv);
+  const commandText =
+    toOptionalString(systemRunPlan?.commandText) ??
+    toOptionalString(request.command) ??
+    (commandArgv.length > 0 ? commandArgv.join(" ") : null);
+  const commandPreview =
+    toOptionalString(systemRunPlan?.commandPreview) ?? commandText;
+
+  return {
+    id,
+    kind,
+    request,
+    createdAtMs: toOptionalNumber(payload.createdAtMs),
+    expiresAtMs: toOptionalNumber(payload.expiresAtMs),
+    title: toOptionalString(request.title),
+    description:
+      toOptionalString(request.description) ??
+      toOptionalString(systemRunPlan?.reason),
+    severity: toOptionalString(request.severity),
+    toolName: toOptionalString(request.toolName),
+    pluginId: toOptionalString(request.pluginId),
+    commandText,
+    commandPreview,
+    commandArgv,
+    cwd:
+      toOptionalString(request.cwd) ??
+      toOptionalString(systemRunPlan?.workingDirectory),
+    host: toOptionalString(request.host),
+    nodeId: toOptionalString(request.nodeId),
+    agentId: toOptionalString(request.agentId),
+    sessionKey: toOptionalString(request.sessionKey),
+    timeoutMs:
+      toOptionalNumber(request.timeoutMs) ??
+      toOptionalNumber(systemRunPlan?.timeoutMs),
+    resolving: false,
+    error: null,
+  };
+}
+
+function handleGatewayApprovalNotification(
+  notification:
+    | { method?: string; params?: Record<string, unknown> }
+    | undefined,
+): boolean {
+  if (!notification || typeof notification.method !== "string") {
+    return false;
+  }
+
+  if (
+    notification.method !== "exec.approval.requested" &&
+    notification.method !== "plugin.approval.requested" &&
+    notification.method !== "exec.approval.resolved" &&
+    notification.method !== "plugin.approval.resolved"
+  ) {
+    return false;
+  }
+
+  if (!isRecord(notification.params)) {
+    return true;
+  }
+
+  if (notification.method.endsWith(".requested")) {
+    const kind: GatewayApprovalKind = notification.method.startsWith("plugin.")
+      ? "plugin"
+      : "exec";
+    const approval = normalizeApprovalRequest(kind, notification.params);
+    if (!approval) {
+      return true;
+    }
+    useGatewayStore.setState((state) => ({
+      pendingApprovals: upsertPendingApproval(state.pendingApprovals, approval),
+    }));
+    return true;
+  }
+
+  const approvalId = toOptionalString(notification.params.id);
+  if (!approvalId) {
+    return true;
+  }
+
+  useGatewayStore.setState((state) => ({
+    pendingApprovals: removePendingApproval(state.pendingApprovals, approvalId),
+  }));
+  return true;
 }
 
 function handleGatewayNotification(
@@ -38,6 +220,9 @@ function handleGatewayNotification(
     | undefined,
 ): void {
   const payload = notification;
+  if (handleGatewayApprovalNotification(payload)) {
+    return;
+  }
   if (
     !payload ||
     payload.method !== "agent" ||
@@ -158,6 +343,7 @@ export const useGatewayStore = create<GatewayState>((set, get) => ({
   health: null,
   isInitialized: false,
   lastError: null,
+  pendingApprovals: [],
 
   init: async () => {
     if (get().isInitialized) return;
@@ -315,6 +501,64 @@ export const useGatewayStore = create<GatewayState>((set, get) => ({
       throw new Error(response.error || `Gateway RPC failed: ${method}`);
     }
     return response.result as T;
+  },
+
+  resolveApproval: async (
+    approvalId: string,
+    decision: GatewayApprovalDecision,
+  ) => {
+    const approval = get().pendingApprovals.find(
+      (item) => item.id === approvalId,
+    );
+    if (!approval) {
+      throw new Error(`Approval request not found: ${approvalId}`);
+    }
+
+    set((state) => ({
+      pendingApprovals: state.pendingApprovals.map((item) =>
+        item.id === approvalId
+          ? { ...item, resolving: true, error: null }
+          : item,
+      ),
+    }));
+
+    const methods = buildApprovalResolveMethods(approval);
+    let lastError: unknown = null;
+
+    for (const method of methods) {
+      try {
+        await get().rpc(method, { id: approvalId, decision });
+        set((state) => ({
+          pendingApprovals: removePendingApproval(
+            state.pendingApprovals,
+            approvalId,
+          ),
+        }));
+        return;
+      } catch (error) {
+        lastError = error;
+        if (!isApprovalLookupError(error)) {
+          break;
+        }
+      }
+    }
+
+    const message =
+      lastError instanceof Error
+        ? lastError.message
+        : typeof lastError === "string"
+          ? lastError
+          : "Failed to resolve approval request";
+
+    set((state) => ({
+      pendingApprovals: state.pendingApprovals.map((item) =>
+        item.id === approvalId
+          ? { ...item, resolving: false, error: message }
+          : item,
+      ),
+    }));
+
+    throw new Error(message);
   },
 
   setStatus: (status) => set({ status }),

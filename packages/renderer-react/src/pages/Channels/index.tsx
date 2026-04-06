@@ -36,6 +36,7 @@ import { useTranslation } from "react-i18next";
 import telegramIcon from "@/assets/channels/telegram.svg";
 import discordIcon from "@/assets/channels/discord.svg";
 import whatsappIcon from "@/assets/channels/whatsapp.svg";
+import wechatIcon from "@/assets/channels/wechat.svg";
 import dingtalkIcon from "@/assets/channels/dingtalk.svg";
 import feishuIcon from "@/assets/channels/feishu.svg";
 import wecomIcon from "@/assets/channels/wecom.svg";
@@ -447,6 +448,14 @@ function ChannelLogo({ type }: { type: ChannelType }) {
         <img
           src={whatsappIcon}
           alt="WhatsApp"
+          className="w-[22px] h-[22px] dark:invert"
+        />
+      );
+    case "wechat":
+      return (
+        <img
+          src={wechatIcon}
+          alt="WeChat"
           className="w-[22px] h-[22px] dark:invert"
         />
       );

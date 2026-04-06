@@ -12,15 +12,27 @@ import {
   deleteChannelConfig,
   getChannelFormValues,
   listConfiguredChannels,
+  OPENCLAW_WECHAT_CHANNEL_TYPE,
   saveChannelConfig,
   setChannelEnabled,
+  UI_WECHAT_CHANNEL_TYPE,
   validateChannelConfig,
   validateChannelCredentials,
 } from "../../utils/channel-config";
 import { clearAllBindingsForChannel } from "../../utils/agent-config";
+import {
+  cancelWeChatLoginSession,
+  normalizeOpenClawAccountId,
+  saveWeChatAccountState,
+  startWeChatLoginSession,
+  waitForWeChatLoginSession,
+} from "../../utils/wechat-login";
 import { whatsAppLoginManager } from "../../utils/whatsapp-login";
 import type { HostApiContext } from "../context";
 import { parseJsonBody, sendJson } from "../route-utils";
+
+const WECHAT_QR_TIMEOUT_MS = 8 * 60_000;
+const activeWeChatLogins = new Map<string, string>();
 
 function scheduleGatewayChannelRestart(
   ctx: HostApiContext,
@@ -31,6 +43,29 @@ function scheduleGatewayChannelRestart(
   }
   ctx.gatewayManager.debouncedRestart();
   void reason;
+}
+
+function buildWeChatLoginKey(accountId?: string): string {
+  return accountId?.trim() || "__default__";
+}
+
+function emitWeChatEvent(
+  ctx: HostApiContext,
+  event: "qr" | "success" | "error",
+  payload: unknown,
+): void {
+  const eventName = `channel:wechat-${event}`;
+  ctx.eventBus.emit(eventName, payload);
+  if (ctx.mainWindow && !ctx.mainWindow.isDestroyed()) {
+    ctx.mainWindow.webContents.send(eventName, payload);
+  }
+}
+
+function clearActiveWeChatLogin(accountId?: string): string | undefined {
+  const loginKey = buildWeChatLoginKey(accountId);
+  const sessionKey = activeWeChatLogins.get(loginKey);
+  activeWeChatLogins.delete(loginKey);
+  return sessionKey;
 }
 
 async function ensureDingTalkPluginInstalled(): Promise<{
@@ -320,6 +355,164 @@ async function ensureQQBotPluginInstalled(): Promise<{
   }
 }
 
+async function ensureWeChatPluginInstalled(): Promise<{
+  installed: boolean;
+  warning?: string;
+}> {
+  const targetDir = join(
+    homedir(),
+    ".openclaw",
+    "extensions",
+    OPENCLAW_WECHAT_CHANNEL_TYPE,
+  );
+  const targetManifest = join(targetDir, "openclaw.plugin.json");
+
+  if (existsSync(targetManifest)) {
+    return { installed: true };
+  }
+
+  const candidateSources = app.isPackaged
+    ? [
+        join(
+          process.resourcesPath,
+          "openclaw-plugins",
+          OPENCLAW_WECHAT_CHANNEL_TYPE,
+        ),
+        join(
+          process.resourcesPath,
+          "app.asar.unpacked",
+          "build",
+          "openclaw-plugins",
+          OPENCLAW_WECHAT_CHANNEL_TYPE,
+        ),
+        join(
+          process.resourcesPath,
+          "app.asar.unpacked",
+          "openclaw-plugins",
+          OPENCLAW_WECHAT_CHANNEL_TYPE,
+        ),
+      ]
+    : [
+        join(
+          app.getAppPath(),
+          "build",
+          "openclaw-plugins",
+          OPENCLAW_WECHAT_CHANNEL_TYPE,
+        ),
+        join(
+          process.cwd(),
+          "build",
+          "openclaw-plugins",
+          OPENCLAW_WECHAT_CHANNEL_TYPE,
+        ),
+        join(
+          __dirname,
+          `../../../build/openclaw-plugins/${OPENCLAW_WECHAT_CHANNEL_TYPE}`,
+        ),
+      ];
+
+  const sourceDir = candidateSources.find((dir) =>
+    existsSync(join(dir, "openclaw.plugin.json")),
+  );
+  if (!sourceDir) {
+    return {
+      installed: false,
+      warning: `Bundled WeChat plugin mirror not found. Checked: ${candidateSources.join(" | ")}`,
+    };
+  }
+
+  try {
+    mkdirSync(join(homedir(), ".openclaw", "extensions"), { recursive: true });
+    rmSync(targetDir, { recursive: true, force: true });
+    cpSync(sourceDir, targetDir, { recursive: true, dereference: true });
+    if (!existsSync(targetManifest)) {
+      return {
+        installed: false,
+        warning: "Failed to install WeChat plugin mirror (manifest missing).",
+      };
+    }
+    return { installed: true };
+  } catch {
+    return {
+      installed: false,
+      warning: "Failed to install bundled WeChat plugin mirror",
+    };
+  }
+}
+
+async function waitForWeChatQrLogin(
+  ctx: HostApiContext,
+  sessionKey: string,
+  requestedAccountId: string,
+): Promise<void> {
+  const loginKey = buildWeChatLoginKey(requestedAccountId);
+
+  try {
+    const result = await waitForWeChatLoginSession({
+      sessionKey,
+      accountId: requestedAccountId,
+      timeoutMs: WECHAT_QR_TIMEOUT_MS,
+      onQrRefresh: async ({ qrcodeUrl }) => {
+        if (activeWeChatLogins.get(loginKey) !== sessionKey) {
+          return;
+        }
+        emitWeChatEvent(ctx, "qr", {
+          qr: qrcodeUrl,
+          raw: qrcodeUrl,
+          sessionKey,
+        });
+      },
+    });
+
+    if (activeWeChatLogins.get(loginKey) !== sessionKey) {
+      return;
+    }
+
+    if (!result.connected || !result.botToken) {
+      emitWeChatEvent(
+        ctx,
+        "error",
+        result.message || "WeChat login did not complete",
+      );
+      return;
+    }
+
+    const scopedAccountId = normalizeOpenClawAccountId(
+      result.requestedAccountId || requestedAccountId,
+    );
+    await saveWeChatAccountState(scopedAccountId, {
+      token: result.botToken,
+      rawAccountId: result.accountId,
+      baseUrl: result.baseUrl,
+      userId: result.userId,
+    });
+    await saveChannelConfig(
+      UI_WECHAT_CHANNEL_TYPE,
+      { enabled: true },
+      scopedAccountId,
+    );
+    scheduleGatewayChannelRestart(
+      ctx,
+      `channel:saveConfig:${OPENCLAW_WECHAT_CHANNEL_TYPE}`,
+    );
+    emitWeChatEvent(ctx, "success", {
+      accountId: scopedAccountId,
+      rawAccountId: result.accountId,
+      message: result.message,
+    });
+  } catch (error) {
+    if (activeWeChatLogins.get(loginKey) !== sessionKey) {
+      return;
+    }
+    emitWeChatEvent(ctx, "error", String(error));
+  } finally {
+    if (activeWeChatLogins.get(loginKey) === sessionKey) {
+      activeWeChatLogins.delete(loginKey);
+    }
+    await cancelWeChatLoginSession(sessionKey).catch(() => {});
+  }
+}
+
 export async function handleChannelRoutes(
   req: IncomingMessage,
   res: ServerResponse,
@@ -406,6 +599,70 @@ export async function handleChannelRoutes(
     return true;
   }
 
+  if (url.pathname === "/api/channels/wechat/start" && req.method === "POST") {
+    try {
+      const body = await parseJsonBody<{ accountId?: string }>(req);
+      const requestedAccountId = normalizeOpenClawAccountId(body.accountId);
+      const installResult = await ensureWeChatPluginInstalled();
+      if (!installResult.installed) {
+        sendJson(res, 500, {
+          success: false,
+          error: installResult.warning || "WeChat plugin install failed",
+        });
+        return true;
+      }
+
+      const existingSessionKey = clearActiveWeChatLogin(requestedAccountId);
+      if (existingSessionKey) {
+        await cancelWeChatLoginSession(existingSessionKey).catch(() => {});
+      }
+
+      const startResult = await startWeChatLoginSession({
+        accountId: requestedAccountId,
+        force: true,
+      });
+      if (!startResult.qrcodeUrl || !startResult.sessionKey) {
+        throw new Error(
+          startResult.message || "Failed to generate WeChat QR code",
+        );
+      }
+
+      activeWeChatLogins.set(
+        buildWeChatLoginKey(requestedAccountId),
+        startResult.sessionKey,
+      );
+      emitWeChatEvent(ctx, "qr", {
+        qr: startResult.qrcodeUrl,
+        raw: startResult.qrcodeUrl,
+        sessionKey: startResult.sessionKey,
+      });
+      void waitForWeChatQrLogin(
+        ctx,
+        startResult.sessionKey,
+        requestedAccountId,
+      );
+      sendJson(res, 200, { success: true });
+    } catch (error) {
+      sendJson(res, 500, { success: false, error: String(error) });
+    }
+    return true;
+  }
+
+  if (url.pathname === "/api/channels/wechat/cancel" && req.method === "POST") {
+    try {
+      const body = await parseJsonBody<{ accountId?: string }>(req);
+      const requestedAccountId = normalizeOpenClawAccountId(body.accountId);
+      const sessionKey = clearActiveWeChatLogin(requestedAccountId);
+      if (sessionKey) {
+        await cancelWeChatLoginSession(sessionKey);
+      }
+      sendJson(res, 200, { success: true });
+    } catch (error) {
+      sendJson(res, 500, { success: false, error: String(error) });
+    }
+    return true;
+  }
+
   if (url.pathname === "/api/channels/config" && req.method === "POST") {
     try {
       const body = await parseJsonBody<{
@@ -449,6 +706,16 @@ export async function handleChannelRoutes(
           sendJson(res, 500, {
             success: false,
             error: installResult.warning || "Feishu plugin install failed",
+          });
+          return true;
+        }
+      }
+      if (body.channelType === UI_WECHAT_CHANNEL_TYPE) {
+        const installResult = await ensureWeChatPluginInstalled();
+        if (!installResult.installed) {
+          sendJson(res, 500, {
+            success: false,
+            error: installResult.warning || "WeChat plugin install failed",
           });
           return true;
         }
